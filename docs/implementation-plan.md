@@ -45,4 +45,4 @@ Complete account screens, empty/loading/error states, keyboard/focus accessibili
 
 ## Documentation and design source handling
 
-Maintain confirmed requirements in PRD/journeys/architecture and record changes in decisions.md. Earlier log entries are historical; later decisions supersede them. Interactive design previews currently live outside the Git repository and must be deliberately packaged if they are to become versioned project deliverables. Do not treat placeholder preview logic or sample records as production specifications.
+Maintain confirmed requirements in PRD/journeys/architecture and record changes in decisions.md. Earlier log entries are historical; later decisions supersede them. Interactive design previews are packaged in [designs/README.md](designs/README.md) as standalone browser previews plus editable source fragments, ready to be versioned with the project. Do not treat placeholder preview logic or sample records as production specifications.

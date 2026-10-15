@@ -25,6 +25,8 @@ The available conversation contains summarized/truncated assistant responses. Th
 
 - [Database model](database-model.md): adopted entities, ownership, calculations, constraints, and open migration details.
 
+- [Design previews](designs/README.md): all nine interactive screen concepts, with browser previews and editable sources.
+
 ## Maintenance
 
 As important discussions are finalized, update the relevant document and decision log. Record the decision date and source, distinguish proposals from confirmed requirements, and mark replaced decisions as superseded. Never silently promote an unresolved choice into a requirement. These are living specifications, not evidence of an implemented application.
