@@ -22,7 +22,7 @@ Confirmed on 2026-10-15 in the continuation chat.
 
 1. Register with full name, email, and password.
 2. Choose individual or business invoice identity and provide a display name and contact email.
-3. Optionally add phone, logo, address, and KRA PIN.
+3. Provide a required phone number; optionally add logo, address, and KRA PIN.
 4. Add personal M-Pesa, Till, Paybill, or bank payment instructions, or skip payment setup initially.
 5. Start with KES and 14-day payment terms; these defaults can be changed per invoice.
 
@@ -54,7 +54,7 @@ Confirmed on 2026-10-15 in the continuation chat.
 - While Draft, the freelancer can freely edit the invoice.
 - While Ready, the freelancer can edit until the first payment is recorded.
 - Once a payment is recorded, client, line items, discounts, and tax are locked; notes remain editable.
-- The freelancer may cancel an invoice only when no payments are recorded.
+- The freelancer may cancel an invoice only when no effective payments remain.
 - To correct a payment mistake, the freelancer provides a reason; the application retains change history.
 
 The correction interface, editable payment fields, status recalculation after corrections, and whether correcting payments can unlock an invoice remain unresolved.
@@ -147,3 +147,55 @@ Confirmed on 2026-10-15 by the user's “yes” in response to the public-link p
 Each invoice has a unique, hard-to-guess public link accessible without an account. Show the current invoice status and compact payment summary; newly recorded payments update the public balance. PDFs remain snapshots from generation time, and users can download fresh copies.
 
 Owners can disable or replace a link. Replacement must invalidate the previous link. Draft and Cancelled invoices remain unavailable publicly; Paid invoices may remain accessible as records. Specific token generation/storage, link expiry policy, and unavailable-link page design remain unresolved.
+
+## Updated onboarding phone requirement
+
+Confirmed on 2026-10-15: require a phone number during individual or business setup. Prefill the personal M-Pesa number field from that profile phone, while allowing users to edit it independently. Payment instruction setup remains skippable. This supersedes the earlier optional-profile-phone rule; it does not require the payment number to remain equal to the contact phone. Exact phone validation and later profile-update synchronization remain unresolved.
+
+## Confirmed invoice client-name display
+
+Confirmed on 2026-10-15 by the user's “okay. adopt this”.
+
+Show Client name as the primary Bill to name. If an optional company name is provided and differs from the client name, show it beneath the client name. If the client is entered directly as a business name, Company name may be left empty. Do not repeat the company name when both fields contain the same name. Existing invoices retain their client-detail snapshot under the previously confirmed preservation rule.
+
+Exact normalization for duplicate-name comparison remains an implementation detail. This adopts display behavior, not approval of the complete client-management screen.
+
+## Confirmed payment corrections and reversals
+
+Adopted on 2026-10-15 by the user's “ok”.
+
+Users may correct a payment's amount, date, method, or reference with a required reason. Retain previous/new values, actor, timestamp, and reason. The corrected amount plus other effective payments must not exceed the invoice total. Recalculate balance/status; Paid may return to Partially paid after a downward correction.
+
+Users may reverse an incorrectly recorded payment (for example, duplicate entry or wrong invoice) with a required reason. Keep the record marked reversed, exclude it from effective payment totals, and retain its history. A wrong-invoice payment is reversed there and recorded separately against the correct invoice. Record reversal does not transfer money or initiate an M-Pesa reversal.
+
+Once any payment has been recorded, invoice financial fields remain locked even after all payments are reversed; notes remain editable. Cancellation is allowed only when no effective payments remain, including after reversing all recorded payments. This refines the previous no-recorded-payments cancellation rule. Cancellation preserves invoice/payment history and does not restore allowance.
+
+A dedicated refund workflow is deferred beyond V1. A real refund must not be represented as correction of an erroneous payment. Exact permissions/error presentation and whether a reversed record can itself be reinstated remain unresolved; no reinstatement behavior is adopted.
+
+## Confirmed billing periods, plan changes, and cancellation
+
+Adopted on 2026-10-15 by the user's “adopt” after reviewing allowance/reset proposals and early-cancellation behavior.
+
+### Free allowance
+
+Free uses calendar months in Africa/Nairobi time. Ten invoices are allowed per month across all account businesses. Reset at the start of each month; unused allowance expires.
+
+### Pro allowance and renewal
+
+Pro uses paid monthly periods anchored to activation: for example, 15 October–15 November, with 100 invoices per period. Early renewal extends paid access but does not unlock the next allowance until its period starts. Use the original anniversary day where possible; otherwise the month's last day, retaining the original anchor for subsequent periods. Exact time-of-day/DST-independent storage conventions must be specified in implementation; use the adopted Africa/Nairobi reporting boundary consistently.
+
+### Upgrade
+
+On Free-to-Pro upgrade, carry invoices already counted in the current Free calendar month into the first paid period: seven counted invoices leave 93 of 100 available. Do not grant 100 additional invoices. Carried usage is an allocation adjustment/reference to prior issuance, not a second issuance of the invoice; preserve first-Ready counting once. Prior issuance history must remain available for calendar-month calculations.
+
+### Expiry/downgrade
+
+On Pro expiry, apply Free's calendar-month cap against all invoices first made Ready in that calendar month, including those issued on Pro. At ten or more, no new Ready invoice until next month or Pro reactivation. Preserve records, viewing/sharing, and payment recording. No rollover or restoration on invoice cancellation.
+
+The detailed usage treatment of returning from expired Pro to Pro mid-month, repeated upgrade/reactivation cycles, and failed/late-confirmed renewal boundaries still requires finalization; do not infer extra allowance from a state change. Current first-paid-period carry-over rule is explicitly adopted for Free-to-Pro upgrades.
+
+### Cancelling Pro early
+
+Cancellation takes effect at the end of all paid access, including prepaid periods. Keep Pro and remaining period allowances until paid expiry; cancellation does not reset/add allowance. Then return to Free under the downgrade rule. Stop renewal reminders while cancelled; display cancelled status and the access-until date. No automatic deductions exist, and cancellation means no continuation after paid access.
+
+Allow undoing cancellation before expiry without paying again. Restore active state/reminders without changing paid dates or allowances; subsequent renewal still requires a new user-approved payment. No automatic prorated refund for unused days in V1. Duplicate-payment/failed-activation refunds and support refund policy remain unresolved. Do not equate plan cancellation with immediate access revocation or payment-record reversal.

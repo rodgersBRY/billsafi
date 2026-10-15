@@ -297,3 +297,97 @@ Preview selectors, sample data, placeholder payment text, and mock PDF behavior 
 Status: confirmed on 2026-10-15 by “thats fine”.
 
 White PDF background, black/dark-grey text, neutral headings, thin grey dividers, bold totals. Lead with the freelancer's business name and optional logo; retain the approved layout and compact payment summary. Do not impose TallyNest teal on downloaded invoices. Uploaded logos may retain their colours. Footer branding policy remains open.
+
+## D032 — Require profile phone and prefill personal M-Pesa
+
+Status: confirmed on 2026-10-15 by explicit user request.
+
+Require phone in individual/business setup. Prefill the personal M-Pesa field with the same number, but allow editing. Supersedes D006's optional profile phone; client phone remains required. Payment setup remains skippable. Do not overwrite a separately edited payment number with contact-phone changes; exact later synchronization/validation rules remain unresolved.
+
+## D033 — Approve revised onboarding design
+
+Status: confirmed on 2026-10-15 by “but I approve the onboarding design”.
+
+Approve the revised three-step onboarding layout, including required profile phone, editable personal M-Pesa prefill, skippable payment setup, optional business details, KES/14-day defaults, and completion/first-invoice entry. This resolves the onboarding design review; sample data and mock behavior are not production specifications.
+
+## D034 — Adopt invoice client-name display rule
+
+Status: confirmed on 2026-10-15 by “okay. adopt this”.
+
+Client name is the primary Bill to name. Display an optional different company name underneath. Company name may be empty when Client name already identifies the business. Suppress duplicate company/client names. Preserve existing invoice client snapshots as previously agreed. Duplicate comparison normalization remains an implementation detail. Full client-management design approval remains pending.
+
+## D035 — Approve client-management design
+
+Status: confirmed on 2026-10-15 by “yea” in response to approval of the rest of the client-management layout.
+
+Adopt the reviewed client list, business selector, search, Active/Archived views, add/edit form, and archive confirmation, following confirmed field requirements and invoice-preservation behavior. Retain the teal/neutral styling and 6px panels. Sample data and simplified mock behavior are not production requirements. Phone validation, duplicate handling, and archive restoration remain unresolved.
+
+## D036 — Keep invoice defaults focused on user settings
+
+Status: confirmed on 2026-10-15 by explicit user request.
+
+Remove system-only information, including number assignment and PDF appearance, from the Invoice defaults settings UI. The revised design removes the static numbering/document-style block and keeps editable defaults. Numbering and PDF behavior remain unchanged as product requirements. Full business-settings design approval remains pending.
+
+## D037 — Approve revised business settings
+
+Status: confirmed on 2026-10-15 by “this is fine. move on to the next thing”.
+
+Approve the revised three-tab business-settings layout with profile, payment instructions, and user-editable invoice defaults. System-only numbering/PDF details remain omitted under D036. Keep account billing separate. Mock data and simplified field behavior do not establish additional requirements.
+
+## D038 — Approve account billing layout
+
+Status: confirmed on 2026-10-15 by “this is fine. move on”.
+
+Approve current-plan/usage display, Pro offer/renewal, M-Pesa checkout concept, and payment/subscription state presentation. Account-wide plan scope and pricing remain as previously agreed. Personal-number collection eligibility and exact billing rules remain unresolved; visual approval does not select a feasible integration route. Preview-only caveats/selectors are not production UI requirements.
+
+## D039 — Approve invoice management and consistent navigation
+
+Status: confirmed on 2026-10-15 by “okay. approved”.
+
+Adopt the reviewed invoice list/search/filter, details, contextual actions, and manual-payment form. Keep the left navigation (Overview, Invoices, Clients, Settings) and business selector consistent throughout the signed-in business app. Access account settings/billing through the account menu. Collapse desktop sidebar into a menu on smaller screens; detailed mobile behavior remains open. Public invoice and authentication/onboarding contexts are separate. Preview-only simplifications do not supersede existing product rules.
+
+## D040 — Approve mobile navigation
+
+Status: confirmed on 2026-10-15 by “yes it does”.
+
+Approve the reviewed top-left mobile menu, business switching and section navigation, account-area billing/settings access, compact invoice cards, stacked metrics, and single-column forms. Production focus handling, full mobile form details, and error/empty/loading states remain implementation work.
+
+## D041 — Reconfirm PostgreSQL
+
+Status: confirmed on 2026-10-15 by “okay lets stick with postgres”.
+
+Retain PostgreSQL after discussing MongoDB. This reaffirms D001's database direction without adopting a database change. Detailed table/schema design and ORM selection remain unresolved; the previously discussed table count is a proposal, not a finalized schema.
+
+## D042 — Adopt refined PostgreSQL model, rounding, and retention
+
+Status: confirmed on 2026-10-15 by “adopt”.
+
+Adopt the refined shared-table/account-business ownership model and twelve application entities alongside Better Auth's supported authentication tables. Retain separate invoice items, structured historical invoice snapshots, account-level subscription/usage, database relationship constraints, and atomic Ready/payment operations. Use PostgreSQL numeric and backend decimal arithmetic. Round half up at line totals, calculated discount, and tax; sum rounded lines and apply tax after discount. Calculate received/balance from effective payment records rather than an editable paid field.
+
+Retain issued financial records and payment history; allow permanent deletion of unissued Draft invoices only. No automatic account/business deletion cascade removing financial history. Full specification: database-model.md. Numeric precision, ORM/auth schema, correction/reversal details, billing transitions, and account/business retention policies remain open.
+
+## D043 — Adopt payment corrections and record reversals
+
+Status: confirmed on 2026-10-15 by “ok”.
+
+Allow correcting amount/date/method/reference with required reason and retained before/after/actor/timestamp history; total effective payments cannot exceed invoice total. Recalculate balance/status. Allow reversing erroneous payment records with reason, retaining them but excluding them from totals; wrong-invoice mistakes are reversed then recorded on the correct invoice. Reversal is bookkeeping only, not money movement.
+
+Keep invoice financial fields locked after any payment activity, including after all reversals; notes remain editable. Cancellation requires zero effective payments, refining D009's earlier wording. Preserve history and allowance consumption. Defer dedicated refund workflow; actual refunds are distinct from erroneous-payment reversals. Reinstatement behavior remains unresolved.
+
+## D044 — Adopt billing transitions and early cancellation
+
+Status: confirmed on 2026-10-15 by “adopt”.
+
+Free allowance resets each calendar month in Africa/Nairobi time. Pro has monthly activation-anniversary periods; early renewal extends paid access without unlocking the next period's allowance early. Month-end clamps to last day while preserving the original anniversary anchor.
+
+Free-to-Pro carries current Free-month usage into first paid period (7 used means 93 remaining). On expiry, Free allowance counts all first-Ready invoices in the current calendar month, including Pro invoices; at 10+ wait for reset or reactivate Pro. Preserve first issuance once, records, sharing, and payment recording. Exact expired-Pro reactivation/repeated-cycle accounting remains open.
+
+Early cancellation retains access through all paid periods (including prepaid), adds/resets no allowance, stops renewal reminders, and shows access-until date. Undo before expiry restores active state/reminders at no charge without changing dates/usage; next renewal still needs payment approval. No automatic prorated unused-day refunds in V1. Refund policy for duplicate payments/failed activations remains unresolved.
+
+## D045 — Select Drizzle and teach during implementation
+
+Status: confirmed on 2026-10-15.
+
+User: “i haven't used drizzle before. But we can use it and then you can teach me the hang of it as we go”.
+
+Select Drizzle for PostgreSQL access, with Drizzle Kit migrations and compatible Better Auth integration. Explain schema definitions, relationships, queries, transactions, and migrations using the project as it develops. Dependency versions, numeric precision/scale, and decimal-library selection remain implementation choices to finalize.

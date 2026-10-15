@@ -72,3 +72,59 @@ Confirmed on 2026-10-15 by the user's “yes” in response to the public-link p
 Each invoice has a unique, hard-to-guess public link accessible without an account. Show the current invoice status and compact payment summary; newly recorded payments update the public balance. PDFs remain snapshots from generation time, and users can download fresh copies.
 
 Owners can disable or replace a link. Replacement must invalidate the previous link. Draft and Cancelled invoices remain unavailable publicly; Paid invoices may remain accessible as records. Specific token generation/storage, link expiry policy, and unavailable-link page design remain unresolved.
+
+## PostgreSQL reconfirmed
+
+Confirmed on 2026-10-15: after comparing MongoDB with PostgreSQL, the user said “okay lets stick with postgres”. Retain PostgreSQL as the database. MongoDB is not adopted.
+
+The proposed shared-table model, detailed entities, tenancy constraints, money representation, transaction design, and choice of ORM remain proposals pending finalization. The discussed estimate of 12 application tables plus Better Auth's core authentication tables is not a committed migration schema.
+
+## Adopted relational database model
+
+Confirmed on 2026-10-15 by the user's “adopt”: shared PostgreSQL tables with account-owned businesses, business-scoped records, account-level subscriptions/usage, and the proposed twelve application entities. See database-model.md for the adopted model, exact-decimal rounding rules, invoice snapshots, atomic operations, and retention. Migration-level details remain open; this supersedes earlier statements that the shared-table model/table inventory were only proposals.
+
+## Confirmed payment corrections and reversals
+
+Adopted on 2026-10-15 by the user's “ok”.
+
+Users may correct a payment's amount, date, method, or reference with a required reason. Retain previous/new values, actor, timestamp, and reason. The corrected amount plus other effective payments must not exceed the invoice total. Recalculate balance/status; Paid may return to Partially paid after a downward correction.
+
+Users may reverse an incorrectly recorded payment (for example, duplicate entry or wrong invoice) with a required reason. Keep the record marked reversed, exclude it from effective payment totals, and retain its history. A wrong-invoice payment is reversed there and recorded separately against the correct invoice. Record reversal does not transfer money or initiate an M-Pesa reversal.
+
+Once any payment has been recorded, invoice financial fields remain locked even after all payments are reversed; notes remain editable. Cancellation is allowed only when no effective payments remain, including after reversing all recorded payments. This refines the previous no-recorded-payments cancellation rule. Cancellation preserves invoice/payment history and does not restore allowance.
+
+A dedicated refund workflow is deferred beyond V1. A real refund must not be represented as correction of an erroneous payment. Exact permissions/error presentation and whether a reversed record can itself be reinstated remain unresolved; no reinstatement behavior is adopted.
+
+Database implementation must represent reversal explicitly (for example, a nullable reversal timestamp and actor plus retained reason/change event), without deleting payment records. Store irreversible evidence that payment activity occurred, or derive it from retained records, to enforce continued invoice-field locking. Exact columns and transactional update strategy remain implementation details.
+
+## Confirmed billing periods, plan changes, and cancellation
+
+Adopted on 2026-10-15 by the user's “adopt” after reviewing allowance/reset proposals and early-cancellation behavior.
+
+### Free allowance
+
+Free uses calendar months in Africa/Nairobi time. Ten invoices are allowed per month across all account businesses. Reset at the start of each month; unused allowance expires.
+
+### Pro allowance and renewal
+
+Pro uses paid monthly periods anchored to activation: for example, 15 October–15 November, with 100 invoices per period. Early renewal extends paid access but does not unlock the next allowance until its period starts. Use the original anniversary day where possible; otherwise the month's last day, retaining the original anchor for subsequent periods. Exact time-of-day/DST-independent storage conventions must be specified in implementation; use the adopted Africa/Nairobi reporting boundary consistently.
+
+### Upgrade
+
+On Free-to-Pro upgrade, carry invoices already counted in the current Free calendar month into the first paid period: seven counted invoices leave 93 of 100 available. Do not grant 100 additional invoices. Carried usage is an allocation adjustment/reference to prior issuance, not a second issuance of the invoice; preserve first-Ready counting once. Prior issuance history must remain available for calendar-month calculations.
+
+### Expiry/downgrade
+
+On Pro expiry, apply Free's calendar-month cap against all invoices first made Ready in that calendar month, including those issued on Pro. At ten or more, no new Ready invoice until next month or Pro reactivation. Preserve records, viewing/sharing, and payment recording. No rollover or restoration on invoice cancellation.
+
+The detailed usage treatment of returning from expired Pro to Pro mid-month, repeated upgrade/reactivation cycles, and failed/late-confirmed renewal boundaries still requires finalization; do not infer extra allowance from a state change. Current first-paid-period carry-over rule is explicitly adopted for Free-to-Pro upgrades.
+
+### Cancelling Pro early
+
+Cancellation takes effect at the end of all paid access, including prepaid periods. Keep Pro and remaining period allowances until paid expiry; cancellation does not reset/add allowance. Then return to Free under the downgrade rule. Stop renewal reminders while cancelled; display cancelled status and the access-until date. No automatic deductions exist, and cancellation means no continuation after paid access.
+
+Allow undoing cancellation before expiry without paying again. Restore active state/reminders without changing paid dates or allowances; subsequent renewal still requires a new user-approved payment. No automatic prorated refund for unused days in V1. Duplicate-payment/failed-activation refunds and support refund policy remain unresolved. Do not equate plan cancellation with immediate access revocation or payment-record reversal.
+
+## Selected ORM: Drizzle
+
+Confirmed on 2026-10-15: the user selected Drizzle despite being new to it, requesting teaching as implementation progresses. Use Drizzle with PostgreSQL and Drizzle Kit for versioned migrations. Use a precision-preserving numeric mapping and backend decimal arithmetic; the specific decimal library and compatible dependency versions remain to be selected. This supersedes earlier ORM-selection open items. Explain schema, relationships, queries, transactions, and migrations through TallyNest examples as they are implemented.
