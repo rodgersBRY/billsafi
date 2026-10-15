@@ -10,7 +10,7 @@ Use one PostgreSQL database with shared application tables. Accounts are authent
 
 Enforce cross-business consistency with composite relationships where appropriate: an invoice's client must belong to its business, and items/payments/links must belong to their invoice's business. Backend authorization must check account ownership on every business operation. Shared tables alone do not enforce authorization.
 
-Use internal identifiers separately from public invoice numbers. Exact identifier types, ORM, auth adapter/schema, nullability details, and indexing beyond the constraints below must be finalized before migrations.
+Use internal identifiers separately from public invoice numbers. Drizzle is the selected ORM (see [ORM selection](#orm-selection)). Exact identifier types, nullability details, and indexing beyond the constraints below must be finalized before migrations.
 
 ## Table inventory
 
@@ -79,11 +79,11 @@ Free: 10 invoices/month. Pro: KES 500/month and 100 invoices per subscription mo
 
 Platform subscription payments are separate from freelancers' manually recorded invoice payments. Integrated M-Pesa confirmation is desired, but the current personal-number collection preference requires eligibility verification before implementing checkout. No direct STK Push compatibility or manual fallback is assumed.
 
-Detailed Free reset boundaries, upgrade/downgrade usage mapping, Pro-cap treatment, month-end rules, reminders, refund/fee/tax presentation, and provider purchase/event schema remain unresolved. Backend confirmation must prevent transaction reuse and duplicate activation.
+Free reset boundaries, Free-to-Pro usage mapping, expiry/downgrade, and month-end rules are adopted in [Confirmed billing periods, plan changes, and cancellation](#confirmed-billing-periods-plan-changes-and-cancellation). Pro-cap treatment, mid-month Pro reactivation, reminders, refund/fee/tax presentation, and provider purchase/event schema remain unresolved. Backend confirmation must prevent transaction reuse and duplicate activation.
 
 ## Before migrations
 
-Finalize ORM/auth adapter, ID types, numeric precision/scale, field validation, indexes and foreign-key deletion policies, payment-instruction shape, snapshot refresh behavior, correction/reversal mechanics, and billing-period rules. Required starting query indexes include business/status/due-date invoice lookup, business/client lookup, invoice payment lookup, account issuance/period lookup, and unique public/provider references where applicable. Exact indexes must reflect final queries.
+Finalize ID types, numeric precision/scale and decimal library, field validation, indexes and foreign-key deletion policies, payment-instruction shape, snapshot refresh behavior, exact reversal columns, and billing-period column design. The ORM (Drizzle), correction/reversal behavior, and billing-period rules are adopted below. Required starting query indexes include business/status/due-date invoice lookup, business/client lookup, invoice payment lookup, account issuance/period lookup, and unique public/provider references where applicable. Exact indexes must reflect final queries.
 
 ## Confirmed payment corrections and reversals
 

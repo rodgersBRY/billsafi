@@ -19,7 +19,7 @@ Wave invoicing and Zoho Invoice dashboard were suggested as reference designs, n
 - https://www.waveapps.com/invoicing
 - https://www.zoho.com/us/invoice/help/dashboard/
 
-Proposed design sequence: dashboard/navigation, invoice creation, client-facing invoice, then onboarding, client management, settings, and billing. No mockup or implementation has yet been approved.
+Proposed design sequence: dashboard/navigation, invoice creation, client-facing invoice, then onboarding, client management, settings, and billing. Each of these screens has since been approved in the sections below. The exact supporting colours, typography, and logo listed above are still unconfirmed.
 
 ## Approved dashboard direction
 

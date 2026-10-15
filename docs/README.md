@@ -15,11 +15,11 @@ The available conversation contains summarized/truncated assistant responses. Th
 ## Documents
 
 - [PRD](prd.md): confirmed scope and outstanding product choices.
-- [User journeys](user-journeys.md): agreed manual payment flow and proposed onboarding.
+- [User journeys](user-journeys.md): confirmed onboarding, invoicing, manual payment, and billing flows.
 - [System architecture](system-architecture.md): accepted architecture direction and pending implementation decisions.
 - [Decision log](decisions.md): decisions, provenance, and superseded payment direction.
 
-- [Brand and product design](brand-and-design.md): TallyNest name, primary colour, and pending visual choices.
+- [Brand and product design](brand-and-design.md): TallyNest name, primary colour, approved screen designs, and pending visual choices.
 
 - [Implementation plan](implementation-plan.md): proposed delivery sequence and unresolved implementation gates.
 

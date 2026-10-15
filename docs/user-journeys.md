@@ -14,7 +14,7 @@ Source and status conventions: [documentation index](README.md).
 
 Example: invoice total KES 50,000; payment KES 20,000; remaining balance KES 30,000; partially paid.
 
-The application does not confirm receipt through a payment provider in V1. Payment mistakes can be corrected with a reason and change history. Correction mechanics, reversals, overpayments, and remaining invoice status transitions are unresolved.
+The application does not confirm receipt through a payment provider in V1. Payment mistakes can be corrected or reversed with a reason and change history; see [Confirmed payment corrections and reversals](#confirmed-payment-corrections-and-reversals). Payments above the outstanding balance are rejected in V1.
 
 ## Confirmed journey: registration and setup
 
@@ -26,7 +26,7 @@ Confirmed on 2026-10-15 in the continuation chat.
 4. Add personal M-Pesa, Till, Paybill, or bank payment instructions, or skip payment setup initially.
 5. Start with KES and 14-day payment terms; these defaults can be changed per invoice.
 
-The five-minute target, exact payment-method fields, and detailed invoice calculations remain unresolved. Payment instructions describe off-platform collection; integration remains deferred.
+The five-minute target and exact payment-method fields remain unresolved. Invoice calculations are confirmed in the [PRD](prd.md). Payment instructions describe off-platform collection; integration remains deferred.
 
 ## Confirmed invoice creation details
 
@@ -39,11 +39,11 @@ Confirmed on 2026-10-15 in the continuation chat.
 5. Tax starts off; the freelancer may enable it and supply a rate.
 6. The freelancer may include a message and payment instructions in notes.
 
-The fixed `INV-` sequence does not reset yearly; numbers do not change with editing/cancellation and are never reused. Calculation order is defined in the PRD; exact rounding mechanics and remaining validation rules are unresolved.
+The fixed `INV-` sequence does not reset yearly; numbers do not change with editing/cancellation and are never reused. Calculation order and rounding (half up to two decimals at each line, discount, and tax) are defined in the PRD. Input validation rules are unresolved.
 
 ## Confirmed lifecycle labels
 
-Confirmed on 2026-10-15: Draft → Ready → Partially paid → Paid describes the normal progression when partial payments occur. A full payment can take Ready directly to Paid. Cancelled means voided and retained for records; permitted cancellation transitions remain unresolved.
+Confirmed on 2026-10-15: Draft → Ready → Partially paid → Paid describes the normal progression when partial payments occur. A full payment can take Ready directly to Paid. Cancelled means voided and retained for records. An invoice can be cancelled only when no effective payments remain. Unissued Drafts can be deleted permanently instead.
 
 Ready replaces the previously proposed label Issued. Overdue is an indicator for Ready or Partially paid invoices past their due date. Editing and payment-correction rules are defined below; overdue timing remains unresolved.
 
@@ -57,7 +57,7 @@ Confirmed on 2026-10-15 in the continuation chat.
 - The freelancer may cancel an invoice only when no effective payments remain.
 - To correct a payment mistake, the freelancer provides a reason; the application retains change history.
 
-The correction interface, editable payment fields, status recalculation after corrections, and whether correcting payments can unlock an invoice remain unresolved.
+Editable payment fields, status recalculation, and continued locking are settled in [Confirmed payment corrections and reversals](#confirmed-payment-corrections-and-reversals). Correcting or reversing payments never unlocks an invoice. The correction interface and how change history is displayed remain unresolved.
 
 ## Confirmed client management journey
 
@@ -81,7 +81,7 @@ Confirmed on 2026-10-15 in the continuation chat.
 4. The client opens the public link without creating an account.
 5. Public links do not allow viewing Draft or Cancelled invoices.
 
-PDF layout, message wording, link expiry/revocation, public information visibility, and unavailable-invoice page behavior remain unresolved.
+PDF layout and link disable/replace behavior are confirmed below. Message wording, link expiry, public information visibility, and unavailable-invoice page behavior remain unresolved.
 
 ## Confirmed returning-user dashboard journey
 
@@ -91,7 +91,7 @@ Confirmed on 2026-10-15 in the continuation chat.
 2. Recent invoices show client, due date, balance, and status.
 3. The freelancer can use Create Invoice, Add Client, and Record Payment quick actions.
 
-Draft and Cancelled invoices are excluded from balance totals. Reporting month boundaries, recent-invoice ordering/count, mixed-currency totals, and correction effects remain unresolved.
+Draft and Cancelled invoices are excluded from balance totals. Totals use effective payments: corrected values apply and reversed records are excluded. Reporting month boundaries, recent-invoice ordering/count, and mixed-currency totals remain unresolved.
 
 ## Confirmed account scope
 
@@ -113,7 +113,7 @@ Confirmed on 2026-10-15 in the continuation chat.
 
 Free accounts have 10 invoices per month; Pro accounts have 100, shared across all account businesses. Each invoice counts only when it first becomes Ready. Drafting, editing, downloading, sharing, and recording payments do not count again. Cancellation after Ready does not restore allowance, and unused allowance does not roll over.
 
-At the cap, users can still access/share existing invoices, record payments, and manage clients. Making another invoice Ready requires an available allowance after upgrade or the next monthly reset. No higher tier beyond Pro is confirmed; exact Pro-cap handling and reset/upgrade accounting remain open.
+At the cap, users can still access/share existing invoices, record payments, and manage clients. Making another invoice Ready requires an available allowance after upgrade or the next monthly reset. No higher tier beyond Pro is confirmed. Reset and upgrade accounting are confirmed in [Confirmed billing periods, plan changes, and cancellation](#confirmed-billing-periods-plan-changes-and-cancellation); Pro-cap handling remains open.
 
 ## Confirmed Pro purchase and renewal journey
 
@@ -126,7 +126,7 @@ Confirmed on 2026-10-15 in the continuation chat.
 5. Early renewal extends from the current expiry; late renewal starts a new period on reactivation.
 6. If not renewed, the account returns to Free with all records preserved. Existing invoices remain viewable/shareable and payments can still be recorded; new Ready invoices follow Free allowance rules.
 
-Monthly billing only at launch. Exact reminder delivery, failure/pending screens, month-end billing, allowance transitions, and refunds remain unresolved.
+Monthly billing only at launch. Month-end dates and allowance transitions are confirmed below. Reminder delivery, failure/pending screen behavior, mid-month Pro reactivation accounting, and refunds remain unresolved. Checkout also depends on a supported collection route for the personal M-Pesa number.
 
 ## Other unresolved journeys
 
@@ -146,7 +146,7 @@ Confirmed on 2026-10-15 by the user's “yes” in response to the public-link p
 
 Each invoice has a unique, hard-to-guess public link accessible without an account. Show the current invoice status and compact payment summary; newly recorded payments update the public balance. PDFs remain snapshots from generation time, and users can download fresh copies.
 
-Owners can disable or replace a link. Replacement must invalidate the previous link. Draft and Cancelled invoices remain unavailable publicly; Paid invoices may remain accessible as records. Specific token generation/storage, link expiry policy, and unavailable-link page design remain unresolved.
+Owners can disable or replace a link. Replacement must invalidate the previous link. Draft and Cancelled invoices remain unavailable publicly; Paid invoices may remain accessible as records. Link expiry policy and unavailable-link page design remain unresolved.
 
 ## Updated onboarding phone requirement
 
