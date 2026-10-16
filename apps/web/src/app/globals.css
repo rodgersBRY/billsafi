@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+/* Set on <html> before hydration while the post-login intro splash is queued. */
+@custom-variant intro (html[data-intro] &);
+
+/* Palette taken from the approved TallyNest dashboard design (docs/designs). */
+:root {
+  --teal: #0f766e;
+  --background: #f5f8f7;
+  --panel: #ffffff;
+  --ink: #172b2a;
+  --sub: #627570;
+  --line: #e3ebe7;
+  --soft: #e8f3ef;
+  /* Backdrop of the logo animation in public/brand. */
+  --brand-night: #0a363e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #142421;
+    --panel: #1d302c;
+    --ink: #ecf4f1;
+    --sub: #a8beb6;
+    --line: #344b43;
+    --soft: #24483e;
+  }
+}
+
+@theme inline {
+  --color-teal: var(--teal);
+  --color-background: var(--background);
+  --color-panel: var(--panel);
+  --color-ink: var(--ink);
+  --color-sub: var(--sub);
+  --color-line: var(--line);
+  --color-soft: var(--soft);
+  --color-brand-night: var(--brand-night);
+  --font-sans: var(--font-inter);
+  --radius-panel: 6px;
+}
+
+body {
+  background: var(--background);
+  color: var(--ink);
+}
