@@ -1,0 +1,8 @@
+{
+  "extends": "@tallynest/config/tsconfig.library.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": ["src", "drizzle.config.ts"]
+}
