@@ -1,14 +1,11 @@
 import "reflect-metadata";
-import { existsSync } from "node:fs";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module.js";
 import { configureApp } from "./app.setup.js";
+import { loadRootEnvFile } from "./config/env-file.js";
 import { loadEnv } from "./config/env.js";
 
-const rootEnvFile = new URL("../../../.env", import.meta.url);
-if (existsSync(rootEnvFile)) {
-  process.loadEnvFile(rootEnvFile);
-}
+loadRootEnvFile();
 
 async function bootstrap() {
   const env = loadEnv();
@@ -18,4 +15,5 @@ async function bootstrap() {
   await app.listen(env.API_PORT);
   console.log(`API running on ${await app.getUrl()}/api/v1`);
 }
+
 await bootstrap();

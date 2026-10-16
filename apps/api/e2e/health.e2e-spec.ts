@@ -4,6 +4,9 @@ import { Test } from "@nestjs/testing";
 import request from "supertest";
 import { AppModule } from "../src/app.module.js";
 import { configureApp } from "../src/app.setup.js";
+import { loadRootEnvFile } from "../src/config/env-file.js";
+
+loadRootEnvFile();
 
 describe("GET /api/v1/health", () => {
   let app: INestApplication;
@@ -19,8 +22,10 @@ describe("GET /api/v1/health", () => {
     await app.close();
   });
 
-  it("reports ok under the versioned prefix", async () => {
-    await request(app.getHttpServer()).get("/api/v1/health").expect(200, { status: "ok" });
+  it("reports the API and database as healthy under the versioned prefix", async () => {
+    await request(app.getHttpServer())
+      .get("/api/v1/health")
+      .expect(200, { status: "ok", database: "ok" });
   });
 
   it("does not serve unversioned routes", async () => {
