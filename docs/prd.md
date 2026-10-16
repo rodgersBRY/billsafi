@@ -33,7 +33,7 @@ Confirmed on 2026-10-15 when the user said “adopt this” in response to the s
 
 - Account registration requires full name, email, and password.
 - Invoice identity requires individual or business profile type, display name, and contact email.
-- Phone, logo, address, and KRA PIN are optional.
+- Phone is required for both individual and business profiles. Logo, address, and KRA PIN are optional.
 - Payment instructions support a personal M-Pesa number, Till, Paybill, or bank details. Payment setup can be skipped initially.
 - Defaults are KES and 14-day payment terms, editable per invoice.
 
@@ -86,7 +86,7 @@ Confirmed on 2026-10-15 by the user's “yeah” in response to the proposed rul
 - Draft invoices are freely editable.
 - Ready invoices are editable until the first payment is recorded.
 - After a payment is recorded, client, line items, discounts, and tax are locked; notes may still be changed.
-- Cancellation is allowed only when no payments are recorded.
+- Cancellation is allowed only when no effective payments remain, including after reversing all recorded payments.
 - Payment mistakes may be corrected with a recorded reason and change history.
 
 Unresolved details include which payment fields may be corrected, how change history is stored and displayed, whether invoices unlock after payment corrections, treatment of other invoice fields after payment, and reversals/refunds. No deletion or audit-history removal behavior is implied.
@@ -102,7 +102,7 @@ Confirmed on 2026-10-15 in the continuation chat. The user required phone, reite
 - Clients can be archived to hide them from new selections while preserving existing invoices.
 - Changes to a saved client profile preserve the client details on existing invoices.
 
-These requirements apply to client records. The freelancer's own profile phone remains optional under the confirmed onboarding setup.
+These requirements apply to client records. The freelancer's own profile phone is also required following the updated onboarding decision.
 
 Unresolved details include phone format and validation, duplicate handling, archive restoration, and whether an explicit invoice edit can replace preserved client details under the confirmed invoice editing rules.
 
@@ -263,3 +263,61 @@ Confirmed on 2026-10-15: the user selected TallyNest and deep teal (`#0F766E`) a
 ## Confirmed PDF colour treatment
 
 Confirmed on 2026-10-15 by the user's “thats fine”. Downloaded PDFs use a white background with black/dark-grey text, neutral headings, thin grey dividers, and bold totals. The freelancer's business name and optional logo lead the document. TallyNest teal remains in the application interface rather than being imposed on the PDF. Preserve the approved invoice layout and compact payment summary. This does not require recolouring uploaded business logos. Footer branding policy remains unresolved.
+
+## Updated onboarding phone requirement
+
+Confirmed on 2026-10-15: require a phone number during individual or business setup. Prefill the personal M-Pesa number field from that profile phone, while allowing users to edit it independently. Payment instruction setup remains skippable. This supersedes the earlier optional-profile-phone rule; it does not require the payment number to remain equal to the contact phone. Exact phone validation and later profile-update synchronization remain unresolved.
+
+## Confirmed invoice client-name display
+
+Confirmed on 2026-10-15 by the user's “okay. adopt this”.
+
+Show Client name as the primary Bill to name. If an optional company name is provided and differs from the client name, show it beneath the client name. If the client is entered directly as a business name, Company name may be left empty. Do not repeat the company name when both fields contain the same name. Existing invoices retain their client-detail snapshot under the previously confirmed preservation rule.
+
+Exact normalization for duplicate-name comparison remains an implementation detail. This adopts display behavior, not approval of the complete client-management screen.
+
+## Finalized calculation and retention rules
+
+Adopted on 2026-10-15: use decimal monetary arithmetic and round half up to two decimal places at each line total, calculated discount amount, and calculated tax amount. Sum rounded lines for subtotal, subtract the rounded optional invoice discount, then calculate/round tax on that discounted subtotal. See database-model.md.
+
+Retain issued financial records and payment correction history; allow permanent deletion of unissued Draft invoices only. Cancellation and client archival preserve records. Business deletion/account-closure retention policies remain open. These decisions resolve previously open rounding mode/stages and invoice deletion rules, without settling all input-validation or reversal details.
+
+## Confirmed payment corrections and reversals
+
+Adopted on 2026-10-15 by the user's “ok”.
+
+Users may correct a payment's amount, date, method, or reference with a required reason. Retain previous/new values, actor, timestamp, and reason. The corrected amount plus other effective payments must not exceed the invoice total. Recalculate balance/status; Paid may return to Partially paid after a downward correction.
+
+Users may reverse an incorrectly recorded payment (for example, duplicate entry or wrong invoice) with a required reason. Keep the record marked reversed, exclude it from effective payment totals, and retain its history. A wrong-invoice payment is reversed there and recorded separately against the correct invoice. Record reversal does not transfer money or initiate an M-Pesa reversal.
+
+Once any payment has been recorded, invoice financial fields remain locked even after all payments are reversed; notes remain editable. Cancellation is allowed only when no effective payments remain, including after reversing all recorded payments. This refines the previous no-recorded-payments cancellation rule. Cancellation preserves invoice/payment history and does not restore allowance.
+
+A dedicated refund workflow is deferred beyond V1. A real refund must not be represented as correction of an erroneous payment. Exact permissions/error presentation and whether a reversed record can itself be reinstated remain unresolved; no reinstatement behavior is adopted.
+
+## Confirmed billing periods, plan changes, and cancellation
+
+Adopted on 2026-10-15 by the user's “adopt” after reviewing allowance/reset proposals and early-cancellation behavior.
+
+### Free allowance
+
+Free uses calendar months in Africa/Nairobi time. Ten invoices are allowed per month across all account businesses. Reset at the start of each month; unused allowance expires.
+
+### Pro allowance and renewal
+
+Pro uses paid monthly periods anchored to activation: for example, 15 October–15 November, with 100 invoices per period. Early renewal extends paid access but does not unlock the next allowance until its period starts. Use the original anniversary day where possible; otherwise the month's last day, retaining the original anchor for subsequent periods. Exact time-of-day/DST-independent storage conventions must be specified in implementation; use the adopted Africa/Nairobi reporting boundary consistently.
+
+### Upgrade
+
+On Free-to-Pro upgrade, carry invoices already counted in the current Free calendar month into the first paid period: seven counted invoices leave 93 of 100 available. Do not grant 100 additional invoices. Carried usage is an allocation adjustment/reference to prior issuance, not a second issuance of the invoice; preserve first-Ready counting once. Prior issuance history must remain available for calendar-month calculations.
+
+### Expiry/downgrade
+
+On Pro expiry, apply Free's calendar-month cap against all invoices first made Ready in that calendar month, including those issued on Pro. At ten or more, no new Ready invoice until next month or Pro reactivation. Preserve records, viewing/sharing, and payment recording. No rollover or restoration on invoice cancellation.
+
+The detailed usage treatment of returning from expired Pro to Pro mid-month, repeated upgrade/reactivation cycles, and failed/late-confirmed renewal boundaries still requires finalization; do not infer extra allowance from a state change. Current first-paid-period carry-over rule is explicitly adopted for Free-to-Pro upgrades.
+
+### Cancelling Pro early
+
+Cancellation takes effect at the end of all paid access, including prepaid periods. Keep Pro and remaining period allowances until paid expiry; cancellation does not reset/add allowance. Then return to Free under the downgrade rule. Stop renewal reminders while cancelled; display cancelled status and the access-until date. No automatic deductions exist, and cancellation means no continuation after paid access.
+
+Allow undoing cancellation before expiry without paying again. Restore active state/reminders without changing paid dates or allowances; subsequent renewal still requires a new user-approved payment. No automatic prorated refund for unused days in V1. Duplicate-payment/failed-activation refunds and support refund policy remain unresolved. Do not equate plan cancellation with immediate access revocation or payment-record reversal.
