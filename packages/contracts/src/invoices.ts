@@ -20,6 +20,7 @@ export const decimalString = (label: string, min: number, max: number) =>
     .pipe(
       z
         .string()
+        .min(1, `${label} is required`)
         .regex(/^\d+(\.\d{1,2})?$/, `${label} must be a number with up to 2 decimal places`)
         .refine((value) => Number(value) >= min, `${label} must be at least ${min}`)
         .refine(

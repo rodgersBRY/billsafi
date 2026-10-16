@@ -53,3 +53,15 @@ describe("saveInvoiceSchema", () => {
     expect(saveInvoiceSchema.safeParse({ ...base, items }).success).toBe(false);
   });
 });
+
+describe("decimal fields", () => {
+  it("says a blank amount is required rather than malformed", () => {
+    const result = saveInvoiceSchema.safeParse({
+      clientId: "01a143e6-3893-73c6-b4ce-24527eebbf2b",
+      issueDate: "2026-10-16",
+      dueDate: "2026-10-30",
+      items: [{ description: "Logo", quantity: "1", unitPrice: "" }],
+    });
+    expect(result.error?.issues[0]?.message).toBe("Unit price is required");
+  });
+});
