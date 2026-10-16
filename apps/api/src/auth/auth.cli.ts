@@ -5,6 +5,10 @@ import { createAuth } from "./auth.js";
 
 export const auth = createAuth({
   db: createDatabase("postgres://localhost/schema-generation-only").db,
-  env: { WEB_ORIGIN: "http://localhost:3000", BETTER_AUTH_SECRET: "x".repeat(32) },
+  env: {
+    WEB_ORIGIN: "http://localhost:3000",
+    BETTER_AUTH_SECRET: "x".repeat(32),
+    RESET_TOKEN_TTL_SECONDS: 3600,
+  },
   mailer: { send: async () => {} },
 });

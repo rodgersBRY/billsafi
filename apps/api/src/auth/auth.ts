@@ -9,11 +9,9 @@ import { passwordResetEmail } from "../mail/templates.js";
 export const AUTH_BASE_PATH = "/api/v1/auth";
 
 /** Reset links live for one hour and a reset signs out every session (D047). */
-const RESET_TOKEN_TTL_SECONDS = 60 * 60;
-
 export interface AuthDependencies {
   db: Database;
-  env: Pick<Env, "WEB_ORIGIN" | "BETTER_AUTH_SECRET">;
+  env: Pick<Env, "WEB_ORIGIN" | "BETTER_AUTH_SECRET" | "RESET_TOKEN_TTL_SECONDS">;
   mailer: Mailer;
 }
 
@@ -27,10 +25,10 @@ export function createAuth({ db, env, mailer }: AuthDependencies) {
     database: drizzleAdapter(db, { provider: "pg", schema, usePlural: true }),
     emailAndPassword: {
       enabled: true,
-      // Registration email verification is skipped for V1 (D014).
+      // skipped for v1
       requireEmailVerification: false,
       autoSignIn: true,
-      resetPasswordTokenExpiresIn: RESET_TOKEN_TTL_SECONDS,
+      resetPasswordTokenExpiresIn: env.RESET_TOKEN_TTL_SECONDS,
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: async ({ user, url }) => {
         // Not awaited so response timing does not reveal whether the account exists.
