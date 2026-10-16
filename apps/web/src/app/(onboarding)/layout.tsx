@@ -5,7 +5,7 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
         <span className="text-2xl font-semibold tracking-tight text-teal">TallyNest</span>
         <span className="text-xs text-sub">A simpler start to invoicing</span>
       </header>
-      <main className="grid flex-1 gap-6 p-4 sm:p-8 md:grid-cols-[13.75rem_1fr] md:gap-9">
+      <main className="grid flex-1 gap-6 p-4 sm:p-8 md:grid-cols-[13.75rem_1fr_13.75rem] md:gap-9">
         {children}
       </main>
     </div>
