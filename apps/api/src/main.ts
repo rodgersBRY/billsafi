@@ -10,10 +10,11 @@ loadRootEnvFile();
 async function bootstrap() {
   const env = loadEnv();
   const app = await NestFactory.create(AppModule);
+
   configureApp(app, env);
 
   await app.listen(env.API_PORT);
-  console.log(`API running on ${await app.getUrl()}/api/v1`);
+  console.log(`TallyNest API has nested and is ready to tally at ${await app.getUrl()}/api/v1`);
 }
 
 await bootstrap();
