@@ -9,6 +9,8 @@
   --sub: #627570;
   --line: #e3ebe7;
   --soft: #e8f3ef;
+  /* Backdrop of the logo animation in public/brand. */
+  --brand-night: #0a363e;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -30,6 +32,7 @@
   --color-sub: var(--sub);
   --color-line: var(--line);
   --color-soft: var(--soft);
+  --color-brand-night: var(--brand-night);
   --font-sans: var(--font-inter);
   --radius-panel: 6px;
 }
