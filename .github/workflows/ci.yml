@@ -28,6 +28,9 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgres://tallynest:tallynest@localhost:5432/tallynest
+      BETTER_AUTH_SECRET: ci-only-secret-not-used-anywhere-else-0000
+      # End-to-end tests replace the mailer; this only satisfies config validation.
+      SMTP_URL: smtp://localhost:1025
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4

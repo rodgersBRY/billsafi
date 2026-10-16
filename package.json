@@ -13,7 +13,7 @@
     "test": "turbo run test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "db:up": "docker compose up -d postgres",
+    "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "test:e2e": "turbo run test:e2e",
     "db:generate": "pnpm --filter @tallynest/db db:generate",
