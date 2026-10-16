@@ -9,11 +9,6 @@ type BrandLoaderProps = {
   className?: string;
 };
 
-/**
- * Animated TallyNest logo for page-level loading. Users who prefer reduced
- * motion see the final logo frame instead. Inline waits (buttons, table rows)
- * should use a small spinner, not this.
- */
 export function BrandLoader({ label = "Loading", className = "" }: BrandLoaderProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
