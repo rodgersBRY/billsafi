@@ -8,7 +8,7 @@ Source and status conventions: [documentation index](README.md).
 
 Build a multi-tenant invoicing SaaS for Kenyan freelancers and independent professionals, delivered as a responsive web application. The business model is freemium and the primary currency is KES. Users create invoices, manage clients, and track payments.
 
-This direction is carried forward from the product summary preceding the user's “okay.” Pricing, limits, and detailed acceptance criteria have not been finalized.
+This direction is carried forward from the product summary preceding the user's “okay.” Pricing and plan limits are confirmed in the sections below. Detailed acceptance criteria have not been finalized.
 
 ## V1 payment scope
 
@@ -61,7 +61,7 @@ Confirmed on 2026-10-15 by the user's “adopt” in the continuation chat.
 - Tax is optional and off by default; the user supplies the rate.
 - Notes can contain an optional message and payment instructions.
 
-Calculation rules are confirmed below; exact rounding mechanics and remaining validation limits are unresolved. These preferences do not establish tax compliance or statutory invoice requirements.
+Calculation and rounding rules are confirmed below. Input validation limits are unresolved. These preferences do not establish tax compliance or statutory invoice requirements.
 
 ## Confirmed invoice lifecycle
 
@@ -77,7 +77,7 @@ Confirmed on 2026-10-15 in the continuation chat. The user renamed “Issued” 
 
 Overdue is an indicator on Ready or Partially paid invoices past their due date, rather than a separate lifecycle status.
 
-Detailed transition rules beyond the confirmed editing rules below remain unresolved, including payment reversals and how overdue timing is evaluated.
+Editing rules, payment corrections, and reversals are confirmed below. How overdue timing is evaluated (time of day and timezone boundary) remains unresolved.
 
 ## Confirmed invoice editing and payment correction rules
 
@@ -89,7 +89,7 @@ Confirmed on 2026-10-15 by the user's “yeah” in response to the proposed rul
 - Cancellation is allowed only when no effective payments remain, including after reversing all recorded payments.
 - Payment mistakes may be corrected with a recorded reason and change history.
 
-Unresolved details include which payment fields may be corrected, how change history is stored and displayed, whether invoices unlock after payment corrections, treatment of other invoice fields after payment, and reversals/refunds. No deletion or audit-history removal behavior is implied.
+Correctable fields, reversals, and post-payment locking are settled in [Confirmed payment corrections and reversals](#confirmed-payment-corrections-and-reversals): amount, date, method, and reference can be corrected, and invoices stay locked even after every payment is reversed. Change history is stored in `payment_changes` (see [database-model.md](database-model.md)). Still unresolved: how change history is displayed and whether a reversed record can be reinstated. Refunds are deferred beyond V1. No deletion or audit-history removal behavior is implied.
 
 ## Confirmed client management
 
@@ -117,7 +117,7 @@ Confirmed on 2026-10-15 by the user's “approved” in response to the V1 shari
 - Clients can view public invoices without an account.
 - Draft and Cancelled invoices cannot be viewed through public links.
 
-Unresolved details include PDF layout, prepared message content, link generation/revocation/expiry, which payment and contact details appear publicly, and the page shown for unavailable invoices. Direct email delivery by the platform has not been adopted.
+PDF layout, colour treatment, and link disable/replace behavior are confirmed in later sections. Unresolved details include prepared message content, link expiry, which payment and contact details appear publicly, and the page shown for unavailable invoices. Direct email delivery by the platform has not been adopted.
 
 ## Confirmed V1 dashboard
 
@@ -130,7 +130,7 @@ Confirmed on 2026-10-15 by the user's “yes” in response to the dashboard pro
 - Quick actions: Create Invoice, Add Client, Record Payment.
 - Draft and Cancelled invoices are excluded from balance totals.
 
-Unresolved details include reporting timezone/month boundaries, the number and ordering of recent invoices, currency aggregation if invoice currencies differ, and how payment corrections affect dashboard totals. Overdue timing remains unresolved.
+Totals use effective payments only: corrected values apply and reversed records are excluded, following the adopted database model. Unresolved details include the reporting timezone and month boundaries (Africa/Nairobi is adopted for billing periods but has not been confirmed for dashboard reporting), the number and ordering of recent invoices, and currency aggregation if invoice currencies differ. Overdue timing remains unresolved.
 
 ## Confirmed invoice calculations
 
@@ -143,7 +143,7 @@ Confirmed on 2026-10-15 by the user's “adopt” in the continuation chat. Disc
 - Reject discounts above the subtotal.
 - Reject recorded payments above the outstanding balance for V1.
 
-Exact rounding mode and intermediate rounding stages, input validation limits, correction behavior, and refund handling remain unresolved.
+Rounding mode and stages are settled in [Finalized calculation and retention rules](#finalized-calculation-and-retention-rules), and correction behavior in [Confirmed payment corrections and reversals](#confirmed-payment-corrections-and-reversals). Input validation limits remain unresolved. Refunds are deferred beyond V1.
 
 ## Confirmed business management
 
@@ -171,7 +171,7 @@ Confirmed on 2026-10-15 after the user clarified “One subscription covering al
 
 One subscription applies to the account and covers all businesses managed by that account. Plan limits, including the free plan's invoice allowance, are shared across its businesses. Business records and dashboard totals remain separate.
 
-Launch plans and allowances are confirmed below. Pro pricing, collection, and monthly billing are confirmed below; detailed allowance accounting remains unresolved. No one-invoice limit has been adopted.
+Launch plans, allowances, Pro pricing, collection, monthly billing, and allowance accounting for resets, upgrades, and expiry are confirmed below. No one-invoice limit has been adopted.
 
 ## Confirmed launch plans and invoice allowances
 
@@ -188,7 +188,7 @@ An invoice consumes allowance when it first becomes Ready. Draft creation, editi
 
 After reaching the limit, users retain access to existing invoices, can share them, record payments, and manage clients. They must upgrade or wait for the next monthly reset to make another invoice Ready. Pro also has a fixed cap; behavior at that cap beyond waiting for reset remains to be specified because no higher paid tier is adopted.
 
-Exact reset schedule/timezone, upgrade/downgrade allowance accounting, and business-count limits remain unresolved. Pricing and subscription collection are confirmed below. Additional paid tiers and unlimited invoicing are not adopted for launch.
+The reset schedule, timezone, and upgrade/downgrade accounting are confirmed in [Confirmed billing periods, plan changes, and cancellation](#confirmed-billing-periods-plan-changes-and-cancellation). Business-count limits remain unresolved. Pricing and subscription collection are confirmed below. Additional paid tiers and unlimited invoicing are not adopted for launch.
 
 ## Confirmed Pro pricing and subscription payments
 
@@ -198,25 +198,26 @@ Pro costs KES 500 per month for the account, covering all its businesses and the
 
 Use integrated M-Pesa confirmation for subscription purchases into one platform-owned business collection account. The proposed checkout is adopted: users choose Pro, review price/allowance/period, enter their phone number, and approve an STK Push. The backend checks successful payment against the pending subscription purchase before activating Pro and displaying its renewal date. A submitted transaction code alone must not activate access. Prevent reuse of a transaction across purchases, handle duplicate notifications without duplicate activation, and support delayed results, failures, and browser closure after payment.
 
-Subscriptions last one calendar month from activation (for example, 15 October to 15 November). Paid invoice allowance follows the subscription period. On initial upgrade, the allowance is a total of 100, not an additional 100 on top of remaining Free allowance; exact usage mapping is unresolved.
+Subscriptions last one calendar month from activation (for example, 15 October to 15 November). Paid invoice allowance follows the subscription period. On initial upgrade, the allowance is a total of 100, not an additional 100 on top of remaining Free allowance. Invoices already counted in the current Free month carry into the first paid period, as confirmed below.
 
 Renewal is user-approved each month, not automatic deduction. Send reminders before expiry; timing/channel remain unresolved. Early renewal extends from the existing expiry date; renewal after expiry starts a new period on reactivation.
 
-On expiry without renewal, return the account to Free while preserving all businesses, clients, invoices, and payment history. Continue existing invoice viewing/sharing and payment recording. New Ready invoices follow the Free allowance. Exact downgrade/reset accounting remains unresolved and must prevent gaining extra allowance through repeated plan switching.
+On expiry without renewal, return the account to Free while preserving all businesses, clients, invoices, and payment history. Continue existing invoice viewing/sharing and payment recording. New Ready invoices follow the Free allowance, counted against every invoice first made Ready in that calendar month, as confirmed below. Accounting for reactivating Pro mid-month and repeated plan switching remains unresolved and must not grant extra allowance.
 
 Keep platform subscription payments separate from freelancers' invoice payment records. Client invoice collection remains manual/off-platform.
 
-The user's M-Pesa account type and integration eligibility/credentials have not been established. Business Till versus Paybill, production onboarding, exact billing date behavior at month-end, timezone, reminder details, tax/fee presentation, refund policy, and reset/upgrade/downgrade accounting remain open. This decision approves the integration scope; no payment connection or implementation has yet been made.
+The user's M-Pesa account type and integration eligibility/credentials have not been established. Business Till versus Paybill, production onboarding, reminder details, tax/fee presentation, and refund policy remain open. Month-end dates, timezone, and reset/upgrade/downgrade accounting are confirmed below. This decision approves the integration scope; no payment connection or implementation has yet been made.
 
 ## Open product decisions
 
 - Confirm the remaining onboarding proposals above; email verification is skipped for V1.
-- Invoice templates, available payment-term options, exact rounding mechanics and remaining validation limits.
-- Remaining lifecycle transitions, overdue timing, payment-correction details and refunds; overpayments are rejected in V1, and editing and cancellation rules above are confirmed.
-- PDF layout, share-message content, public-link lifecycle, public information visibility, and unavailable-invoice page behavior.
-- Subscription integration onboarding/account details, reset timing, detailed upgrade/downgrade accounting, month-end billing behavior, reminders, tax/fee presentation, and refund policy; KES 500 monthly Pro and integrated M-Pesa confirmation are confirmed.
+- Available payment-term options, input validation limits (amounts, quantities, phone format), and invoice number padding beyond `INV-9999`.
+- Overdue timing and dashboard reporting timezone.
+- Display of payment change history and whether a reversed payment can be reinstated. Refunds are deferred beyond V1.
+- Share-message content, link expiry, public information visibility, and unavailable-invoice page behavior.
+- Subscription collection route for the personal M-Pesa number, reminder timing and channel, tax/fee presentation, refund policy, Pro-cap behavior, and accounting for mid-month Pro reactivation and repeated plan changes.
 - Remaining business ownership rules, business limits and deletion/archival; multiple businesses per account and owner-only management are confirmed, with team access deferred.
-- Dashboard reporting details, additional reporting, reminders, supported currencies beyond KES, and measurable release criteria.
+- Additional reporting, supported currencies beyond KES, and measurable release criteria.
 
 ## Current subscription collection constraint
 
@@ -246,7 +247,7 @@ Confirmed on 2026-10-15 by the user's “okay” in response to the remaining la
 
 Use one clean template for V1. Place business details and an optional logo at the top, followed by client and invoice details, line items, totals, the compact payment summary (Invoice total, Payments received, Balance due), and optional notes/payment instructions. Omit payment history. Hide optional fields when empty.
 
-PDFs use A4 pages. The public invoice page adapts to mobile screens. Exact typography, colors, spacing, pagination behavior, remain unresolved; PDF/public update behavior is confirmed below.
+PDFs use A4 pages. The public invoice page adapts to mobile screens. PDF colour treatment is confirmed below, and screen designs are approved in [brand-and-design.md](brand-and-design.md). PDF pagination behavior remains unresolved. PDF/public update behavior is confirmed below.
 
 ## Confirmed public invoice links
 
@@ -254,11 +255,11 @@ Confirmed on 2026-10-15 by the user's “yes” in response to the public-link p
 
 Each invoice has a unique, hard-to-guess public link accessible without an account. Show the current invoice status and compact payment summary; newly recorded payments update the public balance. PDFs remain snapshots from generation time, and users can download fresh copies.
 
-Owners can disable or replace a link. Replacement must invalidate the previous link. Draft and Cancelled invoices remain unavailable publicly; Paid invoices may remain accessible as records. Specific token generation/storage, link expiry policy, and unavailable-link page design remain unresolved.
+Owners can disable or replace a link. Replacement must invalidate the previous link. Draft and Cancelled invoices remain unavailable publicly; Paid invoices may remain accessible as records. Links use random tokens stored only as hashes (see [database-model.md](database-model.md)). Link expiry policy and unavailable-link page design remain unresolved.
 
 ## Confirmed brand direction
 
-Confirmed on 2026-10-15: the user selected TallyNest and deep teal (`#0F766E`) as the brand name and primary colour. Smart Invoice Generator remains the historical project description. Name/domain/trademark availability has not been checked. Supporting palette, typography, logo, reference designs, and screen layouts remain proposals pending confirmation.
+Confirmed on 2026-10-15: the user selected TallyNest and deep teal (`#0F766E`) as the brand name and primary colour. Smart Invoice Generator remains the historical project description. Name/domain/trademark availability has not been checked. Screen layouts for the main V1 screens are approved in [brand-and-design.md](brand-and-design.md). The logo and final branding assets are not yet confirmed.
 
 ## Confirmed PDF colour treatment
 
@@ -280,7 +281,7 @@ Exact normalization for duplicate-name comparison remains an implementation deta
 
 Adopted on 2026-10-15: use decimal monetary arithmetic and round half up to two decimal places at each line total, calculated discount amount, and calculated tax amount. Sum rounded lines for subtotal, subtract the rounded optional invoice discount, then calculate/round tax on that discounted subtotal. See database-model.md.
 
-Retain issued financial records and payment correction history; allow permanent deletion of unissued Draft invoices only. Cancellation and client archival preserve records. Business deletion/account-closure retention policies remain open. These decisions resolve previously open rounding mode/stages and invoice deletion rules, without settling all input-validation or reversal details.
+Retain issued financial records and payment correction history; allow permanent deletion of unissued Draft invoices only. Cancellation and client archival preserve records. Business deletion/account-closure retention policies remain open. These decisions resolve previously open rounding mode/stages and invoice deletion rules, without settling input validation. Reversals are confirmed in the next section.
 
 ## Confirmed payment corrections and reversals
 

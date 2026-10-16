@@ -19,7 +19,7 @@ Wave invoicing and Zoho Invoice dashboard were suggested as reference designs, n
 - https://www.waveapps.com/invoicing
 - https://www.zoho.com/us/invoice/help/dashboard/
 
-Proposed design sequence: dashboard/navigation, invoice creation, client-facing invoice, then onboarding, client management, settings, and billing. No mockup or implementation has yet been approved.
+Proposed design sequence: dashboard/navigation, invoice creation, client-facing invoice, then onboarding, client management, settings, and billing. Each of these screens has since been approved in the sections below. The exact supporting colours, typography, and logo listed above are still unconfirmed.
 
 ## Approved dashboard direction
 
@@ -102,3 +102,7 @@ Use the same left desktop navigation throughout the signed-in business applicati
 ## Approved mobile navigation direction
 
 Confirmed on 2026-10-15 by “yes it does”. Adopt the reviewed mobile navigation: top-left menu opens business selection and Overview/Invoices/Clients/Settings; account settings and billing remain accessible from the account area. Use compact invoice cards, vertically arranged financial summaries, and single-column forms with the existing visual style. Navigation overlay must support close/back behavior and accessible focus handling in production. Placeholder mobile forms and sample interactions do not replace approved full-screen requirements.
+
+## Versioned design previews
+
+All nine reviewed concepts are packaged in [docs/designs](designs/README.md), including standalone browser previews and editable source fragments. Use that index to open the screens. The dashboard defaults reflect the approved 6px panel corners. These previews illustrate the design; later confirmed product rules remain authoritative.
