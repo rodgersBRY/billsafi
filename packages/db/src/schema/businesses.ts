@@ -17,7 +17,6 @@ export const businesses = pgTable(
     profileType: businessProfileType("profile_type").notNull(),
     displayName: text("display_name").notNull(),
     contactEmail: text("contact_email").notNull(),
-    /** Normalized Kenyan mobile number, +2547XXXXXXXX or +2541XXXXXXXX. */
     phone: text("phone").notNull(),
     address: text("address"),
     kraPin: text("kra_pin"),
