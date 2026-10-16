@@ -33,8 +33,8 @@ Earlier gateway-based routing and settlement diagrams are superseded for V1. Pro
 - Tenant resolution and enforcement of owner-only access in V1. Future membership/permissions design, ownership transfer, and business lifecycle rules remain unresolved; team invitations and staff permissions are deferred.
 - Better Auth integration and session strategy; password recovery via emailed time-limited reset links is confirmed for V1, while registration email verification is skipped. Reset links expire after one hour and a reset signs out every session; Better Auth runs inside the NestJS API without the organization plugin (D047).
 - API contracts, module boundaries, and validation rules. The conceptual database model is adopted in [database-model.md](database-model.md); migration-level details remain open. Client name and phone are required; email, company name, address, and KRA PIN are optional.
-- Snapshot refresh timing for preserved invoice client details. Storage is adopted: structured JSON snapshots on each invoice, and `archived_at` on clients.
-- Input validation limits. Rounding (half up to two decimals at each line, discount, and tax) and payment correction semantics are adopted; see [database-model.md](database-model.md).
+- Snapshots are copied when an invoice is first marked Ready and again on edits before payment activity (D048). Storage is adopted: structured JSON snapshots on each invoice, and `archived_at` on clients.
+- Input limits are settled in D048. Rounding (half up to two decimals at each line, discount, and tax) and payment correction semantics are adopted; see [database-model.md](database-model.md).
 - Transaction and locking strategy for the confirmed editing, cancellation, correction, and reversal rules. Correction history is stored in `payment_changes`, and reversed payments are kept and excluded from effective totals.
 - PDF generation library, pagination, and asset storage (logos, generated PDFs). Public link tokens are random and stored as hashes. V1 supports PDF download and account-free public invoice viewing; Draft and Cancelled invoices must be unavailable through public links.
 - WhatsApp sharing opens a prepared message with the link; email sharing opens a prepared draft in the user’s email app. Implementation and fallback behavior remain open; direct platform email delivery has not been adopted.
@@ -58,7 +58,7 @@ Recorded on 2026-10-15: the user asked to plan around a personal M-Pesa number f
 
 ## Confirmed invoice numbering behavior
 
-Each business has an independent fixed `INV-` sequence starting at `INV-0001`, without yearly resets. Drafts have no permanent invoice number. Allocate the permanent number on first transition to Ready alongside allowance consumption; retain it through edits/cancellation and never reuse cancelled numbers. Custom prefixes/starting numbers are deferred. Enforce number uniqueness within each business and consistent behavior under concurrent transitions/retries; allocation implementation remains open.
+Each business has an independent fixed `INV-` sequence starting at `INV-00001` (D048), without yearly resets. Drafts have no permanent invoice number. Allocate the permanent number on first transition to Ready alongside allowance consumption; retain it through edits/cancellation and never reuse cancelled numbers. Custom prefixes/starting numbers are deferred. Enforce number uniqueness within each business and consistent behavior under concurrent transitions/retries; allocation implementation remains open.
 
 ## Confirmed invoice rendering layout
 

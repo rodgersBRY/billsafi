@@ -39,7 +39,7 @@ Bill to uses client name first, followed by a different optional company name; o
 
 ## Decimal calculations — adopted
 
-Use PostgreSQL `numeric` for monetary amounts and fractional quantities, with decimal arithmetic in the backend. Exact precision/scale and accepted input ranges remain open; avoid floating-point arithmetic for money.
+Use PostgreSQL `numeric` for monetary amounts and fractional quantities, with decimal arithmetic in the backend. Amounts use numeric(14,2) and quantities numeric(12,2), with input ranges in D048; avoid floating-point arithmetic for money.
 
 1. Multiply quantity by unit price and round each line total to two decimal places.
 2. Sum rounded line totals for subtotal.
@@ -55,7 +55,7 @@ Store calculated line and invoice totals, updated together by backend logic. The
 
 Statuses: Draft, Ready, Partially paid, Paid, Cancelled. Overdue is derived from due date and Ready/Partially paid status, not stored as a separate status. Timezone boundary is unresolved.
 
-Drafts have no permanent number. First transition to Ready must atomically check account entitlement/allowance, allocate the business's next immutable INV-0001 sequence, insert the unique invoice issuance, and update invoice status. Enforce uniqueness of `(business_id, invoice_number)` for assigned numbers and of `invoice_issuances.invoice_id`. No yearly reset or number reuse; no gapless guarantee.
+Drafts have no permanent number. First transition to Ready must atomically check account entitlement/allowance, allocate the business's next immutable INV-00001 sequence, insert the unique invoice issuance, and update invoice status. Enforce uniqueness of `(business_id, invoice_number)` for assigned numbers and of `invoice_issuances.invoice_id`. No yearly reset or number reuse; no gapless guarantee.
 
 Concurrent requests/retries must not exceed allowance or allocate duplicate numbers. Locking/transaction isolation and retry strategy remain implementation choices.
 

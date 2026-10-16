@@ -21,7 +21,7 @@ Implement confirmed client fields, search/archive/edit flows, preserved invoice 
 
 Verification: client edits do not silently change existing invoices; invoices calculate correctly; numbering is unique within a business and not reused after cancellation; repeated Ready transitions do not consume allowance twice.
 
-Resolve before calculation/numbering implementation: numeric precision/scale, decimal library, validation limits (including phone format), payment-instruction shape, snapshot refresh timing, and sequence padding beyond 9999.
+Settled before implementation: precision, padding, snapshot timing, and input limits (D048); phone format (D047). Still open: payment-instruction multiplicity.
 
 ## Phase 3 — Manual payments, dashboard, and sharing
 

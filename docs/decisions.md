@@ -230,7 +230,7 @@ Separate sequence per business, beginning `INV-0001`, followed by `INV-0002`, wi
 
 Drafts display “Draft” without a permanent number. Assign the number when first becoming Ready and count the invoice toward the account allowance. Keep the assigned number fixed through edits/cancellation; never reuse cancelled numbers.
 
-Allocation implementation and padding beyond 9999 remain open; no gapless-sequence guarantee adopted.
+Allocation implementation and padding beyond 9999 remain open; no gapless-sequence guarantee adopted. The four-digit format is superseded by D048 (`INV-00001`).
 
 ## D023 — Omit payment history from invoices
 
@@ -410,3 +410,14 @@ Status: confirmed on 2026-10-16 by the user's answers before Phase 1.
 - Profile and client phone fields accept Kenyan numbers only (`07…`, `01…`, `254…`, `+254…`) and store them as `+2547XXXXXXXX` or `+2541XXXXXXXX`.
 
 This resolves the reset-lifetime, post-reset session, and integration-placement items left open in D017 and the phone-format item left open in D010 and D032. Session duration uses Better Auth's defaults until a separate decision changes it.
+
+## D048 — Settle Phase 2 precision, numbering width, snapshot timing, and input limits
+
+Status: confirmed on 2026-10-16 by the user's answers before Phase 2.
+
+- Monetary amounts use `numeric(14,2)`. Quantities use `numeric(12,2)`, so quantities carry at most two decimal places (for example 1.25 hours). Line totals, discounts, and tax still round half up to two decimals.
+- Invoice numbers are padded to five digits from the start: `INV-00001`, `INV-00002`, and so on. Numbers above 99999 grow without truncation. This supersedes the four-digit `INV-0001` format in D007 and D022; the fixed prefix, per-business sequence, no yearly reset, and no reuse rules are unchanged.
+- Client, business, and payment-instruction details are copied onto an invoice when it is first marked Ready. Drafts show the current saved details. Editing a Ready invoice before any payment activity copies the details again on save; after payment activity the copy stays fixed.
+- Input limits: up to 100 line items per invoice; item description up to 500 characters; quantity from 0.01 to 1,000,000; unit price from 0 to 100,000,000; tax rate from 0 to 100 percent; percentage discount from 0 to 100 percent; fixed discount from 0 up to the subtotal; notes up to 2,000 characters.
+
+This resolves the precision/scale, padding, snapshot-timing, and validation-limit items left open in D013, D022, and the database model. `decimal.js` is the decimal library (D046).
