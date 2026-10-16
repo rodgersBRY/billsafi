@@ -18,7 +18,7 @@ Open an HTML preview in a modern browser to explore it. These are interactive mo
 
 ## Source and approval notes
 
-`sources/` contains the editable conversation fragments; the files beside this index are standalone browser exports with their display runtime bundled. The dashboard source/export defaults were aligned to the approved 6px panel corners; other source files were copied unchanged. Current approvals are described in [Brand and product design](../brand-and-design.md). Later decisions in the [decision log](../decisions.md) take precedence over any outdated sample text.
+`sources/` contains the editable conversation fragments; the files beside this index are standalone browser exports with their display runtime bundled. The dashboard source/export defaults were aligned to the approved 6px panel corners; other source files were copied unchanged. Current approvals are described in [Brand and product design](../brand-and-design.md). Later decisions in the [decision log](../decisions.md) take precedence over any outdated sample text. Billing, client-invoice, and onboarding previews were corrected after review; missing screens and open questions are listed under "Design gaps found in review" in the brand document.
 
 Desktop previews are focused screen concepts; the production signed-in app must retain the approved shared left navigation. Public invoice and onboarding contexts are separate. The client invoice preview uses application colours; downloaded PDFs must follow the adopted white-background/dark-text rule. Personal-number subscription integration remains unresolved despite the illustrative M-Pesa checkout.
 

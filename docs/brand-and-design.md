@@ -106,3 +106,30 @@ Confirmed on 2026-10-15 by “yes it does”. Adopt the reviewed mobile navigati
 ## Versioned design previews
 
 All nine reviewed concepts are packaged in [docs/designs](designs/README.md), including standalone browser previews and editable source fragments. Use that index to open the screens. The dashboard defaults reflect the approved 6px panel corners. These previews illustrate the design; later confirmed product rules remain authoritative.
+
+## Design gaps found in review
+
+Reviewed on 2026-10-15 against the PRD, database model, and decision log. These are needed before or during the related implementation phase; none has been designed or approved yet.
+
+Screens and states missing for confirmed requirements:
+
+- Add another business from the business selector (Phase 1).
+- Sign in, forgot password, reset password, and account settings (Phase 1). The mobile menu already links to account settings.
+- Create a client from inside the invoice editor, and remove a line item (Phase 2).
+- Allowance reached: what Mark as Ready shows at 10/10 on Free or 100/100 on Pro (Phase 2).
+- Cancel invoice and delete draft actions with confirmation (Phase 2/3).
+- Payment history on the invoice detail, with correct and reverse actions that require a reason (D043, Phase 3).
+- Share sheet: copy link, WhatsApp, email draft, PDF download, and disable or replace the link (Phase 3).
+- Unavailable public invoice page and first-use empty states (Phase 3).
+- Billing states adopted in D044: cancel Pro, undo cancellation, cancelled with an access-until date, Free-to-Pro carry-over (for example 93 of 100 left), and early renewal that holds the next allowance until its period starts (Phase 4).
+- Bank transfer fields for payment instructions, once the exact fields are decided.
+
+Open design questions raised by the previews:
+
+- The client-facing invoice footer shows "Created with TallyNest", but footer branding policy is unresolved.
+- The client-facing invoice ends with a fixed "Thank you for choosing Mawira Studio." line. Decide whether this is fixed text, a business setting, or removed.
+- The previews follow the system colour scheme and render dark on dark-mode devices. Only a light theme is described, and some dark-mode badges and labels have low contrast. Decide whether dark mode is in V1.
+
+Preview corrections made on 2026-10-15: the billing expired state now describes the adopted downgrade rule, client-facing invoice sample amounts and dates match the other screens, and onboarding no longer leaves the profile phone in the Till or Paybill field.
+
+Notes for implementation: build calculations to the decimal rounding rules rather than the preview's floating-point code; replace the `＋`, `×`, and `←` text glyphs with `lucide-react` icons; drop the preview host hooks (`window.openai.setWidgetState`, the Tweak panel corner slider).
