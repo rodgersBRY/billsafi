@@ -14,7 +14,7 @@ async function bootstrap() {
   configureApp(app, env);
 
   await app.listen(env.API_PORT);
-  console.log(`TallyNest API has nested and is ready to tally at ${await app.getUrl()}/api/v1`);
+  console.log(`API has nested and is ready to tally at ${await app.getUrl()}/api/v1`);
 }
 
 await bootstrap();

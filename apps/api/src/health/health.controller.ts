@@ -14,6 +14,7 @@ export class HealthController {
     } catch {
       throw new ServiceUnavailableException({ status: "error", database: "unreachable" });
     }
+
     return { status: "ok", database: "ok" };
   }
 }
