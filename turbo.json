@@ -8,7 +8,8 @@
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "dependsOn": ["^build"]
     },
     "lint": {
       "dependsOn": ["^build"]
@@ -17,8 +18,12 @@
       "dependsOn": ["^build"]
     },
     "test": {
+      "dependsOn": ["^build"]
+    },
+    "test:e2e": {
       "dependsOn": ["^build"],
-      "outputs": ["coverage/**"]
+      "cache": false,
+      "env": ["DATABASE_URL"]
     }
   }
 }
