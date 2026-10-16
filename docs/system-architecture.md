@@ -31,7 +31,7 @@ Earlier gateway-based routing and settlement diagrams are superseded for V1. Pro
 ## Unresolved architecture decisions
 
 - Tenant resolution and enforcement of owner-only access in V1. Future membership/permissions design, ownership transfer, and business lifecycle rules remain unresolved; team invitations and staff permissions are deferred.
-- Better Auth integration and session strategy; password recovery via emailed time-limited reset links is confirmed for V1, while registration email verification is skipped. Reset-link lifetime and session handling after reset remain unresolved. The organization plugin and specific NestJS integration approach remain to be selected.
+- Better Auth integration and session strategy; password recovery via emailed time-limited reset links is confirmed for V1, while registration email verification is skipped. Reset links expire after one hour and a reset signs out every session; Better Auth runs inside the NestJS API without the organization plugin (D047).
 - API contracts, module boundaries, and validation rules. The conceptual database model is adopted in [database-model.md](database-model.md); migration-level details remain open. Client name and phone are required; email, company name, address, and KRA PIN are optional.
 - Snapshot refresh timing for preserved invoice client details. Storage is adopted: structured JSON snapshots on each invoice, and `archived_at` on clients.
 - Input validation limits. Rounding (half up to two decimals at each line, discount, and tax) and payment correction semantics are adopted; see [database-model.md](database-model.md).

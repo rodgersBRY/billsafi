@@ -391,3 +391,22 @@ Status: confirmed on 2026-10-15.
 User: “i haven't used drizzle before. But we can use it and then you can teach me the hang of it as we go”.
 
 Select Drizzle for PostgreSQL access, with Drizzle Kit migrations and compatible Better Auth integration. Explain schema definitions, relationships, queries, transactions, and migrations using the project as it develops. Dependency versions, numeric precision/scale, and decimal-library selection remain implementation choices to finalize.
+
+## D046 — Adopt repository layout and Phase 0 tooling
+
+Status: adopted on 2026-10-16 when the user approved starting Phase 0 from the proposed plan.
+
+pnpm workspace monorepo with Turborepo: `apps/web` (Next.js), `apps/api` (NestJS, routes under `/api/v1`), `packages/db` (Drizzle schema and migrations), `packages/domain` (shared business rules), `packages/config`. Local PostgreSQL 18 runs through Docker Compose. Money uses `decimal.js` with half-up rounding. Vitest runs unit and API end-to-end tests; GitHub Actions runs format, build, typecheck, lint, and tests. TypeScript stays on 6.0 until typescript-eslint and the Nest CLI support 7.
+
+The logo animation is used for route-level loading and a skippable post-login intro capped at two seconds. Hosting, the email provider for production, and numeric precision remain open.
+
+## D047 — Settle password reset, session, auth placement, and phone format
+
+Status: confirmed on 2026-10-16 by the user's answers before Phase 1.
+
+- Password reset links expire after one hour.
+- A successful reset signs the account out of every existing session.
+- Better Auth runs inside the NestJS API. Next.js uses the Better Auth client and sends the session cookie to the API.
+- Profile and client phone fields accept Kenyan numbers only (`07…`, `01…`, `254…`, `+254…`) and store them as `+2547XXXXXXXX` or `+2541XXXXXXXX`.
+
+This resolves the reset-lifetime, post-reset session, and integration-placement items left open in D017 and the phone-format item left open in D010 and D032. Session duration uses Better Auth's defaults until a separate decision changes it.

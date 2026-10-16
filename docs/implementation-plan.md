@@ -13,7 +13,7 @@ Establish Next.js/TypeScript frontend, NestJS backend, PostgreSQL with Drizzle a
 
 Verification: a user can create/switch businesses, cannot access another account's business records, and can recover account access using an expiring reset link.
 
-Open design/technical choices: repository layout (monorepo or separate repos), ID types, Better Auth NestJS integration and session design, email provider, reset expiry/session policy, hosting, and business lifecycle/limits.
+Settled: monorepo layout (D046), Better Auth inside NestJS, one-hour reset links, sign-out-everywhere on reset, and Kenyan phone format (D047). Still open: ID types, production email provider, hosting, and business lifecycle/limits.
 
 ## Phase 2 — Clients and invoice core
 

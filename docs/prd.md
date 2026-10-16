@@ -163,7 +163,7 @@ Confirmed on 2026-10-15 by the user's “yes” in response to the password-reco
 
 V1 includes a “Forgot password?” option that emails a time-limited reset link. Users set a new password through that link without needing support. Email delivery is required for password-reset messages. This is separate from registration email verification, which remains skipped for V1, and invoice email sharing, which opens a draft in the user's email app.
 
-Email provider, sender configuration, exact link lifetime, reset-page behavior, and session handling after reset remain unresolved.
+Reset links expire after one hour, and a reset signs the account out of every session (D047). Email provider, sender configuration, and reset-page design remain unresolved.
 
 ## Confirmed subscription scope
 
