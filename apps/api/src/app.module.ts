@@ -5,6 +5,7 @@ import { createAuth } from "./auth/auth.js";
 import { ConfigModule, ENV } from "./config/config.module.js";
 import type { Env } from "./config/env.js";
 import { DATABASE, DatabaseModule } from "./database/database.module.js";
+import { BusinessesModule } from "./businesses/businesses.module.js";
 import { HealthModule } from "./health/health.module.js";
 import { MAILER, MailModule } from "./mail/mail.module.js";
 import type { Mailer } from "./mail/mailer.js";
@@ -25,6 +26,7 @@ import type { Mailer } from "./mail/mailer.js";
       }),
     }),
     HealthModule,
+    BusinessesModule,
   ],
 })
 export class AppModule {}
