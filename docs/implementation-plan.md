@@ -13,7 +13,7 @@ Establish Next.js/TypeScript frontend, NestJS backend, PostgreSQL with Drizzle a
 
 Verification: a user can create/switch businesses, cannot access another account's business records, and can recover account access using an expiring reset link.
 
-Open design/technical choices: repository layout (monorepo or separate repos), ID types, Better Auth NestJS integration and session design, email provider, reset expiry/session policy, hosting, and business lifecycle/limits.
+Settled: monorepo layout (D046), Better Auth inside NestJS, one-hour reset links, sign-out-everywhere on reset, and Kenyan phone format (D047). Still open: ID types, production email provider, hosting, and business lifecycle/limits.
 
 ## Phase 2 — Clients and invoice core
 
@@ -21,7 +21,7 @@ Implement confirmed client fields, search/archive/edit flows, preserved invoice 
 
 Verification: client edits do not silently change existing invoices; invoices calculate correctly; numbering is unique within a business and not reused after cancellation; repeated Ready transitions do not consume allowance twice.
 
-Resolve before calculation/numbering implementation: numeric precision/scale, decimal library, validation limits (including phone format), payment-instruction shape, snapshot refresh timing, and sequence padding beyond 9999.
+Settled before implementation: precision, padding, snapshot timing, and input limits (D048); phone format (D047). Still open: payment-instruction multiplicity.
 
 ## Phase 3 — Manual payments, dashboard, and sharing
 

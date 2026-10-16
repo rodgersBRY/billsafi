@@ -1,6 +1,6 @@
 {
   "$schema": "https://turborepo.com/schema.json",
-  "globalEnv": ["NODE_ENV"],
+  "globalEnv": ["NODE_ENV", "API_INTERNAL_URL"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -23,7 +23,7 @@
     "test:e2e": {
       "dependsOn": ["^build"],
       "cache": false,
-      "env": ["DATABASE_URL"]
+      "env": ["DATABASE_URL", "BETTER_AUTH_SECRET", "SMTP_URL"]
     }
   }
 }

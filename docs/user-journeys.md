@@ -32,7 +32,7 @@ The five-minute target and exact payment-method fields remain unresolved. Invoic
 
 Confirmed on 2026-10-15 in the continuation chat.
 
-1. The invoice displays “Draft” until first becoming Ready. At that transition it receives its business’s next permanent number, starting at `INV-0001`, and consumes monthly allowance.
+1. The invoice displays “Draft” until first becoming Ready. At that transition it receives its business’s next permanent number, starting at `INV-00001`, and consumes monthly allowance.
 2. The freelancer sets the issue date and due date, using the default 14-day payment terms where applicable.
 3. The freelancer adds line items with description, quantity, and unit price; the application calculates each line total.
 4. The freelancer may apply a fixed-amount or percentage discount.

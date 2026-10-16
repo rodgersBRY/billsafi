@@ -26,8 +26,18 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      mailpit:
+        image: axllent/mailpit:v1.29
+        ports:
+          - 1025:1025
+          - 8025:8025
     env:
       DATABASE_URL: postgres://tallynest:tallynest@localhost:5432/tallynest
+      BETTER_AUTH_SECRET: ci-only-secret-not-used-anywhere-else-0000
+      # API tests capture mail in memory; browser tests read it from Mailpit.
+      SMTP_URL: smtp://localhost:1025
+      WEB_ORIGIN: http://localhost:3000
+      API_INTERNAL_URL: http://localhost:4000
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -40,3 +50,11 @@ jobs:
       - run: pnpm turbo run build typecheck lint test
       - run: pnpm db:migrate
       - run: pnpm test:e2e
+      # Uses the runner's installed Chrome; Playwright starts the built API and web app.
+      - run: pnpm --filter @tallynest/web test:browser
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: apps/web/test-results/
+          retention-days: 7

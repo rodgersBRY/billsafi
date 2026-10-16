@@ -5,6 +5,10 @@ const envSchema = z.object({
   API_PORT: z.coerce.number().int().positive().default(4000),
   WEB_ORIGIN: z.url().default("http://localhost:3000"),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+  BETTER_AUTH_SECRET: z.string().min(32, "Use at least 32 random characters"),
+  RESET_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(3600),
+  SMTP_URL: z.url({ protocol: /^smtps?$/ }),
+  MAIL_FROM: z.string().min(3).default("TallyNest <no-reply@tallynest.local>"),
 });
 
 export type Env = z.infer<typeof envSchema>;

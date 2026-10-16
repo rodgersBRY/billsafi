@@ -54,14 +54,14 @@ The five-minute first-invoice target, social login deferral, business registrati
 
 Confirmed on 2026-10-15 by the user's “adopt” in the continuation chat.
 
-- Automatic sequential numbering per business, starting at `INV-0001`, with a fixed `INV-` prefix and no yearly reset. Permanent numbers are assigned on first becoming Ready and never reused.
+- Automatic sequential numbering per business, starting at `INV-00001` (D048), with a fixed `INV-` prefix and no yearly reset. Permanent numbers are assigned on first becoming Ready and never reused.
 - Line items contain description, quantity, unit price, and calculated total.
 - Invoices have an issue date and due date, with payment terms defaulting to 14 days.
 - An optional discount can be a fixed amount or percentage.
 - Tax is optional and off by default; the user supplies the rate.
 - Notes can contain an optional message and payment instructions.
 
-Calculation and rounding rules are confirmed below. Input validation limits are unresolved. These preferences do not establish tax compliance or statutory invoice requirements.
+Calculation and rounding rules are confirmed below. Input limits are settled in D048. These preferences do not establish tax compliance or statutory invoice requirements.
 
 ## Confirmed invoice lifecycle
 
@@ -163,7 +163,7 @@ Confirmed on 2026-10-15 by the user's “yes” in response to the password-reco
 
 V1 includes a “Forgot password?” option that emails a time-limited reset link. Users set a new password through that link without needing support. Email delivery is required for password-reset messages. This is separate from registration email verification, which remains skipped for V1, and invoice email sharing, which opens a draft in the user's email app.
 
-Email provider, sender configuration, exact link lifetime, reset-page behavior, and session handling after reset remain unresolved.
+Reset links expire after one hour, and a reset signs the account out of every session (D047). Email provider, sender configuration, and reset-page design remain unresolved.
 
 ## Confirmed subscription scope
 
@@ -211,7 +211,7 @@ The user's M-Pesa account type and integration eligibility/credentials have not 
 ## Open product decisions
 
 - Confirm the remaining onboarding proposals above; email verification is skipped for V1.
-- Available payment-term options, input validation limits (amounts, quantities, phone format), and invoice number padding beyond `INV-9999`.
+- Available payment-term options. Input limits, phone format, and number padding are settled in D047 and D048.
 - Overdue timing and dashboard reporting timezone.
 - Display of payment change history and whether a reversed payment can be reinstated. Refunds are deferred beyond V1.
 - Share-message content, link expiry, public information visibility, and unavailable-invoice page behavior.
@@ -227,11 +227,11 @@ Recorded on 2026-10-15: the user asked to plan around a personal M-Pesa number f
 
 Confirmed on 2026-10-15 by the user's “okay” in response to the numbering proposal in the continuation chat.
 
-Each business starts its independent sequence at `INV-0001`, followed by `INV-0002`, continuing without a yearly reset. Different businesses may have the same visible invoice number. The `INV-` prefix is fixed for V1; custom prefixes and starting numbers are deferred.
+Each business starts its independent sequence at `INV-00001`, followed by `INV-00002` (five-digit padding, D048), continuing without a yearly reset. Different businesses may have the same visible invoice number. The `INV-` prefix is fixed for V1; custom prefixes and starting numbers are deferred.
 
 Drafts display “Draft” and have no permanent invoice number. On first transition to Ready, assign the permanent number and count the invoice toward its account's monthly allowance. Once assigned, the number remains fixed through editing or cancellation. Cancelled numbers are never reused.
 
-Sequence allocation must avoid duplicate numbers within a business. Exact padding behavior beyond 9999 and implementation of allocation remain unresolved. No guarantee of a gapless sequence has been adopted.
+Sequence allocation must avoid duplicate numbers within a business. Numbers are padded to five digits and grow past 99999 without truncation (D048). Allocation implementation remains open. No guarantee of a gapless sequence has been adopted.
 
 ## Confirmed invoice presentation constraint
 

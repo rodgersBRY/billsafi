@@ -9,7 +9,8 @@ loadRootEnvFile();
 
 async function bootstrap() {
   const env = loadEnv();
-  const app = await NestFactory.create(AppModule);
+  // Better Auth reads raw request bodies; the auth module re-adds parsers for other routes.
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
 
   configureApp(app, env);
 

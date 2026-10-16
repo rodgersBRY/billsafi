@@ -1,8 +1,9 @@
 import { Controller, Get, Inject, ServiceUnavailableException } from "@nestjs/common";
-import type { DatabaseConnection } from "@tallynest/db";
-import { sql } from "drizzle-orm";
+import { AllowAnonymous } from "@thallesp/nestjs-better-auth";
+import { type DatabaseConnection, sql } from "@tallynest/db";
 import { DATABASE } from "../database/database.module.js";
 
+@AllowAnonymous()
 @Controller("health")
 export class HealthController {
   constructor(@Inject(DATABASE) private readonly connection: DatabaseConnection) {}
