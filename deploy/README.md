@@ -150,7 +150,7 @@ nano .env
 Paste the template from `deploy/.env.example` and fill it in:
 
 - `DOMAIN`: your domain, without `https://`.
-- `IMAGE_PREFIX`: `ghcr.io/<your GitHub username in lowercase>/tallynest`. For this repository that is `ghcr.io/rodgersbrian/tallynest`, unless the repo moves to an organization.
+- `IMAGE_PREFIX`: `ghcr.io/<your GitHub username in lowercase>/tallynest`. The images are named after the product, not the repository, so for `rodgersBRY/billsafi` this is `ghcr.io/rodgersbry/tallynest`. It changes only if the repository moves to another owner.
 - `IMAGE_TAG`: leave it as `latest`. `deploy.sh` manages this line.
 - `POSTGRES_PASSWORD` and `BETTER_AUTH_SECRET`: run `openssl rand -hex 32` once for each. Use hex values because the password goes into a connection URL, where characters like `/` or `@` would break it.
 - `SMTP_URL` and `MAIL_FROM`: the email provider is Resend (D052). Verify your domain in Resend first, then use `smtps://resend:<API key>@smtp.resend.com:465` and a `MAIL_FROM` address on that domain.
