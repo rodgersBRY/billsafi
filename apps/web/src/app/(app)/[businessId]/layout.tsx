@@ -9,10 +9,11 @@ import { BrandMark } from "@/components/ui/brand-mark";
 import { getSessionUser, getUsage, listBusinesses } from "@/lib/api.server";
 
 async function Sidebar({ params }: { params: Promise<{ businessId: string }> }) {
-  const [{ businessId }, businesses, usage] = await Promise.all([
+  const [{ businessId }, businesses, usage, user] = await Promise.all([
     params,
     listBusinesses(),
     getUsage(),
+    getSessionUser(),
   ]);
   // Only the account's own businesses can be opened; anything else is not found.
   if (!businesses.some((business) => business.id === businessId)) notFound();
@@ -20,14 +21,17 @@ async function Sidebar({ params }: { params: Promise<{ businessId: string }> }) 
     <>
       <BusinessSwitcher businesses={businesses} currentId={businessId} />
       <NavLinks businessId={businessId} />
-      <UsageMeter usage={usage} />
+      <div className="mt-auto grid gap-3">
+        <UsageMeter usage={usage} />
+        <AccountMenu
+          name={user.name}
+          email={user.email}
+          billingHref={`/${businessId}/billing`}
+          isPro={usage.plan === "pro"}
+        />
+      </div>
     </>
   );
-}
-
-async function Account({ params }: { params: Promise<{ businessId: string }> }) {
-  const [user, { businessId }] = await Promise.all([getSessionUser(), params]);
-  return <AccountMenu name={user.name} email={user.email} billingHref={`/${businessId}/billing`} />;
 }
 
 export default function BusinessLayout({ children, params }: LayoutProps<"/[businessId]">) {
@@ -40,11 +44,6 @@ export default function BusinessLayout({ children, params }: LayoutProps<"/[busi
             <Sidebar params={params} />
           </Suspense>
         </>
-      }
-      account={
-        <Suspense fallback={<div className="size-7.5 rounded-full bg-soft" />}>
-          <Account params={params} />
-        </Suspense>
       }
     >
       {children}
