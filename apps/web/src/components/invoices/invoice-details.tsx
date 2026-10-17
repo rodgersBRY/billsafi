@@ -20,6 +20,7 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { apiPost, apiSend } from "@/lib/api.client";
 import { ApiError } from "@/lib/api-error";
 import { formatAmount, formatDate } from "@/lib/format";
+import { logoUrl } from "@/lib/logo";
 import { InvoicePreview } from "./invoice-preview";
 import { ShareDialog } from "./share-dialog";
 
@@ -303,6 +304,9 @@ export function InvoiceDetails({
         <div className="min-w-0">
           <InvoicePreview
             business={invoice.business}
+            logoSrc={
+              invoice.business.logoKey ? logoUrl(businessId, invoice.business.logoKey!) : null
+            }
             client={invoice.client}
             invoiceNumber={invoice.invoiceNumber}
             status={invoice.status}

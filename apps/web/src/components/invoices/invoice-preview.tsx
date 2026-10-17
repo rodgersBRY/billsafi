@@ -20,6 +20,10 @@ export interface PreviewProps {
   paymentsReceived?: string;
   balanceDue?: string;
   overdue?: boolean;
+  /** Where the business logo is served from, when it has one (D052). */
+  logoSrc?: string | null;
+  /** "Created with TallyNest" for Free accounts on the public page (D052). */
+  showBranding?: boolean;
 }
 
 /** Stored quantities come back as "1.00"; show them as typed numbers ("1", "2.5"). */
@@ -41,6 +45,14 @@ export function InvoicePreview(props: PreviewProps) {
     >
       <header className="flex flex-wrap items-start justify-between gap-4 border-b border-line pb-5">
         <div>
+          {props.logoSrc && (
+            // eslint-disable-next-line @next/next/no-img-element -- served by the API, sized by CSS
+            <img
+              src={props.logoSrc}
+              alt={`${business.displayName} logo`}
+              className="mb-2.5 max-h-12 max-w-32 object-contain"
+            />
+          )}
           <p className="text-base font-semibold">{business.displayName}</p>
           <p className="text-xs text-sub">{business.contactEmail}</p>
           <p className="text-xs text-sub">{formatKenyanPhone(business.phone)}</p>
@@ -152,6 +164,12 @@ export function InvoicePreview(props: PreviewProps) {
             </div>
           )}
         </div>
+      )}
+
+      {props.showBranding && (
+        <p className="mt-6 border-t border-line pt-3 text-center text-xs text-sub">
+          Created with TallyNest
+        </p>
       )}
     </article>
   );

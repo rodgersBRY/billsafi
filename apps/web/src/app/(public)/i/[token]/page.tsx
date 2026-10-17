@@ -41,6 +41,10 @@ function PublicInvoiceView({ token, invoice }: { token: string; invoice: PublicI
       </div>
       <InvoicePreview
         business={{ ...invoice.business, logoKey: null }}
+        logoSrc={
+          invoice.hasLogo ? `/api/v1/public/invoices/${encodeURIComponent(token)}/logo` : null
+        }
+        showBranding={invoice.showBranding}
         client={invoice.client}
         invoiceNumber={invoice.invoiceNumber}
         status={invoice.status}

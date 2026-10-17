@@ -22,6 +22,7 @@ import { FormMessage } from "@/components/ui/form-message";
 import { apiPost, apiRequest, apiSend } from "@/lib/api.client";
 import { ApiError } from "@/lib/api-error";
 import { addDays, formatDate } from "@/lib/format";
+import { logoUrl } from "@/lib/logo";
 import { InvoicePreview } from "./invoice-preview";
 
 interface EditorItem {
@@ -526,6 +527,11 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
           </p>
           <InvoicePreview
             business={invoice?.business ?? props.business}
+            logoSrc={
+              (invoice?.business ?? props.business).logoKey
+                ? logoUrl(businessId, (invoice?.business ?? props.business).logoKey!)
+                : null
+            }
             client={previewClient ?? null}
             invoiceNumber={invoice?.invoiceNumber ?? null}
             status={status}
