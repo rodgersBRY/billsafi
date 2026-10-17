@@ -7,7 +7,7 @@ export function passwordResetEmail(to: string, name: string, url: string): MailM
     text: [
       `Hi ${name},`,
       "",
-      "Someone asked to reset the password for your TallyNest account.",
+      "Someone requested to reset the password for your TallyNest account.",
       "Use this link within the next hour to choose a new password:",
       "",
       url,
