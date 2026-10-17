@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import { BusinessesModule } from "../businesses/businesses.module.js";
-import { AllowanceService } from "./allowance.service.js";
+import { BillingModule } from "../billing/billing.module.js";
 import { DashboardService } from "./dashboard.service.js";
 import {
   DashboardController,
@@ -14,15 +14,8 @@ import { PaymentsService } from "./payments.service.js";
 import { PdfService } from "./pdf.service.js";
 
 @Module({
-  imports: [BusinessesModule],
+  imports: [BusinessesModule, BillingModule],
   controllers: [InvoicesController, DashboardController, UsageController, PublicInvoicesController],
-  providers: [
-    InvoicesService,
-    AllowanceService,
-    PaymentsService,
-    LinksService,
-    PdfService,
-    DashboardService,
-  ],
+  providers: [InvoicesService, PaymentsService, LinksService, PdfService, DashboardService],
 })
 export class InvoicesModule {}

@@ -1,14 +1,13 @@
 "use client";
 
-import { FileText, LayoutDashboard, Settings, Users } from "lucide-react";
+import { FileText, LayoutDashboard, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const LINKS = [
-  { segment: "overview", label: "Overview", icon: LayoutDashboard, ready: true },
-  { segment: "invoices", label: "Invoices", icon: FileText, ready: true },
-  { segment: "clients", label: "Clients", icon: Users, ready: true },
-  { segment: "settings", label: "Settings", icon: Settings, ready: false },
+  { segment: "overview", label: "Overview", icon: LayoutDashboard },
+  { segment: "invoices", label: "Invoices", icon: FileText },
+  { segment: "clients", label: "Clients", icon: Users },
 ] as const;
 
 export function NavLinks({ businessId }: { businessId: string }) {
@@ -17,21 +16,8 @@ export function NavLinks({ businessId }: { businessId: string }) {
 
   return (
     <nav aria-label="Main" className="grid gap-1.5">
-      {LINKS.map(({ segment, label, icon: Icon, ready }) => {
+      {LINKS.map(({ segment, label, icon: Icon }) => {
         const href = `/${businessId}/${segment}`;
-        if (!ready) {
-          return (
-            <span
-              key={segment}
-              aria-disabled="true"
-              className={`${item} cursor-default opacity-60`}
-            >
-              <Icon aria-hidden className="size-4.5" />
-              {label}
-              <span className="ml-auto text-xs">Soon</span>
-            </span>
-          );
-        }
         const active = pathname.startsWith(href);
         return (
           <Link

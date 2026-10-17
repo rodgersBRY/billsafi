@@ -24,7 +24,7 @@ import {
 import { nairobiDate } from "@tallynest/domain";
 import { containsPattern } from "../common/like-pattern.js";
 import { DATABASE } from "../database/database.module.js";
-import { AllowanceService } from "./allowance.service.js";
+import { AllowanceService } from "../billing/allowance.service.js";
 import { effectivePaymentsSql } from "./effective-payments.js";
 import { businessDetails, clientDetails, toInvoice, toInvoiceSummary } from "./invoice.mapper.js";
 
@@ -198,7 +198,7 @@ export class InvoicesService {
       }
 
       const now = new Date();
-      const usagePeriodId = await this.allowance.reserve(tx, userId, now);
+      const { usagePeriodId, source } = await this.allowance.reserve(tx, userId, now);
 
       // The row update serializes numbering within the business.
       const [numbering] = await tx
@@ -213,6 +213,7 @@ export class InvoicesService {
         businessId,
         invoiceId,
         usagePeriodId,
+        source,
         issuedAt: now,
       });
       await tx

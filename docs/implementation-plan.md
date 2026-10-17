@@ -35,9 +35,7 @@ Settled before implementation in D049: overdue and reporting timezone, change-hi
 
 Implement account-level Free (10 invoices per Africa/Nairobi calendar month) and Pro (100 invoices per paid monthly period anchored to activation, KES 500 per period) with first-Ready counting, no rollover, no allowance restoration on cancellation, and retained record access at the cap/expiry. Implement Free-to-Pro usage carry-over, the downgrade cap on expiry, user-approved renewal, early extension from expiry, late activation from confirmation, early cancellation with undo, and reminders. See [database-model.md](database-model.md) for the adopted billing rules. Keep subscription payments separate from tenant invoice payments.
 
-Integration gate: the current collection preference is a personal M-Pesa number. Direct STK Push/automated confirmation eligibility is unresolved. Verify a supported collection route before checkout integration; do not silently substitute manual activation or assume personal-number Daraja support.
-
-Resolve before billing release: mid-month Pro reactivation and repeated plan-change accounting, failed/late-confirmed renewal boundaries, Pro-cap behavior, reminder timing/channel, refunds, tax/fee presentation, and collection credentials/onboarding. Handle duplicate/delayed/failed confirmations without duplicate access grants.
+Settled in D051: collection runs through a platform Paybill with Daraja M-Pesa Express (STK Push), developed against a fake provider and the Daraja sandbox. Each confirmed payment grants one month; reactivation carries only Free usage; packs of 50 invoice credits cost KES 250, work on both plans, and never expire; reminders go by email three days before and on the expiry day; prices show without tax or fee lines; refunds are handled by support. Duplicate, delayed, and failed confirmations never grant access twice. Production Paybill approval and credentials remain to be arranged.
 
 ## Phase 5 — Release readiness
 

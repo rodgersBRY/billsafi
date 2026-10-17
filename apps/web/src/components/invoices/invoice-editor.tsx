@@ -11,6 +11,7 @@ import {
 } from "@tallynest/contracts";
 import { calculateInvoice, type InvoiceCalculation } from "@tallynest/domain";
 import { Plus, Trash2, UserPlus, X } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ClientForm } from "@/components/clients/client-form";
@@ -174,7 +175,10 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
 
   function fail(error: unknown) {
     if (error instanceof ApiError && error.code === "ALLOWANCE_REACHED") {
-      setErrors({ form: `${error.message} Upgrading to Pro arrives in a later release.` });
+      setErrors({
+        form: `${error.message} Upgrade to Pro or buy invoice credits to keep going.`,
+        billing: "true",
+      });
     } else if (error instanceof ApiError && error.issues.length) {
       setErrors(error.fieldErrors());
     } else {
@@ -297,12 +301,23 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
 
       <div aria-live="polite">
         <FormMessage>{errors.form}</FormMessage>
+        {errors.billing && (
+          <Link
+            href={`/${businessId}/billing`}
+            className="mt-2 inline-block text-sm font-medium text-teal underline-offset-2 hover:underline"
+          >
+            Go to Billing
+          </Link>
+        )}
         <FormMessage tone="success">{saved}</FormMessage>
       </div>
       {isDraft && (
         <p className="mt-2 text-xs text-sub">
-          Free plan: {Math.max(remaining, 0)} of {props.usage.limit} invoices left this month. An
-          invoice counts when you mark it Ready.
+          {props.usage.plan === "pro" ? "Pro" : "Free"} plan: {Math.max(remaining, 0)} of{" "}
+          {props.usage.limit} invoices left{" "}
+          {props.usage.plan === "pro" ? "this Pro month" : "this month"}
+          {props.usage.credits > 0 && `, plus ${props.usage.credits} credits`}. An invoice counts
+          when you mark it Ready.
         </p>
       )}
 

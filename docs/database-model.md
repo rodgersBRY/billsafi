@@ -77,9 +77,9 @@ Store hashes of random public link tokens, not plaintext tokens. Disable/replace
 
 Free: 10 invoices/month. Pro: KES 500/month and 100 invoices per subscription month, across all account businesses. First Ready counts once; cancellation does not restore allowance, and unused allowance does not roll over. Maintain issuance records after cancellation.
 
-Platform subscription payments are separate from freelancers' manually recorded invoice payments. Integrated M-Pesa confirmation is desired, but the current personal-number collection preference requires eligibility verification before implementing checkout. No direct STK Push compatibility or manual fallback is assumed.
+Platform subscription payments are separate from freelancers' manually recorded invoice payments. Collection runs through a platform Paybill with M-Pesa STK Push and backend confirmation (D051).
 
-Free reset boundaries, Free-to-Pro usage mapping, expiry/downgrade, and month-end rules are adopted in [Confirmed billing periods, plan changes, and cancellation](#confirmed-billing-periods-plan-changes-and-cancellation). Pro-cap treatment, mid-month Pro reactivation, reminders, refund/fee/tax presentation, and provider purchase/event schema remain unresolved. Backend confirmation must prevent transaction reuse and duplicate activation.
+Free reset boundaries, Free-to-Pro usage mapping, expiry/downgrade, and month-end rules are adopted in [Confirmed billing periods, plan changes, and cancellation](#confirmed-billing-periods-plan-changes-and-cancellation). Pro-cap treatment, invoice credits, mid-month reactivation, reminders, and refund/fee/tax presentation are settled in D051. The adopted columns are in `packages/db/src/schema/billing.ts`: one `subscriptions` row per account holds the anniversary anchor, paid month count, and cancellation; `subscription_payments` holds each STK checkout with unique checkout request and receipt; `subscription_events` and `subscription_reminders` keep history; `usage_periods.carried_over` and `invoice_issuances.source` record carry-over and credit use. Backend confirmation must prevent transaction reuse and duplicate activation.
 
 ## Before migrations
 

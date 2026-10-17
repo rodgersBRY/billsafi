@@ -137,10 +137,13 @@ export interface Invoice extends InvoiceSummary {
   financialsLocked: boolean;
 }
 
+/** The account's allowance for the current Free month or Pro period (D044, D051). */
 export interface AllowanceUsage {
-  plan: "free";
+  plan: "free" | "pro";
   limit: number;
   used: number;
   periodStart: string;
   periodEnd: string;
+  /** Purchased invoice credits left; used once the plan allowance runs out. */
+  credits: number;
 }

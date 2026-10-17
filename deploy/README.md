@@ -154,6 +154,7 @@ Paste the template from `deploy/.env.example` and fill it in:
 - `IMAGE_TAG`: leave it as `latest`. `deploy.sh` manages this line.
 - `POSTGRES_PASSWORD` and `BETTER_AUTH_SECRET`: run `openssl rand -hex 32` once for each. Use hex values because the password goes into a connection URL, where characters like `/` or `@` would break it.
 - `SMTP_URL` and `MAIL_FROM`: from your email provider. The `MAIL_FROM` address must be on a domain you've verified with that provider.
+- `MPESA_ENV`: keep it `disabled` until Safaricom approves the Paybill for Daraja. Checkout then shows a "not available yet" message and nothing else changes. Once approved, set it to `production` and fill in `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_SHORTCODE` (the Paybill number), `MPESA_PASSKEY`, and an `MPESA_CALLBACK_TOKEN` from `openssl rand -hex 24`. Safaricom calls back to `https://<DOMAIN>/api/v1/billing/mpesa/callback/<token>`, so the token stays private.
 
 Lock the file down:
 

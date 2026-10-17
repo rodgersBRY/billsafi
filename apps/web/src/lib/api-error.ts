@@ -21,11 +21,14 @@ export class ApiError extends Error {
 
 export async function parseApiResponse<T>(response: Response): Promise<T> {
   if (response.ok) return (await response.json()) as T;
+
   const body = (await response.json().catch(() => ({}))) as {
     message?: string | string[];
     issues?: FieldIssue[];
     code?: string;
   };
+
   const message = Array.isArray(body.message) ? body.message.join(", ") : body.message;
+
   throw new ApiError(response.status, message ?? "Something went wrong", body.issues, body.code);
 }

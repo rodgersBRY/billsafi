@@ -17,3 +17,40 @@ export function passwordResetEmail(to: string, name: string, url: string): MailM
     ].join("\n"),
   };
 }
+
+const longDate = new Intl.DateTimeFormat("en-KE", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: "Africa/Nairobi",
+});
+
+/** Renewal reminder three days before and on the day Pro ends (D051). */
+export function renewalReminderEmail(
+  to: string,
+  name: string,
+  expiresAt: Date,
+  billingUrl: string,
+  kind: "before_expiry" | "on_expiry",
+): MailMessage {
+  const when = longDate.format(expiresAt);
+  return {
+    to,
+    subject:
+      kind === "on_expiry" ? "Your TallyNest Pro ends today" : "Your TallyNest Pro ends soon",
+    text: [
+      `Hi ${name},`,
+      "",
+      kind === "on_expiry"
+        ? `Your Pro access ends today, ${when}.`
+        : `Your Pro access ends on ${when}.`,
+      "TallyNest never takes payment automatically. To keep Pro, renew with M-Pesa here:",
+      "",
+      billingUrl,
+      "",
+      "Renewing early adds a month to your current end date. If Pro ends, your businesses, invoices, and payment records stay available on the Free plan.",
+    ].join("\n"),
+  };
+}

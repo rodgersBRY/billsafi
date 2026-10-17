@@ -3,7 +3,6 @@ const money = new Intl.NumberFormat("en-KE", {
   maximumFractionDigits: 2,
 });
 
-/** Display only. Amounts stay decimal strings everywhere else. */
 export function formatMoney(amount: string | number, currency = "KES"): string {
   return `${currency} ${money.format(Number(amount))}`;
 }

@@ -7,7 +7,9 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
     credentials: "same-origin",
     headers: { "Content-Type": "application/json", ...init.headers },
   });
+
   if (response.status === 204) return undefined as T;
+
   return parseApiResponse<T>(response);
 }
 

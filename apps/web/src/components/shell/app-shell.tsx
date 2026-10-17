@@ -6,12 +6,11 @@ import { useEffect, useState } from "react";
 
 interface AppShellProps {
   sidebar: React.ReactNode;
-  account: React.ReactNode;
   children: React.ReactNode;
 }
 
 /** Left navigation on desktop; a top-left menu on smaller screens (D039, D040). */
-export function AppShell({ sidebar, account, children }: AppShellProps) {
+export function AppShell({ sidebar, children }: AppShellProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
 
@@ -40,7 +39,7 @@ export function AppShell({ sidebar, account, children }: AppShellProps) {
         />
       )}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-3 border-b border-line bg-panel px-4 py-3.5 sm:px-7">
+        <header className="flex items-center gap-3 border-b border-line bg-panel px-4 py-3.5 sm:px-7 md:hidden">
           <button
             type="button"
             aria-controls="app-navigation"
@@ -55,7 +54,6 @@ export function AppShell({ sidebar, account, children }: AppShellProps) {
             )}
             <span className="sr-only">Menu</span>
           </button>
-          <div className="ml-auto">{account}</div>
         </header>
         <main className="flex-1 p-4 sm:p-7.5">{children}</main>
       </div>

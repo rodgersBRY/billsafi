@@ -5,7 +5,9 @@ import { formatKenyanPhone } from "@tallynest/domain";
 export function paymentInstructionsText(instructions: PaymentInstruction[]): string {
   const latest = instructions.at(-1);
   if (!latest) return "";
+
   const lines: string[] = [];
+
   switch (latest.method) {
     case "mpesa_personal":
       lines.push(`M-Pesa: ${formatKenyanPhone(latest.accountNumber!)}`);
@@ -19,6 +21,8 @@ export function paymentInstructionsText(instructions: PaymentInstruction[]): str
     case "bank_transfer":
       break;
   }
+
   if (latest.instructions) lines.push(latest.instructions);
+
   return lines.join("\n");
 }
