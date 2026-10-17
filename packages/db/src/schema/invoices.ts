@@ -150,6 +150,8 @@ export const usagePeriods = pgTable(
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
     endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
     invoiceLimit: integer("invoice_limit").notNull(),
+    /** Free-plan invoices from earlier in the month counted against a first Pro period (D044, D051). */
+    carriedOver: integer("carried_over").notNull().default(0),
     ...timestamps(),
   },
   (table) => [
@@ -157,6 +159,8 @@ export const usagePeriods = pgTable(
     check("usage_periods_window", sql`${table.endsAt} > ${table.startsAt}`),
   ],
 );
+
+export const issuanceSource = pgEnum("issuance_source", ["plan", "credit"]);
 
 /** One row per invoice that has ever been made Ready; never removed (D019). */
 export const invoiceIssuances = pgTable(
@@ -176,6 +180,8 @@ export const invoiceIssuances = pgTable(
     usagePeriodId: uuid("usage_period_id")
       .notNull()
       .references(() => usagePeriods.id, { onDelete: "restrict" }),
+    /** Whether the plan allowance or a purchased invoice credit paid for this issuance (D051). */
+    source: issuanceSource("source").notNull().default("plan"),
     issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("invoice_issuances_user_issued_at_idx").on(table.userId, table.issuedAt)],
