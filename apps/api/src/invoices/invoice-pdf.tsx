@@ -1,6 +1,7 @@
-import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { PublicInvoice } from "@tallynest/contracts";
 import { billToLines, formatKenyanPhone } from "@tallynest/domain";
+import type { InvoiceLogo } from "./branding.service.js";
 
 // White page, dark text, neutral headings, thin grey dividers, bold totals (D031).
 const ink = "#111827";
@@ -16,6 +17,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.75,
     borderColor: line,
   },
+  logo: { maxWidth: 120, maxHeight: 48, objectFit: "contain", marginBottom: 8 },
   businessName: { fontSize: 15, fontFamily: "Helvetica-Bold" },
   muted: { color: muted },
   label: { fontSize: 8, color: muted, letterSpacing: 1, marginBottom: 3 },
@@ -81,7 +83,13 @@ function TotalRow({ label, value, strong }: { label: string; value: string; stro
 }
 
 /** One A4 template: items flow across pages with the header repeated (D025, D049). */
-export function InvoicePdf({ invoice }: { invoice: PublicInvoice }) {
+export function InvoicePdf({
+  invoice,
+  logo,
+}: {
+  invoice: PublicInvoice;
+  logo: InvoiceLogo | null;
+}) {
   const { business } = invoice;
   return (
     <Document
@@ -91,6 +99,12 @@ export function InvoicePdf({ invoice }: { invoice: PublicInvoice }) {
       <Page size="A4" style={styles.page} wrap>
         <View style={styles.header}>
           <View>
+            {logo && (
+              <Image
+                style={styles.logo}
+                src={{ data: logo.data, format: logo.contentType === "image/png" ? "png" : "jpg" }}
+              />
+            )}
             <Text style={styles.businessName}>{business.displayName}</Text>
             <Text style={styles.muted}>{business.contactEmail}</Text>
             <Text style={styles.muted}>{formatKenyanPhone(business.phone)}</Text>
@@ -178,7 +192,10 @@ export function InvoicePdf({ invoice }: { invoice: PublicInvoice }) {
         )}
 
         <View style={styles.footer} fixed>
-          <Text>{invoice.invoiceNumber}</Text>
+          <Text>
+            {invoice.invoiceNumber}
+            {invoice.showBranding && " · Created with TallyNest"}
+          </Text>
           <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
         </View>
       </Page>

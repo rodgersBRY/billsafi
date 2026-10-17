@@ -44,6 +44,10 @@ export interface PublicInvoice {
   balanceDue: string;
   paymentInstructions: string | null;
   notes: string | null;
+  /** The logo is served from the public link's /logo path. */
+  hasLogo: boolean;
+  /** "Created with TallyNest" shows for Free accounts only (D052). */
+  showBranding: boolean;
 }
 
 export interface ShareMessageInput {

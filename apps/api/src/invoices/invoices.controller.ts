@@ -4,7 +4,9 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
+  NotFoundException,
   Param,
   Patch,
   Post,
@@ -42,7 +44,8 @@ import { ZodValidationPipe } from "../common/zod-validation.pipe.js";
 import { AllowanceService } from "../billing/allowance.service.js";
 import { DashboardService } from "./dashboard.service.js";
 import { type InvoiceListFilter, InvoicesService } from "./invoices.service.js";
-import { LinksService, toPublicInvoice } from "./links.service.js";
+import { BrandingService } from "./branding.service.js";
+import { LinksService } from "./links.service.js";
 import { PaymentsService } from "./payments.service.js";
 import { PdfService } from "./pdf.service.js";
 
@@ -55,10 +58,17 @@ const notesSchema = z.object({ notes: optionalText(INVOICE_LIMITS.notesLength) }
 const InvoiceId = () => new UuidParamPipe("Invoice");
 const PaymentId = () => new UuidParamPipe("Payment");
 
-async function pdfFile(pdf: PdfService, invoice: PublicInvoice) {
-  return new StreamableFile(await pdf.render(invoice), {
+async function pdfFile(
+  pdf: PdfService,
+  branding: BrandingService,
+  businessId: string,
+  invoice: Invoice,
+) {
+  const view = await branding.present(businessId, invoice);
+  const logo = await branding.logo(businessId, invoice);
+  return new StreamableFile(await pdf.render(view, logo), {
     type: "application/pdf",
-    disposition: `attachment; filename="${pdf.fileName(invoice)}"`,
+    disposition: `attachment; filename="${pdf.fileName(view)}"`,
   });
 }
 
@@ -70,6 +80,7 @@ export class InvoicesController {
     private readonly payments: PaymentsService,
     private readonly links: LinksService,
     private readonly pdf: PdfService,
+    private readonly branding: BrandingService,
   ) {}
 
   @Get()
@@ -221,7 +232,7 @@ export class InvoicesController {
     if (invoice.status === "draft") {
       throw new ConflictException("Mark the invoice as Ready to download a PDF");
     }
-    return pdfFile(this.pdf, toPublicInvoice(invoice));
+    return pdfFile(this.pdf, this.branding, businessId, invoice);
   }
 }
 
@@ -254,15 +265,27 @@ export class PublicInvoicesController {
   constructor(
     private readonly links: LinksService,
     private readonly pdf: PdfService,
+    private readonly branding: BrandingService,
   ) {}
 
   @Get(":token")
   async view(@Param("token") token: string): Promise<PublicInvoice> {
-    return toPublicInvoice(await this.links.resolve(token));
+    const { businessId, invoice } = await this.links.resolve(token);
+    return this.branding.present(businessId, invoice);
   }
 
   @Get(":token/pdf")
   async downloadPdf(@Param("token") token: string): Promise<StreamableFile> {
-    return pdfFile(this.pdf, toPublicInvoice(await this.links.resolve(token)));
+    const { businessId, invoice } = await this.links.resolve(token);
+    return pdfFile(this.pdf, this.branding, businessId, invoice);
+  }
+
+  @Get(":token/logo")
+  @Header("Cache-Control", "public, max-age=3600")
+  async logo(@Param("token") token: string): Promise<StreamableFile> {
+    const { businessId, invoice } = await this.links.resolve(token);
+    const logo = await this.branding.logo(businessId, invoice);
+    if (!logo) throw new NotFoundException("Logo not found");
+    return new StreamableFile(logo.data, { type: logo.contentType });
   }
 }

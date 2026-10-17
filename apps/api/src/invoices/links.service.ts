@@ -102,7 +102,7 @@ export class LinksService {
   }
 
   /** The invoice behind a public token, if the link and invoice are both usable. */
-  async resolve(token: string): Promise<Invoice> {
+  async resolve(token: string): Promise<{ businessId: string; invoice: Invoice }> {
     if (!/^[A-Za-z0-9_-]{43}$/.test(token)) throw new InvoiceUnavailableException();
     const [link] = await this.connection.db
       .select()
@@ -113,13 +113,13 @@ export class LinksService {
     if (invoice.status === "draft" || invoice.status === "cancelled") {
       throw new InvoiceUnavailableException();
     }
-    return invoice;
+    return { businessId: link.businessId, invoice };
   }
 }
 
 /** The public view: the same details as the PDF, no internal ids or payment history (D049). */
-export function toPublicInvoice(invoice: Invoice): PublicInvoice {
-  const { logoKey: _logoKey, ...business } = invoice.business;
+export function toPublicInvoice(invoice: Invoice, showBranding: boolean): PublicInvoice {
+  const { logoKey, ...business } = invoice.business;
   return {
     invoiceNumber: invoice.invoiceNumber!,
     status: invoice.status as PublicInvoice["status"],
@@ -140,5 +140,7 @@ export function toPublicInvoice(invoice: Invoice): PublicInvoice {
     balanceDue: invoice.balanceDue,
     paymentInstructions: invoice.paymentInstructions,
     notes: invoice.notes,
+    hasLogo: logoKey !== null,
+    showBranding,
   };
 }

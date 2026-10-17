@@ -467,7 +467,7 @@ Status: confirmed on 2026-10-17 by the user's answers before Phase 5.
 
 - Production email goes through Resend's SMTP relay. The app keeps sending over SMTP, so only `SMTP_URL` and a verified `MAIL_FROM` domain change.
 - Monitoring uses Sentry for web and API errors, plus an external uptime check on `/api/v1/health`. Sentry stays off when no DSN is set.
-- Business logos are PNG, JPEG, or WebP files up to 512 KB, stored in PostgreSQL so the existing nightly dumps back them up. The logo shows on the invoice preview, the public page, and the PDF.
+- Business logos are PNG or JPEG files up to 512 KB, stored in PostgreSQL so the existing nightly dumps back them up. WebP is left out because the PDF renderer cannot draw it. Each upload is kept as its own record, so an issued invoice keeps the logo it was made Ready with. The logo shows on the invoice preview, the public page, and the PDF.
 - The app follows the device's light or dark setting. Every screen gets a contrast check in both themes before launch. PDFs stay white with dark text (D027).
 - Account settings cover the user's name and a password change, which signs out the account's other sessions. The sign-in email cannot be changed in V1.
 - Public invoices and PDFs from Free accounts show a small "Created with TallyNest" footer; Pro accounts show none. There is no fixed thank-you line; the notes field covers it.
