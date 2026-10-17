@@ -27,3 +27,16 @@ export interface MpesaProvider {
 }
 
 export class MpesaRequestError extends Error {}
+
+/** Production before the Paybill is approved: checkout is refused up front. */
+export class DisabledMpesaProvider implements MpesaProvider {
+  readonly name = "disabled";
+
+  async stkPush(): Promise<StkPushAccepted> {
+    throw new MpesaRequestError("M-Pesa payments are not set up");
+  }
+
+  async query(): Promise<StkQueryResult> {
+    return { state: "pending" };
+  }
+}

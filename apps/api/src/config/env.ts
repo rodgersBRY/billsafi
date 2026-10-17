@@ -10,8 +10,11 @@ const envSchema = z
     RESET_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(3600),
     SMTP_URL: z.url({ protocol: /^smtps?$/ }),
     MAIL_FROM: z.string().min(3).default("TallyNest <no-reply@tallynest.local>"),
-    /** fake never calls Safaricom; sandbox and production use Daraja (D051). */
-    MPESA_ENV: z.enum(["fake", "sandbox", "production"]).default("fake"),
+    /**
+     * fake never calls Safaricom; sandbox and production use Daraja; disabled
+     * refuses checkout until the Paybill is approved (D051).
+     */
+    MPESA_ENV: z.enum(["fake", "disabled", "sandbox", "production"]).default("fake"),
     MPESA_CONSUMER_KEY: z.string().optional(),
     MPESA_CONSUMER_SECRET: z.string().optional(),
     MPESA_SHORTCODE: z
@@ -30,7 +33,15 @@ const envSchema = z
       .transform((value) => value === "on"),
   })
   .superRefine((env, ctx) => {
-    if (env.MPESA_ENV === "fake") return;
+    if (env.MPESA_ENV === "fake" && env.NODE_ENV === "production") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["MPESA_ENV"],
+        message:
+          "The fake provider grants Pro without payment; use disabled, sandbox, or production",
+      });
+    }
+    if (env.MPESA_ENV === "fake" || env.MPESA_ENV === "disabled") return;
     for (const key of [
       "MPESA_CONSUMER_KEY",
       "MPESA_CONSUMER_SECRET",
@@ -50,7 +61,9 @@ const envSchema = z
 export type Env = z.infer<typeof envSchema>;
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
-  const result = envSchema.safeParse(source);
+  // Blank lines copied from .env.example mean "not set".
+  const present = Object.fromEntries(Object.entries(source).filter(([, value]) => value !== ""));
+  const result = envSchema.safeParse(present);
   if (!result.success) {
     throw new Error(`Invalid environment configuration:\n${z.prettifyError(result.error)}`);
   }

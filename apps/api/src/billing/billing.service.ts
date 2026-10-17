@@ -5,6 +5,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from "@nestjs/common";
 import type { BillingOverview, Checkout, SubscriptionPayment } from "@tallynest/contracts";
 import { and, type DatabaseConnection, desc, eq, schema, sql } from "@tallynest/db";
@@ -115,6 +116,12 @@ export class BillingService {
 
   /** Sends an STK Push for one Pro month or one credit pack. */
   async checkout(userId: string, input: Checkout): Promise<SubscriptionPayment> {
+    if (this.mpesa.name === "disabled") {
+      throw new ServiceUnavailableException({
+        code: "BILLING_UNAVAILABLE",
+        message: "M-Pesa payments aren't available yet. Please try again later.",
+      });
+    }
     const [latestPending] = await this.db
       .select()
       .from(subscriptionPayments)

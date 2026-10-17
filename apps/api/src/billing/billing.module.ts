@@ -7,10 +7,15 @@ import { BillingJobs } from "./billing.jobs.js";
 import { BillingService } from "./billing.service.js";
 import { DarajaMpesaProvider } from "./mpesa/daraja.provider.js";
 import { FakeMpesaProvider } from "./mpesa/fake.provider.js";
-import { MPESA_PROVIDER, type MpesaProvider } from "./mpesa/mpesa.provider.js";
+import {
+  DisabledMpesaProvider,
+  MPESA_PROVIDER,
+  type MpesaProvider,
+} from "./mpesa/mpesa.provider.js";
 
 export function createMpesaProvider(env: Env): MpesaProvider {
   if (env.MPESA_ENV === "fake") return new FakeMpesaProvider();
+  if (env.MPESA_ENV === "disabled") return new DisabledMpesaProvider();
   return new DarajaMpesaProvider({
     environment: env.MPESA_ENV,
     consumerKey: env.MPESA_CONSUMER_KEY!,
