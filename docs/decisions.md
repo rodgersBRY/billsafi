@@ -434,3 +434,13 @@ Status: confirmed on 2026-10-17. The first four items were answered by the user;
 - Share copy. WhatsApp: "Hi {client}, here is invoice {number} from {business} for KES {balance due}, due {due date}: {link}". Email subject: "Invoice {number} from {business}". Email body: the same message followed by "The link works for 30 days. Thank you."
 
 Implementation note: PDFs are generated with `@react-pdf/renderer` in the API rather than headless Chrome, so the server does not need a browser installed. This resolves the overdue/reporting timezone, change-history display, link expiry, public visibility, unavailable page, PDF pagination, and share copy items left open in the PRD and implementation plan. Reinstating a reversed payment remains unresolved.
+
+## D050 — Host production on a DigitalOcean droplet with Docker Compose
+
+Status: confirmed on 2026-10-17 by the user.
+
+- Production runs on one DigitalOcean droplet. Caddy, the web app, the API, and PostgreSQL 18 run as Docker Compose services; only Caddy is public, and the web app reaches the API over the internal network.
+- PostgreSQL runs on the droplet rather than as a managed database. Nightly `pg_dump` files are kept for 14 days, and weekly droplet backups provide the off-machine copy.
+- Only `main` is released. After CI passes, GitHub Actions publishes the images to GHCR tagged with the commit SHA and `latest`. Deploying stays manual for now: on the droplet, `deploy.sh` pulls, migrates, restarts, and runs a health check. Rollback runs the same script with an earlier SHA. There is no staging environment.
+
+Setup and operations steps live in [deploy/README.md](../deploy/README.md). This resolves the hosting item left open in D046 and the implementation plan. The production email provider and monitoring remain open.

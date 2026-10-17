@@ -10,6 +10,11 @@ if (existsSync(rootEnvFile)) {
 const apiInternalUrl = process.env.API_INTERNAL_URL ?? "http://localhost:4000";
 
 const nextConfig: NextConfig = {
+  // The Docker image runs the self-contained server; local and CI runs keep `next start`.
+  ...(process.env.NEXT_STANDALONE === "1" && {
+    output: "standalone",
+    outputFileTracingRoot: new URL("../..", import.meta.url).pathname,
+  }),
   cacheComponents: true,
   partialPrefetching: true,
   // The browser talks to the API through the web origin, so auth cookies stay first-party.

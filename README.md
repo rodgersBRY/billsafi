@@ -11,6 +11,7 @@ Invoicing for Kenyan freelancers and independent professionals. Product and desi
 | `packages/db`     | Drizzle schema, client and migrations                            |
 | `packages/domain` | Pure business logic shared by web and API (money, invoice rules) |
 | `packages/config` | Shared TypeScript configuration                                  |
+| `deploy`          | Production stack and droplet setup guide                         |
 
 ## Requirements
 

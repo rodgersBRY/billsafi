@@ -1,0 +1,82 @@
+# Production stack for the droplet. Lives in /opt/tallynest next to .env (see deploy/.env.example).
+# Only Caddy publishes ports; the web app proxies /api to the API over the internal network.
+name: tallynest
+
+x-image: &image
+  pull_policy: missing
+  restart: unless-stopped
+
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+
+  web:
+    <<: *image
+    image: ${IMAGE_PREFIX:?}-web:${IMAGE_TAG:?}
+    depends_on:
+      api:
+        condition: service_healthy
+
+  api:
+    <<: *image
+    image: ${IMAGE_PREFIX:?}-api:${IMAGE_TAG:?}
+    environment:
+      API_PORT: 4000
+      WEB_ORIGIN: https://${DOMAIN:?}
+      DATABASE_URL: postgres://tallynest:${POSTGRES_PASSWORD:?}@postgres:5432/tallynest
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?}
+      SMTP_URL: ${SMTP_URL:?}
+      MAIL_FROM: ${MAIL_FROM:?}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # One-off job: `docker compose run --rm migrate`. Never starts with `up`.
+  migrate:
+    image: ${IMAGE_PREFIX:?}-migrate:${IMAGE_TAG:?}
+    pull_policy: missing
+    profiles: [migrate]
+    environment:
+      DATABASE_URL: postgres://tallynest:${POSTGRES_PASSWORD:?}@postgres:5432/tallynest
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tallynest
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: tallynest
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tallynest -d tallynest"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  caddy-data:
+  caddy-config:
+  postgres-data:
