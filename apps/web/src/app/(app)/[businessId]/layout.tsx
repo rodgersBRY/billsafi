@@ -25,9 +25,9 @@ async function Sidebar({ params }: { params: Promise<{ businessId: string }> }) 
   );
 }
 
-async function Account() {
-  const user = await getSessionUser();
-  return <AccountMenu name={user.name} email={user.email} />;
+async function Account({ params }: { params: Promise<{ businessId: string }> }) {
+  const [user, { businessId }] = await Promise.all([getSessionUser(), params]);
+  return <AccountMenu name={user.name} email={user.email} billingHref={`/${businessId}/billing`} />;
 }
 
 export default function BusinessLayout({ children, params }: LayoutProps<"/[businessId]">) {
@@ -43,7 +43,7 @@ export default function BusinessLayout({ children, params }: LayoutProps<"/[busi
       }
       account={
         <Suspense fallback={<div className="size-7.5 rounded-full bg-soft" />}>
-          <Account />
+          <Account params={params} />
         </Suspense>
       }
     >

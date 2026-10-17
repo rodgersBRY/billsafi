@@ -1,6 +1,7 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { CreditCard, LogOut } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { authClient } from "@/lib/auth-client";
@@ -14,7 +15,15 @@ function initials(name: string) {
     .join("");
 }
 
-export function AccountMenu({ name, email }: { name: string; email: string }) {
+export function AccountMenu({
+  name,
+  email,
+  billingHref,
+}: {
+  name: string;
+  email: string;
+  billingHref: string;
+}) {
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
   const menuRef = useRef<HTMLDetailsElement>(null);
@@ -77,6 +86,16 @@ export function AccountMenu({ name, email }: { name: string; email: string }) {
       </summary>
       <div className="absolute right-0 z-50 mt-2 w-56 rounded-panel border border-line bg-panel p-1.5 shadow-lg">
         <p className="px-2.5 py-2 text-xs text-sub sm:hidden">{email}</p>
+        <Link
+          href={billingHref}
+          onClick={() => {
+            if (menuRef.current) menuRef.current.open = false;
+          }}
+          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-soft"
+        >
+          <CreditCard aria-hidden className="size-4" />
+          Billing
+        </Link>
         <button
           type="button"
           onClick={signOut}
