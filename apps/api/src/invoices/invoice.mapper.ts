@@ -5,13 +5,12 @@ import type {
   InvoiceSummary,
 } from "@tallynest/contracts";
 import type { schema } from "@tallynest/db";
+import { balanceDue, isOverdue } from "@tallynest/domain";
 
 type InvoiceRow = typeof schema.invoices.$inferSelect;
 type ItemRow = typeof schema.invoiceItems.$inferSelect;
 type ClientRow = typeof schema.clients.$inferSelect;
 type BusinessRow = typeof schema.businesses.$inferSelect;
-
-const NO_PAYMENTS = "0.00";
 
 export function clientDetails(client: ClientRow): InvoiceClientDetails {
   return {
@@ -35,7 +34,12 @@ export function businessDetails(business: BusinessRow): InvoiceBusinessDetails {
   };
 }
 
-export function toInvoiceSummary(row: InvoiceRow, clientName: string): InvoiceSummary {
+export function toInvoiceSummary(
+  row: InvoiceRow,
+  clientName: string,
+  paymentsReceived: string,
+  now = new Date(),
+): InvoiceSummary {
   return {
     id: row.id,
     status: row.status,
@@ -45,7 +49,10 @@ export function toInvoiceSummary(row: InvoiceRow, clientName: string): InvoiceSu
     dueDate: row.dueDate,
     currency: row.currency,
     total: row.total,
-    balanceDue: row.total,
+    paymentsReceived,
+    // Cancelled invoices carry no balance; dashboard totals also leave out drafts (D012).
+    balanceDue: row.status === "cancelled" ? "0.00" : balanceDue(row.total, paymentsReceived),
+    overdue: isOverdue(row.status, row.dueDate, now),
     updatedAt: row.updatedAt.toISOString(),
   };
 }
@@ -55,11 +62,12 @@ export function toInvoice(
   row: InvoiceRow,
   items: ItemRow[],
   live: { client: ClientRow; business: BusinessRow },
+  paymentsReceived: string,
 ): Invoice {
   const client = row.clientSnapshot ?? clientDetails(live.client);
   const business = row.businessSnapshot ?? businessDetails(live.business);
   return {
-    ...toInvoiceSummary(row, client.name),
+    ...toInvoiceSummary(row, client.name, paymentsReceived),
     clientId: row.clientId,
     client,
     business,
@@ -81,9 +89,10 @@ export function toInvoice(
     subtotal: row.subtotal,
     discountAmount: row.discountAmount,
     taxAmount: row.taxAmount,
-    paymentsReceived: NO_PAYMENTS,
     paymentInstructions: row.paymentInstructions,
     notes: row.notes,
     readyAt: row.readyAt?.toISOString() ?? null,
+    cancelledAt: row.cancelledAt?.toISOString() ?? null,
+    financialsLocked: row.paymentActivityAt !== null,
   };
 }

@@ -21,21 +21,23 @@ import {
   DiscountExceedsSubtotalError,
   formatInvoiceNumber,
 } from "@tallynest/domain";
+import { nairobiDate } from "@tallynest/domain";
 import { containsPattern } from "../common/like-pattern.js";
 import { DATABASE } from "../database/database.module.js";
 import { AllowanceService } from "./allowance.service.js";
+import { effectivePaymentsSql } from "./effective-payments.js";
 import { businessDetails, clientDetails, toInvoice, toInvoiceSummary } from "./invoice.mapper.js";
 
-const { invoices, invoiceItems, invoiceIssuances, clients, businesses } = schema;
+const { invoices, invoiceItems, invoiceIssuances, invoiceLinks, clients, businesses } = schema;
 
 type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 export type InvoiceListFilter = {
-  status?: (typeof invoices.status.enumValues)[number];
+  status?: (typeof invoices.status.enumValues)[number] | "overdue";
   search?: string;
 };
 
-/** Statuses whose financial details may still change. Payment locks arrive in Phase 3. */
+/** Statuses whose financial details may change, until payment activity locks them (D043). */
 const EDITABLE = new Set(["draft", "ready"]);
 
 function invalid(path: string, message: string): BadRequestException {
@@ -56,7 +58,14 @@ export class InvoicesService {
   async list(businessId: string, filter: InvoiceListFilter) {
     const clientName = sql<string>`coalesce(${invoices.clientSnapshot}->>'name', ${clients.name})`;
     const conditions = [eq(invoices.businessId, businessId)];
-    if (filter.status) conditions.push(eq(invoices.status, filter.status));
+    if (filter.status === "overdue") {
+      // Overdue from the day after the due date in Nairobi (D049).
+      conditions.push(
+        sql`${invoices.status} in ('ready', 'partially_paid') and ${invoices.dueDate} < ${nairobiDate(new Date())}`,
+      );
+    } else if (filter.status) {
+      conditions.push(eq(invoices.status, filter.status));
+    }
     if (filter.search) {
       const pattern = containsPattern(filter.search);
       conditions.push(
@@ -64,12 +73,13 @@ export class InvoicesService {
       );
     }
     const rows = await this.db
-      .select({ invoice: invoices, clientName })
+      .select({ invoice: invoices, clientName, paid: effectivePaymentsSql })
       .from(invoices)
       .innerJoin(clients, eq(clients.id, invoices.clientId))
       .where(and(...conditions))
       .orderBy(desc(invoices.updatedAt));
-    return rows.map((row) => toInvoiceSummary(row.invoice, row.clientName));
+    const now = new Date();
+    return rows.map((row) => toInvoiceSummary(row.invoice, row.clientName, row.paid, now));
   }
 
   async get(businessId: string, invoiceId: string) {
@@ -92,8 +102,10 @@ export class InvoicesService {
   async update(businessId: string, invoiceId: string, input: SaveInvoice) {
     return this.db.transaction(async (tx) => {
       const current = await this.lockInvoice(tx, businessId, invoiceId);
-      if (!EDITABLE.has(current.status)) {
-        throw new ConflictException("This invoice can no longer be edited");
+      if (!EDITABLE.has(current.status) || current.paymentActivityAt) {
+        throw new ConflictException(
+          "Payments have been recorded, so only the notes on this invoice can change",
+        );
       }
       // Archived clients stay valid on invoices that already use them.
       if (input.clientId !== current.clientId) {
@@ -110,6 +122,45 @@ export class InvoicesService {
         .set({ ...this.invoiceColumns(input, totals), ...snapshots })
         .where(eq(invoices.id, invoiceId));
       await this.replaceItems(tx, businessId, invoiceId, input, totals.lineTotals);
+      return this.load(tx, businessId, invoiceId);
+    });
+  }
+
+  /** Notes stay editable after payment activity (D009, D043). Cancelled invoices are frozen. */
+  async updateNotes(businessId: string, invoiceId: string, notes: string | null) {
+    return this.db.transaction(async (tx) => {
+      const current = await this.lockInvoice(tx, businessId, invoiceId);
+      if (current.status === "cancelled") {
+        throw new ConflictException("Cancelled invoices can't be changed");
+      }
+      await tx.update(invoices).set({ notes }).where(eq(invoices.id, invoiceId));
+      return this.load(tx, businessId, invoiceId);
+    });
+  }
+
+  /**
+   * Cancels an issued invoice with no effective payments (D043). Its number and
+   * allowance use are kept, and any public link stops working.
+   */
+  async cancel(businessId: string, invoiceId: string) {
+    return this.db.transaction(async (tx) => {
+      const current = await this.lockInvoice(tx, businessId, invoiceId);
+      if (current.status === "draft") {
+        throw new ConflictException("Drafts are deleted rather than cancelled");
+      }
+      if (current.status === "cancelled") return this.load(tx, businessId, invoiceId);
+      if (current.status !== "ready") {
+        throw new ConflictException("Reverse the recorded payments before cancelling this invoice");
+      }
+      const now = new Date();
+      await tx
+        .update(invoices)
+        .set({ status: "cancelled", cancelledAt: now })
+        .where(eq(invoices.id, invoiceId));
+      await tx
+        .update(invoiceLinks)
+        .set({ revokedAt: now })
+        .where(and(eq(invoiceLinks.invoiceId, invoiceId), sql`${invoiceLinks.revokedAt} is null`));
       return this.load(tx, businessId, invoiceId);
     });
   }
@@ -238,7 +289,7 @@ export class InvoicesService {
     return { clientSnapshot: clientDetails(client), businessSnapshot: businessDetails(business!) };
   }
 
-  private async lockInvoice(tx: Transaction, businessId: string, invoiceId: string) {
+  async lockInvoice(tx: Transaction, businessId: string, invoiceId: string) {
     const [invoice] = await tx
       .select()
       .from(invoices)
@@ -264,9 +315,14 @@ export class InvoicesService {
     return client;
   }
 
-  private async load(db: Database | Transaction, businessId: string, invoiceId: string) {
+  async load(db: Database | Transaction, businessId: string, invoiceId: string) {
     const [row] = await db
-      .select({ invoice: invoices, client: clients, business: businesses })
+      .select({
+        invoice: invoices,
+        client: clients,
+        business: businesses,
+        paid: effectivePaymentsSql,
+      })
       .from(invoices)
       .innerJoin(clients, eq(clients.id, invoices.clientId))
       .innerJoin(businesses, eq(businesses.id, invoices.businessId))
@@ -277,6 +333,6 @@ export class InvoicesService {
       .from(invoiceItems)
       .where(eq(invoiceItems.invoiceId, invoiceId))
       .orderBy(asc(invoiceItems.position));
-    return toInvoice(row.invoice, items, { client: row.client, business: row.business });
+    return toInvoice(row.invoice, items, { client: row.client, business: row.business }, row.paid);
   }
 }
