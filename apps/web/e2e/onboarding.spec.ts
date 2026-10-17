@@ -74,10 +74,14 @@ test("an account can add and switch between businesses", async ({ page }) => {
   const switcher = page.getByLabel("Business").filter({ visible: true });
   await expect(switcher).toHaveValue(/.+/);
   await expect(switcher.locator("option")).toHaveText(["Otieno Ouma", "Ouma Photography"]);
-  await expect(page.getByRole("main").getByText("Ouma Photography")).toBeVisible();
+  await expect(
+    page.getByRole("main").getByText("Ouma Photography").filter({ visible: true }),
+  ).toBeVisible();
 
   await switcher.selectOption({ label: "Otieno Ouma" });
-  await expect(page.getByRole("main").getByText("Otieno Ouma")).toBeVisible();
+  await expect(
+    page.getByRole("main").getByText("Otieno Ouma").filter({ visible: true }),
+  ).toBeVisible();
 });
 
 test("one account cannot open another account's business", async ({ page, browser }) => {
@@ -90,7 +94,7 @@ test("one account cannot open another account's business", async ({ page, browse
   await createFirstBusiness(other, "0722 000 000");
   // Streaming sends the 200 header before the ownership check, so assert on content.
   await other.goto(ownedUrl);
-  await expect(other.getByText("This page could not be found.")).toBeVisible();
+  await expect(other.getByRole("heading", { name: /We couldn.t find that page/ })).toBeVisible();
   await expect(other.getByText("Account A")).toHaveCount(0);
   await other.close();
 });
