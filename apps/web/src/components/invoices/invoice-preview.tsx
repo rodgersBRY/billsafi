@@ -16,6 +16,15 @@ export interface PreviewProps {
   taxRate: string | null;
   paymentInstructions: string;
   notes: string;
+  /** Recorded payments; omitted while editing a draft. */
+  paymentsReceived?: string;
+  balanceDue?: string;
+  overdue?: boolean;
+}
+
+/** Stored quantities come back as "1.00"; show them as typed numbers ("1", "2.5"). */
+function displayQuantity(value: string) {
+  return /^\d+(\.\d+)?$/.test(value) ? Number(value).toString() : value;
 }
 
 function safeDate(value: string) {
@@ -41,7 +50,7 @@ export function InvoicePreview(props: PreviewProps) {
           <p className="text-xs tracking-widest text-sub">INVOICE</p>
           <p className="text-base font-semibold">{props.invoiceNumber ?? "Draft"}</p>
           <div className="mt-1">
-            <StatusPill status={props.status} />
+            <StatusPill status={props.status} overdue={props.overdue} />
           </div>
         </div>
       </header>
@@ -85,7 +94,9 @@ export function InvoicePreview(props: PreviewProps) {
           {props.items.map((item, index) => (
             <tr key={index} className="border-t border-line align-top">
               <td className="py-2 pr-2 wrap-anywhere">{item.description || "—"}</td>
-              <td className="py-2 text-right tabular-nums">{item.quantity || "—"}</td>
+              <td className="py-2 text-right tabular-nums">
+                {item.quantity ? displayQuantity(item.quantity) : "—"}
+              </td>
               <td className="py-2 text-right tabular-nums">
                 {totals?.lineTotals[index] ? formatAmount(totals.lineTotals[index]) : "—"}
               </td>
@@ -114,10 +125,15 @@ export function InvoicePreview(props: PreviewProps) {
           {totals ? formatAmount(totals.total) : "—"}
         </dd>
         <dt className="text-sub">Payments received</dt>
-        <dd className="text-right">0.00</dd>
+        <dd className="text-right">{formatAmount(props.paymentsReceived ?? "0")}</dd>
         <dt className="font-semibold">Balance due</dt>
         <dd className="text-right font-semibold">
-          KES {totals ? formatAmount(totals.total) : "—"}
+          KES{" "}
+          {props.balanceDue !== undefined
+            ? formatAmount(props.balanceDue)
+            : totals
+              ? formatAmount(totals.total)
+              : "—"}
         </dd>
       </dl>
 

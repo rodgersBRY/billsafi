@@ -12,7 +12,10 @@ const field = (page: Page, label: string) =>
 
 test("add, edit and archive a client", async ({ page }) => {
   await startAccount(page);
-  await page.getByRole("link", { name: "Clients" }).click();
+  await page
+    .getByRole("navigation", { name: "Main" })
+    .getByRole("link", { name: "Clients" })
+    .click();
   await expect(page.getByRole("heading", { name: "Your clients." })).toBeVisible();
   await waitUntilInteractive(page, "Add client");
 
@@ -100,7 +103,10 @@ test("create an invoice, preview totals, and mark it Ready", async ({ page }) =>
   await expect(page.getByRole("heading", { name: "INV-00001" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Mark as Ready" })).toHaveCount(0);
 
-  await page.getByRole("link", { name: "Invoices" }).click();
+  await page
+    .getByRole("navigation", { name: "Main" })
+    .getByRole("link", { name: "Invoices" })
+    .click();
   const row = main(page).getByRole("row").filter({ hasText: "INV-00001" });
   await expect(row).toContainText("Njeri Wambui");
   await expect(row).toContainText("54,810.00");
@@ -114,7 +120,10 @@ test("create an invoice, preview totals, and mark it Ready", async ({ page }) =>
 
 test("validation errors and draft deletion", async ({ page }) => {
   await startAccount(page);
-  await page.getByRole("link", { name: "Invoices" }).click();
+  await page
+    .getByRole("navigation", { name: "Main" })
+    .getByRole("link", { name: "Invoices" })
+    .click();
   await expect(page.getByRole("heading", { name: "Every invoice, in view." })).toBeVisible();
   await main(page).getByRole("link", { name: "Create invoice" }).click();
   await waitUntilInteractive(page, "Save draft");

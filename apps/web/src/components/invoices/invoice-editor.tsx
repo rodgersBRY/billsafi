@@ -199,6 +199,12 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         router.replace(`/${businessId}/invoices/${result.id}`);
         return;
       }
+      if (!isDraft && invoice) {
+        // Back to the details once a Ready invoice is saved.
+        router.push(`/${businessId}/invoices/${invoice.id}`);
+        router.refresh();
+        return;
+      }
       setSaved(isDraft ? "Draft saved." : "Changes saved.");
       router.refresh();
     } catch (error) {
