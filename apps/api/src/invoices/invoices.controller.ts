@@ -39,7 +39,7 @@ import { BusinessOwnerGuard } from "../businesses/business-owner.guard.js";
 import { CurrentUserId } from "../common/current-user.js";
 import { UuidParamPipe } from "../common/uuid-param.pipe.js";
 import { ZodValidationPipe } from "../common/zod-validation.pipe.js";
-import { AllowanceService } from "./allowance.service.js";
+import { AllowanceService } from "../billing/allowance.service.js";
 import { DashboardService } from "./dashboard.service.js";
 import { type InvoiceListFilter, InvoicesService } from "./invoices.service.js";
 import { LinksService, toPublicInvoice } from "./links.service.js";

@@ -5,10 +5,16 @@ import request from "supertest";
 import { AppModule } from "../../src/app.module.js";
 import { configureApp } from "../../src/app.setup.js";
 import { loadRootEnvFile } from "../../src/config/env-file.js";
+import { FakeMpesaProvider } from "../../src/billing/mpesa/fake.provider.js";
+import { MPESA_PROVIDER } from "../../src/billing/mpesa/mpesa.provider.js";
 import { MAILER } from "../../src/mail/mail.module.js";
 import type { Mailer, MailMessage } from "../../src/mail/mailer.js";
 
 loadRootEnvFile();
+// Tests never call Safaricom or run background jobs; they drive billing directly.
+process.env.MPESA_ENV = "fake";
+process.env.MPESA_CALLBACK_TOKEN = "e2e-callback-token-0123456789";
+process.env.BILLING_JOBS = "off";
 
 export const WEB_ORIGIN = "http://localhost:3000";
 
@@ -26,14 +32,17 @@ export class CapturingMailer implements Mailer {
 
 export async function createTestApp() {
   const mailer = new CapturingMailer();
+  const mpesa = new FakeMpesaProvider({ autoSettleMs: null });
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(MAILER)
     .useValue(mailer)
+    .overrideProvider(MPESA_PROVIDER)
+    .useValue(mpesa)
     .compile();
   const app: INestApplication = moduleRef.createNestApplication({ bodyParser: false });
   configureApp(app, { WEB_ORIGIN });
   await app.init();
-  return { app, mailer };
+  return { app, mailer, mpesa };
 }
 
 export function uniqueEmail(label: string): string {
