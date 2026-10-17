@@ -79,6 +79,11 @@ export const invoices = pgTable(
     clientSnapshot: jsonb("client_snapshot").$type<ClientSnapshot>(),
     businessSnapshot: jsonb("business_snapshot").$type<BusinessSnapshot>(),
     readyAt: timestamp("ready_at", { withTimezone: true }),
+    /**
+     * Set when the first payment is recorded and never cleared. Financial fields
+     * stay locked from then on, even if every payment is reversed (D043).
+     */
+    paymentActivityAt: timestamp("payment_activity_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     ...timestamps(),
   },

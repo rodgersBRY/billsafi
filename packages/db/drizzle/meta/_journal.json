@@ -15,6 +15,13 @@
       "when": 1792181826924,
       "tag": "0001_clients_and_invoices",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792228791284,
+      "tag": "0002_payments_and_links",
+      "breakpoints": true
     }
   ]
 }
