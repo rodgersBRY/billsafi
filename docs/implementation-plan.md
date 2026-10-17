@@ -29,7 +29,7 @@ Implement multiple manual payments, reject payments above outstanding balance, u
 
 Verification: balances and statuses remain consistent; Draft/Cancelled invoices cannot be viewed publicly; replaced/disabled links stop working; PDFs are snapshots; app/public invoice views reflect newly recorded payments.
 
-Resolve before relevant implementation: overdue/reporting timezone, change-history display, public information visibility and link expiry, PDF pagination, and exact share copy. Refunds are deferred beyond V1.
+Settled before implementation in D049: overdue and reporting timezone, change-history display, public visibility and 30-day link expiry, PDF pagination, and share copy. Refunds are deferred beyond V1.
 
 ## Phase 4 — Plans and subscription billing
 
