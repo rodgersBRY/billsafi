@@ -1,7 +1,9 @@
 import "server-only";
 import { connection } from "next/server";
 import type { InvoiceEditorProps } from "@/components/invoices/invoice-editor";
-import { getBusiness, getUsage, listClients, listPaymentInstructions } from "@/lib/api.server";
+import { getUsage } from "@/lib/server-api/billing";
+import { getBusiness, listPaymentInstructions } from "@/lib/server-api/businesses";
+import { listClients } from "@/lib/server-api/clients";
 import { todayInNairobi } from "@/lib/format";
 import { paymentInstructionsText } from "@/lib/payment-instructions";
 

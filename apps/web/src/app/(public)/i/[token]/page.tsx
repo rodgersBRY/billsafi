@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { BrandLoader } from "@/components/brand/brand-loader";
 import { InvoicePreview } from "@/components/invoices/invoice-preview";
-import { getPublicInvoice } from "@/lib/api.server";
+import { getPublicInvoice } from "@/lib/server-api/public-invoices";
 
 export const metadata: Metadata = {
   title: "Invoice",

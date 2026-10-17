@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { BrandLoader } from "@/components/brand/brand-loader";
-import { listClients } from "@/lib/api.server";
+import { listClients } from "@/lib/server-api/clients";
 import { ClientsView } from "./clients-view";
 
 export const metadata: Metadata = { title: "Clients · TallyNest" };

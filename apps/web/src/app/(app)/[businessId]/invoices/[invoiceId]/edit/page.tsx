@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { BrandLoader } from "@/components/brand/brand-loader";
 import { InvoiceEditor } from "@/components/invoices/invoice-editor";
-import { getInvoice } from "@/lib/api.server";
+import { getInvoice } from "@/lib/server-api/invoices";
 import { loadEditorData } from "../../editor-data";
 
 export const metadata: Metadata = { title: "Edit invoice · TallyNest" };

@@ -6,7 +6,9 @@ import { BusinessSwitcher } from "@/components/shell/business-switcher";
 import { NavLinks } from "@/components/shell/nav-links";
 import { UsageMeter } from "@/components/shell/usage-meter";
 import { BrandMark } from "@/components/ui/brand-mark";
-import { getSessionUser, getUsage, listBusinesses } from "@/lib/api.server";
+import { getSessionUser } from "@/lib/server-api/auth";
+import { getUsage } from "@/lib/server-api/billing";
+import { listBusinesses } from "@/lib/server-api/businesses";
 
 async function Sidebar({ params }: { params: Promise<{ businessId: string }> }) {
   const [{ businessId }, businesses, usage, user] = await Promise.all([

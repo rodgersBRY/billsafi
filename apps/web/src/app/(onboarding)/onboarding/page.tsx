@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { BrandLoader } from "@/components/brand/brand-loader";
-import { getSessionUser, listBusinesses } from "@/lib/api.server";
+import { getSessionUser } from "@/lib/server-api/auth";
+import { listBusinesses } from "@/lib/server-api/businesses";
 import { FreshOnNavigation } from "./fresh-on-navigation";
 import { OnboardingWizard } from "./onboarding-wizard";
 

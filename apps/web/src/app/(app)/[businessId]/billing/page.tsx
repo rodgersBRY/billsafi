@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { BrandLoader } from "@/components/brand/brand-loader";
 import { BillingView } from "@/components/billing/billing-view";
-import { getBusiness, listBusinesses } from "@/lib/api.server";
-import { getBilling } from "@/lib/billing.server";
+import { getBilling } from "@/lib/server-api/billing";
+import { getBusiness, listBusinesses } from "@/lib/server-api/businesses";
 
 export const metadata: Metadata = { title: "Billing · TallyNest" };
 
