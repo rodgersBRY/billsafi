@@ -5,7 +5,7 @@ const tones: Record<InvoiceStatus, string> = {
   draft: "bg-background text-sub",
   ready: "bg-background text-sub",
   partially_paid: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200",
-  paid: "bg-soft text-teal",
+  paid: "bg-soft text-accent",
   cancelled: "bg-background text-sub",
 };
 

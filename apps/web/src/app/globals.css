@@ -6,6 +6,8 @@
 /* Palette taken from the approved TallyNest dashboard design (docs/designs). */
 :root {
   --teal: #0f766e;
+  /* Teal for text and icons; lightened in dark mode to keep contrast (D052). */
+  --accent: #0f766e;
   --background: #f5f8f7;
   --panel: #ffffff;
   --ink: #172b2a;
@@ -18,6 +20,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
+    --accent: #5fd4c4;
     --background: #142421;
     --panel: #1d302c;
     --ink: #ecf4f1;
@@ -29,6 +32,7 @@
 
 @theme inline {
   --color-teal: var(--teal);
+  --color-accent: var(--accent);
   --color-background: var(--background);
   --color-panel: var(--panel);
   --color-ink: var(--ink);

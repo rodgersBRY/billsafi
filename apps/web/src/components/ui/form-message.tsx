@@ -13,7 +13,7 @@ export function FormMessage({
     <p
       role={tone === "error" ? "alert" : "status"}
       className={`mt-4 flex items-start gap-2 text-sm ${
-        tone === "error" ? "text-red-700 dark:text-red-300" : "text-teal"
+        tone === "error" ? "text-red-700 dark:text-red-300" : "text-accent"
       }`}
     >
       <Icon aria-hidden className="mt-0.5 size-4 shrink-0" />

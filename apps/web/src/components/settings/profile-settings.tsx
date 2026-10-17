@@ -130,7 +130,7 @@ export function ProfileSettings({ business }: { business: Business }) {
         ) : (
           <span
             aria-hidden
-            className="grid size-16 place-items-center rounded-panel bg-soft text-lg font-semibold text-teal"
+            className="grid size-16 place-items-center rounded-panel bg-soft text-lg font-semibold text-accent"
           >
             {initials(business.displayName)}
           </span>
@@ -189,7 +189,7 @@ export function ProfileSettings({ business }: { business: Business }) {
                 setSaved(undefined);
                 setProfileType(type);
               }}
-              className="rounded-panel border border-line bg-panel px-3.75 py-2.75 text-sm aria-pressed:border-teal aria-pressed:bg-soft aria-pressed:text-teal"
+              className="rounded-panel border border-line bg-panel px-3.75 py-2.75 text-sm aria-pressed:border-accent aria-pressed:bg-soft aria-pressed:text-accent"
             >
               {label}
             </button>

@@ -24,7 +24,7 @@ export function NavLinks({ businessId }: { businessId: string }) {
             key={segment}
             href={href}
             aria-current={active ? "page" : undefined}
-            className={`${item} hover:bg-soft hover:text-ink aria-[current=page]:bg-soft aria-[current=page]:font-semibold aria-[current=page]:text-teal`}
+            className={`${item} hover:bg-soft hover:text-ink aria-[current=page]:bg-soft aria-[current=page]:font-semibold aria-[current=page]:text-accent`}
           >
             <Icon aria-hidden className="size-4.5" />
             {label}

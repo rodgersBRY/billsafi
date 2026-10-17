@@ -75,7 +75,7 @@ async function Overview({ params }: { params: Promise<{ businessId: string }> })
           <h2 id="recent" className="text-base font-semibold">
             Recent invoices
           </h2>
-          <Link href={`${base}/invoices`} className="text-sm text-teal hover:underline">
+          <Link href={`${base}/invoices`} className="text-sm text-accent hover:underline">
             View all
           </Link>
         </div>
@@ -107,7 +107,7 @@ async function Overview({ params }: { params: Promise<{ businessId: string }> })
                   <td className="px-5 py-3.5">
                     <Link
                       href={`${base}/invoices/${invoice.id}`}
-                      className="font-medium hover:text-teal hover:underline"
+                      className="font-medium hover:text-accent hover:underline"
                     >
                       {invoice.invoiceNumber}
                     </Link>

@@ -35,7 +35,7 @@ export function BusinessSwitcher({
       </select>
       <Link
         href="/onboarding"
-        className="mt-2 inline-flex items-center gap-1.5 text-xs text-teal hover:underline"
+        className="mt-2 inline-flex items-center gap-1.5 text-xs text-accent hover:underline"
       >
         <Plus aria-hidden className="size-3.5" />
         Add a business

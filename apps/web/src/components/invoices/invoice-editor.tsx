@@ -305,7 +305,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         {errors.billing && (
           <Link
             href={`/${businessId}/billing`}
-            className="mt-2 inline-block text-sm font-medium text-teal underline-offset-2 hover:underline"
+            className="mt-2 inline-block text-sm font-medium text-accent underline-offset-2 hover:underline"
           >
             Go to Billing
           </Link>

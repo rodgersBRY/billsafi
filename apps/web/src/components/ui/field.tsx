@@ -7,7 +7,7 @@ import {
 } from "react";
 
 const control =
-  "mt-1.5 w-full rounded-panel border border-line bg-panel p-2.75 text-sm text-ink placeholder:text-sub/70 focus-visible:border-teal focus-visible:outline-2 focus-visible:outline-teal/30 aria-invalid:border-red-600 dark:aria-invalid:border-red-400";
+  "mt-1.5 w-full rounded-panel border border-line bg-panel p-2.75 text-sm text-ink placeholder:text-sub/70 focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent/30 aria-invalid:border-red-600 dark:aria-invalid:border-red-400";
 
 interface FieldShellProps {
   id: string;

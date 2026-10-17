@@ -37,7 +37,7 @@ export function ForgotPasswordForm() {
           title="Check your email"
           description={`If ${sentTo} has a TallyNest account, a reset link is on its way. The link works for one hour.`}
         />
-        <Link href="/sign-in" className="mt-6 inline-block text-sm text-teal hover:underline">
+        <Link href="/sign-in" className="mt-6 inline-block text-sm text-accent hover:underline">
           Back to sign in
         </Link>
       </div>
@@ -56,7 +56,7 @@ export function ForgotPasswordForm() {
         Send reset link
       </Button>
       <p className="mt-6 text-center text-sm">
-        <Link href="/sign-in" className="text-teal hover:underline">
+        <Link href="/sign-in" className="text-accent hover:underline">
           Back to sign in
         </Link>
       </p>

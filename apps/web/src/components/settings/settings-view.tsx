@@ -67,7 +67,7 @@ export function SettingsView({
             tabIndex={tab === item.id ? 0 : -1}
             onClick={() => select(item.id)}
             onKeyDown={(event) => onKeyDown(event, index)}
-            className="-mb-px shrink-0 border-b-2 border-transparent px-3 py-2.5 text-sm text-sub hover:text-ink aria-selected:border-teal aria-selected:text-teal"
+            className="-mb-px shrink-0 border-b-2 border-transparent px-3 py-2.5 text-sm text-sub hover:text-ink aria-selected:border-accent aria-selected:text-accent"
           >
             {item.label}
           </button>
