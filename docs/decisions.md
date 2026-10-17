@@ -444,3 +444,19 @@ Status: confirmed on 2026-10-17 by the user.
 - Only `main` is released. After CI passes, GitHub Actions publishes the images to GHCR tagged with the commit SHA and `latest`. Deploying stays manual for now: on the droplet, `deploy.sh` pulls, migrates, restarts, and runs a health check. Rollback runs the same script with an earlier SHA. There is no staging environment.
 
 Setup and operations steps live in [deploy/README.md](../deploy/README.md). This resolves the hosting item left open in D046 and the implementation plan. The production email provider and monitoring remain open.
+
+## D051 — Collect Pro and invoice credits through a Paybill with M-Pesa STK Push
+
+Status: confirmed on 2026-10-17 by the user's answers before Phase 4.
+
+- Subscription payments go to a platform Paybill through Safaricom Daraja M-Pesa Express (STK Push). This replaces the personal-number plan in D021 and restores D020's business collection account. Activation still waits for a confirmed successful payment matched to the pending purchase.
+- Development and CI never touch real money. Automated tests and local work use a fake provider. Manual end-to-end checks use the Daraja sandbox (shortcode 174379 with its test passkey), with a tunnel exposing the callback URL. Production needs Safaricom's go-live approval for the Paybill first.
+- Confirmation arrives by callback to a URL carrying a secret token. The API also asks Daraja for the status of a request that stays pending, so a lost callback cannot leave a payment stuck. A checkout request or M-Pesa receipt is applied once only, and the paid amount must match the expected amount.
+- Every confirmed KES 500 Pro payment grants exactly one month. A duplicate payment extends access by a month instead of needing a refund. A payment confirmed while Pro is active extends from the current expiry. A payment confirmed after expiry starts a new period from the confirmation time, which becomes the new anniversary anchor. Paying while cancelled also clears the cancellation.
+- Reactivating Pro after it expired carries over only the invoices issued on Free in the current calendar month since Pro ended. Invoices issued on the previous Pro period do not count against the new 100. The first upgrade follows the same rule (D044).
+- Invoice credits: a pack of 50 invoices costs KES 250 and is bought through the same STK Push checkout, one pack per payment. Free and Pro accounts can both buy packs. Credits are used only after the plan allowance for the current period runs out, and they do not expire. Invoices issued with credits do not count toward the plan allowance or toward Free-to-Pro carry-over.
+- At the Pro cap of 100, or the Free cap of 10, an account with no credits cannot mark new invoices Ready until the next period, upgrade, or a credit purchase. Early renewal still does not unlock the next period's allowance early (D044).
+- Renewal reminders go by email three days before expiry and on the expiry day, and the billing page shows a banner in the last three days. Cancelled subscriptions get no reminders. Each reminder is sent once per expiry date.
+- Prices show as flat amounts (KES 500, KES 250) with no tax or fee lines. There are no in-app refunds in V1; support handles any refund by hand.
+
+This resolves the collection route, Pro-cap behavior, mid-month reactivation and repeated plan-change accounting, failed and late-confirmed renewal boundaries, reminder timing and channel, refund handling, and tax/fee presentation items left open in D020, D021, D044, and the implementation plan. Production Paybill credentials and Safaricom onboarding remain to be arranged. Whether a tax line is ever needed depends on the platform's tax registration, which is still unknown.
