@@ -55,8 +55,7 @@ export function AppShell({ sidebar, account, children }: AppShellProps) {
             )}
             <span className="sr-only">Menu</span>
           </button>
-          <span className="md:hidden" />
-          {account}
+          <div className="ml-auto">{account}</div>
         </header>
         <main className="flex-1 p-4 sm:p-7.5">{children}</main>
       </div>
