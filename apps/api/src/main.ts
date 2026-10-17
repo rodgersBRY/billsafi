@@ -1,11 +1,9 @@
+import "./instrument.js";
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module.js";
 import { configureApp } from "./app.setup.js";
-import { loadRootEnvFile } from "./config/env-file.js";
 import { loadEnv } from "./config/env.js";
-
-loadRootEnvFile();
 
 async function bootstrap() {
   const env = loadEnv();

@@ -11,6 +11,7 @@
     "test:browser": "playwright test"
   },
   "dependencies": {
+    "@sentry/nextjs": "11.2.0",
     "@tallynest/contracts": "workspace:*",
     "@tallynest/domain": "workspace:*",
     "better-auth": "1.7.10",

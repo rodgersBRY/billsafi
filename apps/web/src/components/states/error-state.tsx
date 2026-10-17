@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { RotateCw } from "lucide-react";
 import Link from "next/link";
 import { useEffect } from "react";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 /** Shared body for error boundaries: plain message, retry, and a way home. */
 export function ErrorState({ error, retry }: { error: unknown; retry: () => void }) {
   useEffect(() => {
+    Sentry.captureException(error);
     console.error(error);
   }, [error]);
 

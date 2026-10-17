@@ -1,4 +1,6 @@
 import { Module } from "@nestjs/common";
+import { APP_FILTER } from "@nestjs/core";
+import { SentryGlobalFilter, SentryModule } from "@sentry/nestjs/setup";
 import type { DatabaseConnection } from "@tallynest/db";
 import { AuthModule } from "@thallesp/nestjs-better-auth";
 import { createAuth } from "./auth/auth.js";
@@ -15,6 +17,8 @@ import type { Mailer } from "./mail/mailer.js";
 
 @Module({
   imports: [
+    // Without a DSN (local, tests) the SDK is not initialised and reports nothing.
+    SentryModule.forRoot(),
     ConfigModule,
     DatabaseModule,
     MailModule,
@@ -34,5 +38,7 @@ import type { Mailer } from "./mail/mailer.js";
     InvoicesModule,
     BillingModule,
   ],
+  // Reports unexpected errors; HTTP errors such as 404 and 409 are not sent.
+  providers: [{ provide: APP_FILTER, useClass: SentryGlobalFilter }],
 })
 export class AppModule {}

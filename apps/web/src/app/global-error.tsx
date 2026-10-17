@@ -1,10 +1,15 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
+import { useEffect } from "react";
 import "./globals.css";
 
 /** Last resort when the root layout itself fails; it replaces the whole document. */
 export default function GlobalError({ error, retry }: { error: unknown; retry: () => void }) {
-  console.error(error);
+  useEffect(() => {
+    Sentry.captureException(error);
+    console.error(error);
+  }, [error]);
   return (
     <html lang="en">
       <body className="flex min-h-dvh items-center justify-center bg-background p-6 font-sans text-ink">

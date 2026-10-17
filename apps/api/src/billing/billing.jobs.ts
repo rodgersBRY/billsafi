@@ -11,11 +11,6 @@ import { BillingService } from "./billing.service.js";
 
 const INTERVAL_MS = 5 * 60 * 1000;
 
-/**
- * Background billing work inside the API process: settle payments whose
- * callback never came, and send renewal reminders. One API instance runs in
- * production (D050); reminder claims are unique, so overlap cannot double-send.
- */
 @Injectable()
 export class BillingJobs implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(BillingJobs.name);
