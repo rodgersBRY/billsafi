@@ -14,7 +14,9 @@ RUN pnpm install --frozen-lockfile
 COPY --from=pruner /repo/out/full/ .
 # The /api rewrite target is fixed at build time, so it points at the Compose service name.
 ARG API_INTERNAL_URL=http://api:4000
-ENV API_INTERNAL_URL=$API_INTERNAL_URL NEXT_STANDALONE=1 NEXT_TELEMETRY_DISABLED=1
+# Browser error reporting is compiled in; empty leaves it off (D052).
+ARG NEXT_PUBLIC_SENTRY_DSN=
+ENV API_INTERNAL_URL=$API_INTERNAL_URL NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN NEXT_STANDALONE=1 NEXT_TELEMETRY_DISABLED=1
 RUN pnpm turbo run build --filter=@tallynest/web
 
 FROM node:24-alpine AS web

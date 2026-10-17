@@ -154,6 +154,8 @@ export class BillingService {
         amount,
         phone: input.phone,
         provider: this.mpesa.name,
+        // Pending-age checks compare against this process's clock, so stamp it here.
+        createdAt: new Date(),
       })
       .returning();
 

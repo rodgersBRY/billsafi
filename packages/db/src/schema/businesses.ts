@@ -1,5 +1,16 @@
 import { relations, sql } from "drizzle-orm";
-import { char, check, index, integer, pgEnum, pgTable, text, uuid } from "drizzle-orm/pg-core";
+import {
+  char,
+  check,
+  customType,
+  index,
+  integer,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { users } from "./auth.js";
 import { id, timestamps } from "./columns.js";
 
@@ -84,4 +95,30 @@ export const businessPaymentInstructionsRelations = relations(
       references: [businesses.id],
     }),
   }),
+);
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType: () => "bytea",
+});
+
+/**
+ * Uploaded logos (D052). Rows are never changed: a new upload adds a row and
+ * points `businesses.logo_key` at it, so issued invoices keep their logo.
+ */
+export const businessLogos = pgTable(
+  "business_logos",
+  {
+    id: id(),
+    businessId: uuid("business_id")
+      .notNull()
+      .references(() => businesses.id, { onDelete: "restrict" }),
+    contentType: text("content_type").notNull(),
+    data: bytea("data").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("business_logos_business_id_idx").on(table.businessId),
+    check("business_logos_type", sql`${table.contentType} in ('image/png', 'image/jpeg')`),
+    check("business_logos_size", sql`octet_length(${table.data}) <= 524288`),
+  ],
 );

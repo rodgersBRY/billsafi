@@ -26,6 +26,8 @@ services:
   web:
     <<: *image
     image: ${IMAGE_PREFIX:?}-web:${IMAGE_TAG:?}
+    environment:
+      SENTRY_DSN: ${SENTRY_WEB_DSN:-}
     depends_on:
       api:
         condition: service_healthy
@@ -48,6 +50,7 @@ services:
       MPESA_PASSKEY: ${MPESA_PASSKEY:-}
       MPESA_CALLBACK_URL: https://${DOMAIN:?}
       MPESA_CALLBACK_TOKEN: ${MPESA_CALLBACK_TOKEN:-}
+      SENTRY_DSN: ${SENTRY_API_DSN:-}
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4000/api/v1/health"]
       interval: 10s

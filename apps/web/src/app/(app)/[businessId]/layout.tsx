@@ -27,6 +27,7 @@ async function Sidebar({ params }: { params: Promise<{ businessId: string }> }) 
           name={user.name}
           email={user.email}
           billingHref={`/${businessId}/billing`}
+          settingsHref={`/${businessId}/settings`}
           isPro={usage.plan === "pro"}
         />
       </div>

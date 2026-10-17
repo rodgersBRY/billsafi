@@ -153,7 +153,8 @@ Paste the template from `deploy/.env.example` and fill it in:
 - `IMAGE_PREFIX`: `ghcr.io/<your GitHub username in lowercase>/tallynest`. For this repository that is `ghcr.io/rodgersbrian/tallynest`, unless the repo moves to an organization.
 - `IMAGE_TAG`: leave it as `latest`. `deploy.sh` manages this line.
 - `POSTGRES_PASSWORD` and `BETTER_AUTH_SECRET`: run `openssl rand -hex 32` once for each. Use hex values because the password goes into a connection URL, where characters like `/` or `@` would break it.
-- `SMTP_URL` and `MAIL_FROM`: from your email provider. The `MAIL_FROM` address must be on a domain you've verified with that provider.
+- `SMTP_URL` and `MAIL_FROM`: the email provider is Resend (D052). Verify your domain in Resend first, then use `smtps://resend:<API key>@smtp.resend.com:465` and a `MAIL_FROM` address on that domain.
+- `SENTRY_API_DSN` and `SENTRY_WEB_DSN`: the DSNs of your two Sentry projects. Leave them blank to turn error reporting off. Browser errors need the web DSN at build time too: add it as a repository variable named `SENTRY_WEB_DSN` under **Settings > Secrets and variables > Actions > Variables**, then publish new images.
 - `MPESA_ENV`: keep it `disabled` until Safaricom approves the Paybill for Daraja. Checkout then shows a "not available yet" message and nothing else changes. Once approved, set it to `production` and fill in `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_SHORTCODE` (the Paybill number), `MPESA_PASSKEY`, and an `MPESA_CALLBACK_TOKEN` from `openssl rand -hex 24`. Safaricom calls back to `https://<DOMAIN>/api/v1/billing/mpesa/callback/<token>`, so the token stays private.
 
 Lock the file down:

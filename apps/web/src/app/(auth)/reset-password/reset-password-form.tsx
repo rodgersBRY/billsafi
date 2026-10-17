@@ -27,7 +27,7 @@ export function ResetPasswordForm() {
         />
         <Link
           href="/forgot-password"
-          className="mt-6 inline-block text-sm text-teal hover:underline"
+          className="mt-6 inline-block text-sm text-accent hover:underline"
         >
           Request a new link
         </Link>
@@ -42,7 +42,7 @@ export function ResetPasswordForm() {
           title="Password updated"
           description="For your security, you've been signed out on every device. Sign in with your new password."
         />
-        <Link href="/sign-in" className="mt-6 inline-block text-sm text-teal hover:underline">
+        <Link href="/sign-in" className="mt-6 inline-block text-sm text-accent hover:underline">
           Go to sign in
         </Link>
       </div>

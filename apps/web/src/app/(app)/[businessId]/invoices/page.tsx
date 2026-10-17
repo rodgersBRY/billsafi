@@ -75,7 +75,7 @@ async function Invoices({ params, searchParams }: PageProps<"/[businessId]/invoi
             key={value ?? "all"}
             href={tabHref(value)}
             aria-current={status === value ? "page" : undefined}
-            className="rounded-panel border border-line px-3 py-2 text-sm aria-[current=page]:border-transparent aria-[current=page]:bg-soft aria-[current=page]:text-teal"
+            className="rounded-panel border border-line px-3 py-2 text-sm aria-[current=page]:border-transparent aria-[current=page]:bg-soft aria-[current=page]:text-accent"
           >
             {value ? filterLabel(value) : "All invoices"}
           </Link>
@@ -116,7 +116,7 @@ async function Invoices({ params, searchParams }: PageProps<"/[businessId]/invoi
                   <td className="px-4 py-4">
                     <Link
                       href={`${base}/${invoice.id}`}
-                      className="font-medium hover:text-teal hover:underline"
+                      className="font-medium hover:text-accent hover:underline"
                     >
                       {invoice.invoiceNumber ?? "Draft"}
                     </Link>

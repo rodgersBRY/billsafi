@@ -3,7 +3,7 @@ export const MPESA_PROVIDER = Symbol("MPESA_PROVIDER");
 export interface StkPushRequest {
   /** Whole shillings; M-Pesa does not accept cents. */
   amount: number;
-  /** 2547XXXXXXXX or 2541XXXXXXXX, without the plus sign. */
+  /** 2547XXXXXXXX or 2541XXXXXXXX */
   phone: string;
   accountReference: string;
   description: string;

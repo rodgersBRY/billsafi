@@ -31,7 +31,7 @@ export function Button({
       {...props}
       disabled={disabled || pending || !hydrated}
       aria-busy={pending || undefined}
-      className={`inline-flex items-center justify-center gap-2 rounded-panel border px-3.75 py-2.75 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal disabled:cursor-not-allowed disabled:opacity-60 ${variants[variant]} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-panel border px-3.75 py-2.75 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60 ${variants[variant]} ${className}`}
     >
       {pending && <LoaderCircle aria-hidden className="size-4 animate-spin" />}
       {children}

@@ -20,11 +20,13 @@ export function AccountMenu({
   name,
   email,
   billingHref,
+  settingsHref,
   isPro,
 }: {
   name: string;
   email: string;
   billingHref: string;
+  settingsHref: string;
   isPro: boolean;
 }) {
   const router = useRouter();
@@ -84,7 +86,7 @@ export function AccountMenu({
       >
         <span
           aria-hidden
-          className="grid size-7.5 shrink-0 place-items-center rounded-full bg-soft text-xs text-teal group-open:bg-panel"
+          className="grid size-7.5 shrink-0 place-items-center rounded-full bg-soft text-xs text-accent group-open:bg-panel"
         >
           {initials(name)}
         </span>
@@ -102,12 +104,10 @@ export function AccountMenu({
             <CreditCard aria-hidden className="size-4 text-sub" />
           </Link>
         )}
-        <span aria-disabled="true" className={`${item} cursor-default opacity-60`}>
-          <span>
-            Settings <span className="ml-1 text-xs text-sub">Soon</span>
-          </span>
+        <Link href={settingsHref} onClick={closeMenu} className={`${item} hover:bg-soft`}>
+          Settings
           <Settings aria-hidden className="size-4 text-sub" />
-        </span>
+        </Link>
         <button
           type="button"
           onClick={signOut}

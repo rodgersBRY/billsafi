@@ -460,3 +460,16 @@ Status: confirmed on 2026-10-17 by the user's answers before Phase 4.
 - Prices show as flat amounts (KES 500, KES 250) with no tax or fee lines. There are no in-app refunds in V1; support handles any refund by hand.
 
 This resolves the collection route, Pro-cap behavior, mid-month reactivation and repeated plan-change accounting, failed and late-confirmed renewal boundaries, reminder timing and channel, refund handling, and tax/fee presentation items left open in D020, D021, D044, and the implementation plan. Production Paybill credentials and Safaricom onboarding remain to be arranged. Whether a tax line is ever needed depends on the platform's tax registration, which is still unknown.
+
+## D052 — Settle Phase 5 email, monitoring, logos, theme, account settings, and invoice footer
+
+Status: confirmed on 2026-10-17 by the user's answers before Phase 5.
+
+- Production email goes through Resend's SMTP relay. The app keeps sending over SMTP, so only `SMTP_URL` and a verified `MAIL_FROM` domain change.
+- Monitoring uses Sentry for web and API errors, plus an external uptime check on `/api/v1/health`. Sentry stays off when no DSN is set.
+- Business logos are PNG or JPEG files up to 512 KB, stored in PostgreSQL so the existing nightly dumps back them up. WebP is left out because the PDF renderer cannot draw it. Each upload is kept as its own record, so an issued invoice keeps the logo it was made Ready with. The logo shows on the invoice preview, the public page, and the PDF.
+- The app follows the device's light or dark setting. Every screen gets a contrast check in both themes before launch. PDFs stay white with dark text (D027).
+- Account settings cover the user's name and a password change, which signs out the account's other sessions. The sign-in email cannot be changed in V1.
+- Public invoices and PDFs from Free accounts show a small "Created with TallyNest" footer; Pro accounts show none. There is no fixed thank-you line; the notes field covers it.
+
+This resolves the production email provider and monitoring items left open in D046 and D050, and the logo, dark mode, and footer questions in the brand document's design gaps.

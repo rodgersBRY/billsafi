@@ -40,6 +40,17 @@ export class AllowanceService {
     return this.usageFor(db, userId, subscription ?? null, at);
   }
 
+  /** Whether the account has paid Pro access right now. */
+  async isPro(userId: string, at = new Date()): Promise<boolean> {
+    const [subscription] = await this.connection.db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.userId, userId));
+    return Boolean(
+      subscription?.anchorAt && proPeriodAt(subscription.anchorAt, subscription.paidMonths, at),
+    );
+  }
+
   async usageFor(
     db: Db,
     userId: string,

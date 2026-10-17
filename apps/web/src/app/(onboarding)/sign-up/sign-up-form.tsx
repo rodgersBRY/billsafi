@@ -69,7 +69,7 @@ export function SignUpForm() {
         </Button>
         <p className="mt-5 text-center text-sm text-sub">
           Already have an account?{" "}
-          <Link href="/sign-in" className="text-teal hover:underline">
+          <Link href="/sign-in" className="text-accent hover:underline">
             Sign in
           </Link>
         </p>

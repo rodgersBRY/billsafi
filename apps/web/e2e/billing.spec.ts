@@ -9,7 +9,8 @@ test("upgrade to Pro with M-Pesa, then cancel and keep it", async ({ page }) => 
   await createFirstBusiness(page);
 
   await page.getByLabel("Account menu for Wanjiku Kamau").filter({ visible: true }).click();
-  await page.getByRole("link", { name: "Billing" }).click();
+  // Free accounts see an Upgrade to Pro button in place of the Billing link.
+  await page.getByRole("link", { name: "Upgrade to Pro" }).click();
   await expect(page.getByRole("heading", { name: "One plan. All your businesses." })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Upgrade to Pro" })).toBeVisible();
   await waitUntilInteractive(page, "Continue with M-Pesa");

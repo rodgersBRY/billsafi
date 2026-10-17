@@ -87,7 +87,7 @@ export function ClientForm({ businessId, client, onSaved, onCancel }: ClientForm
       </details>
       {client && (
         <p className="mt-4 flex gap-2 rounded-panel bg-soft p-3 text-xs text-sub">
-          <Info aria-hidden className="mt-0.5 size-3.5 shrink-0 text-teal" />
+          <Info aria-hidden className="mt-0.5 size-3.5 shrink-0 text-accent" />
           Changes apply to the saved client profile. Existing invoices keep their original client
           details.
         </p>

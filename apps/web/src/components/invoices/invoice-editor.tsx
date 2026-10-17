@@ -22,6 +22,7 @@ import { FormMessage } from "@/components/ui/form-message";
 import { apiPost, apiRequest, apiSend } from "@/lib/api.client";
 import { ApiError } from "@/lib/api-error";
 import { addDays, formatDate } from "@/lib/format";
+import { logoUrl } from "@/lib/logo";
 import { InvoicePreview } from "./invoice-preview";
 
 interface EditorItem {
@@ -304,7 +305,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         {errors.billing && (
           <Link
             href={`/${businessId}/billing`}
-            className="mt-2 inline-block text-sm font-medium text-teal underline-offset-2 hover:underline"
+            className="mt-2 inline-block text-sm font-medium text-accent underline-offset-2 hover:underline"
           >
             Go to Billing
           </Link>
@@ -526,6 +527,11 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
           </p>
           <InvoicePreview
             business={invoice?.business ?? props.business}
+            logoSrc={
+              (invoice?.business ?? props.business).logoKey
+                ? logoUrl(businessId, (invoice?.business ?? props.business).logoKey!)
+                : null
+            }
             client={previewClient ?? null}
             invoiceNumber={invoice?.invoiceNumber ?? null}
             status={status}

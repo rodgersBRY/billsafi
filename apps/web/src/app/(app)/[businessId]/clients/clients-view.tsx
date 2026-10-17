@@ -96,7 +96,7 @@ export function ClientsView({ businessId, clients, status, search }: ClientsView
               key={value}
               href={href({ status: value })}
               aria-current={status === value ? "page" : undefined}
-              className="rounded-panel border border-line px-3 py-2 text-sm capitalize aria-[current=page]:border-transparent aria-[current=page]:bg-soft aria-[current=page]:text-teal"
+              className="rounded-panel border border-line px-3 py-2 text-sm capitalize aria-[current=page]:border-transparent aria-[current=page]:bg-soft aria-[current=page]:text-accent"
             >
               {value === "active" ? "Active" : "Archived"}
             </Link>
@@ -126,7 +126,7 @@ export function ClientsView({ businessId, clients, status, search }: ClientsView
                 <div className="flex min-w-0 items-center gap-3">
                   <span
                     aria-hidden
-                    className="grid size-8.75 shrink-0 place-items-center rounded-lg bg-soft text-xs text-teal"
+                    className="grid size-8.75 shrink-0 place-items-center rounded-lg bg-soft text-xs text-accent"
                   >
                     {initials(client.name)}
                   </span>

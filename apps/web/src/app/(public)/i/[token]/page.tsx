@@ -41,6 +41,10 @@ function PublicInvoiceView({ token, invoice }: { token: string; invoice: PublicI
       </div>
       <InvoicePreview
         business={{ ...invoice.business, logoKey: null }}
+        logoSrc={
+          invoice.hasLogo ? `/api/v1/public/invoices/${encodeURIComponent(token)}/logo` : null
+        }
+        showBranding={invoice.showBranding}
         client={invoice.client}
         invoiceNumber={invoice.invoiceNumber}
         status={invoice.status}
@@ -70,7 +74,7 @@ function PublicInvoiceView({ token, invoice }: { token: string; invoice: PublicI
       />
       <p className="mt-4 text-center text-sm text-sub">
         Questions about this invoice? Contact{" "}
-        <a href={`mailto:${invoice.business.contactEmail}`} className="text-teal hover:underline">
+        <a href={`mailto:${invoice.business.contactEmail}`} className="text-accent hover:underline">
           {invoice.business.contactEmail}
         </a>
         .

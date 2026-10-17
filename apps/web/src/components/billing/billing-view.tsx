@@ -178,7 +178,7 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
             <h2 id="current-plan" className="text-lg font-semibold">
               {onPro ? "Pro" : "Free"}
             </h2>
-            <span className="rounded-md bg-soft px-2.25 py-1 text-xs text-teal">
+            <span className="rounded-md bg-soft px-2.25 py-1 text-xs text-accent">
               {subscription.status === "cancelled"
                 ? "Ends soon"
                 : subscription.status === "free" && subscription.paidUntil
@@ -263,7 +263,9 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
             <h2 id="pro-offer" className="text-lg font-semibold">
               {onPro ? "Keep Pro going" : "Upgrade to Pro"}
             </h2>
-            <span className="rounded-md bg-soft px-2.25 py-1 text-xs text-teal">Account-wide</span>
+            <span className="rounded-md bg-soft px-2.25 py-1 text-xs text-accent">
+              Account-wide
+            </span>
           </div>
           <p className="my-3.25 text-3xl font-semibold tracking-tight">
             KES 500 <span className="text-sm font-normal tracking-normal text-sub">/ month</span>
@@ -370,7 +372,7 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
         >
           {payment.status === "pending" && (
             <div className="flex gap-3">
-              <Smartphone aria-hidden className="mt-0.5 size-5 shrink-0 text-teal" />
+              <Smartphone aria-hidden className="mt-0.5 size-5 shrink-0 text-accent" />
               <div>
                 <h2 className="text-base font-semibold">Waiting for payment confirmation</h2>
                 <p className="mt-1 text-sm text-sub">
@@ -389,7 +391,7 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
           )}
           {payment.status === "succeeded" && (
             <div className="flex gap-3">
-              <CircleCheck aria-hidden className="mt-0.5 size-5 shrink-0 text-teal" />
+              <CircleCheck aria-hidden className="mt-0.5 size-5 shrink-0 text-accent" />
               <div>
                 <h2 className="text-base font-semibold">Payment confirmed</h2>
                 <p className="mt-1 text-sm text-sub">

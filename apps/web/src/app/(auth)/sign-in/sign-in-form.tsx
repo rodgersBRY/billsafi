@@ -48,7 +48,7 @@ export function SignInForm() {
         required
       />
       <div className="mt-2 text-right">
-        <Link href="/forgot-password" className="text-xs text-teal hover:underline">
+        <Link href="/forgot-password" className="text-xs text-accent hover:underline">
           Forgot password?
         </Link>
       </div>
@@ -58,7 +58,7 @@ export function SignInForm() {
       </Button>
       <p className="mt-6 text-center text-sm text-sub">
         New to TallyNest?{" "}
-        <Link href="/sign-up" className="text-teal hover:underline">
+        <Link href="/sign-up" className="text-accent hover:underline">
           Create an account
         </Link>
       </p>
