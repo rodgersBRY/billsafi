@@ -1,5 +1,13 @@
 import "server-only";
-import type { Business } from "@tallynest/contracts";
+import type {
+  AllowanceUsage,
+  Business,
+  Client,
+  Invoice,
+  InvoiceStatus,
+  InvoiceSummary,
+  PaymentInstruction,
+} from "@tallynest/contracts";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { ApiError, parseApiResponse } from "./api-error";
@@ -43,4 +51,37 @@ export function listBusinesses(): Promise<Business[]> {
 
 export function getBusiness(businessId: string): Promise<Business> {
   return apiGet<Business>(`/businesses/${encodeURIComponent(businessId)}`);
+}
+
+function query(params: Record<string, string | undefined>): string {
+  const entries = Object.entries(params).filter(([, value]) => value) as [string, string][];
+  return entries.length ? `?${new URLSearchParams(entries)}` : "";
+}
+
+const businessPath = (businessId: string) => `/businesses/${encodeURIComponent(businessId)}`;
+
+export function listClients(
+  businessId: string,
+  filter: { status?: "active" | "archived"; search?: string } = {},
+): Promise<Client[]> {
+  return apiGet<Client[]>(`${businessPath(businessId)}/clients${query(filter)}`);
+}
+
+export function listInvoices(
+  businessId: string,
+  filter: { status?: InvoiceStatus; search?: string } = {},
+): Promise<InvoiceSummary[]> {
+  return apiGet<InvoiceSummary[]>(`${businessPath(businessId)}/invoices${query(filter)}`);
+}
+
+export function getInvoice(businessId: string, invoiceId: string): Promise<Invoice> {
+  return apiGet<Invoice>(`${businessPath(businessId)}/invoices/${encodeURIComponent(invoiceId)}`);
+}
+
+export function listPaymentInstructions(businessId: string): Promise<PaymentInstruction[]> {
+  return apiGet<PaymentInstruction[]>(`${businessPath(businessId)}/payment-instructions`);
+}
+
+export function getUsage(): Promise<AllowanceUsage> {
+  return apiGet<AllowanceUsage>("/usage");
 }

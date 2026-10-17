@@ -4,17 +4,23 @@ import { AccountMenu } from "@/components/shell/account-menu";
 import { AppShell } from "@/components/shell/app-shell";
 import { BusinessSwitcher } from "@/components/shell/business-switcher";
 import { NavLinks } from "@/components/shell/nav-links";
+import { UsageMeter } from "@/components/shell/usage-meter";
 import { BrandMark } from "@/components/ui/brand-mark";
-import { getSessionUser, listBusinesses } from "@/lib/api.server";
+import { getSessionUser, getUsage, listBusinesses } from "@/lib/api.server";
 
 async function Sidebar({ params }: { params: Promise<{ businessId: string }> }) {
-  const [{ businessId }, businesses] = await Promise.all([params, listBusinesses()]);
+  const [{ businessId }, businesses, usage] = await Promise.all([
+    params,
+    listBusinesses(),
+    getUsage(),
+  ]);
   // Only the account's own businesses can be opened; anything else is not found.
   if (!businesses.some((business) => business.id === businessId)) notFound();
   return (
     <>
       <BusinessSwitcher businesses={businesses} currentId={businessId} />
       <NavLinks businessId={businessId} />
+      <UsageMeter usage={usage} />
     </>
   );
 }

@@ -56,3 +56,44 @@ export function sessionCookie(setCookie: string | string[] | undefined): string 
   if (!session) throw new Error("No session cookie in response");
   return session.split(";")[0]!;
 }
+
+export const sampleBusiness = {
+  profileType: "individual",
+  displayName: "Wanjiku Designs",
+  contactEmail: "hello@wanjiku.example.test",
+  phone: "0712 345 678",
+};
+
+/** Creates a business for the session and returns its id. */
+export async function createBusiness(
+  app: INestApplication,
+  cookie: string,
+  overrides: Record<string, unknown> = {},
+): Promise<string> {
+  const response = await request(app.getHttpServer())
+    .post("/api/v1/businesses")
+    .set("Cookie", cookie)
+    .send({ ...sampleBusiness, ...overrides })
+    .expect(201);
+  return response.body.id;
+}
+
+export const sampleClient = {
+  name: "Acacia Creative",
+  phone: "0722 111 222",
+  email: "accounts@acacia.example.test",
+};
+
+export async function createClient(
+  app: INestApplication,
+  cookie: string,
+  businessId: string,
+  overrides: Record<string, unknown> = {},
+): Promise<string> {
+  const response = await request(app.getHttpServer())
+    .post(`/api/v1/businesses/${businessId}/clients`)
+    .set("Cookie", cookie)
+    .send({ ...sampleClient, ...overrides })
+    .expect(201);
+  return response.body.id;
+}

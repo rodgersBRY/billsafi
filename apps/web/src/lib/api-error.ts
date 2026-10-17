@@ -8,6 +8,7 @@ export class ApiError extends Error {
     readonly status: number,
     message: string,
     readonly issues: FieldIssue[] = [],
+    readonly code?: string,
   ) {
     super(message);
   }
@@ -23,7 +24,8 @@ export async function parseApiResponse<T>(response: Response): Promise<T> {
   const body = (await response.json().catch(() => ({}))) as {
     message?: string | string[];
     issues?: FieldIssue[];
+    code?: string;
   };
   const message = Array.isArray(body.message) ? body.message.join(", ") : body.message;
-  throw new ApiError(response.status, message ?? "Something went wrong", body.issues);
+  throw new ApiError(response.status, message ?? "Something went wrong", body.issues, body.code);
 }

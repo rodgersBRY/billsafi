@@ -6,8 +6,8 @@ import { usePathname } from "next/navigation";
 
 const LINKS = [
   { segment: "overview", label: "Overview", icon: LayoutDashboard, ready: true },
-  { segment: "invoices", label: "Invoices", icon: FileText, ready: false },
-  { segment: "clients", label: "Clients", icon: Users, ready: false },
+  { segment: "invoices", label: "Invoices", icon: FileText, ready: true },
+  { segment: "clients", label: "Clients", icon: Users, ready: true },
   { segment: "settings", label: "Settings", icon: Settings, ready: false },
 ] as const;
 

@@ -1,5 +1,6 @@
 import { FilePlus, UserPlus, Wallet } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import { BrandLoader } from "@/components/brand/brand-loader";
 import { getBusiness } from "@/lib/api.server";
@@ -7,9 +8,10 @@ import { getBusiness } from "@/lib/api.server";
 export const metadata: Metadata = { title: "Overview · TallyNest" };
 
 const QUICK_ACTIONS = [
-  { label: "Create invoice", icon: FilePlus },
-  { label: "Add client", icon: UserPlus },
-  { label: "Record payment", icon: Wallet },
+  { label: "Create invoice", icon: FilePlus, path: "invoices/new" },
+  { label: "Add client", icon: UserPlus, path: "clients" },
+  // Payments arrive in Phase 3.
+  { label: "Record payment", icon: Wallet, path: null },
 ];
 
 async function Overview({ params }: { params: Promise<{ businessId: string }> }) {
@@ -23,22 +25,32 @@ async function Overview({ params }: { params: Promise<{ businessId: string }> })
         </div>
       </div>
       <section className="rounded-panel border border-line bg-panel p-6">
-        <h2 className="text-base font-semibold">No invoices yet</h2>
+        <h2 className="text-base font-semibold">Your dashboard is on its way</h2>
         <p className="mt-1.5 max-w-prose text-sm text-sub">
           Your outstanding balance, overdue amounts and payments received this month will show here
           once you start invoicing.
         </p>
         <ul className="mt-5 flex flex-wrap gap-2.5">
-          {QUICK_ACTIONS.map(({ label, icon: Icon }) => (
+          {QUICK_ACTIONS.map(({ label, icon: Icon, path }) => (
             <li key={label}>
-              <span
-                aria-disabled="true"
-                title="Coming in the next release"
-                className="inline-flex cursor-default items-center gap-2 rounded-panel border border-line px-3.25 py-2.25 text-sm text-sub opacity-70"
-              >
-                <Icon aria-hidden className="size-4" />
-                {label}
-              </span>
+              {path ? (
+                <Link
+                  href={`/${business.id}/${path}`}
+                  className="inline-flex items-center gap-2 rounded-panel border border-line px-3.25 py-2.25 text-sm hover:bg-soft"
+                >
+                  <Icon aria-hidden className="size-4" />
+                  {label}
+                </Link>
+              ) : (
+                <span
+                  aria-disabled="true"
+                  title="Coming in the next release"
+                  className="inline-flex cursor-default items-center gap-2 rounded-panel border border-line px-3.25 py-2.25 text-sm text-sub opacity-70"
+                >
+                  <Icon aria-hidden className="size-4" />
+                  {label}
+                </span>
+              )}
             </li>
           ))}
         </ul>
