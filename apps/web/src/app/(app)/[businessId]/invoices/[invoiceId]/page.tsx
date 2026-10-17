@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { BrandLoader } from "@/components/brand/brand-loader";
 import { InvoiceDetails } from "@/components/invoices/invoice-details";
 import { InvoiceEditor } from "@/components/invoices/invoice-editor";
-import { getInvoice, getInvoiceLink, listPayments } from "@/lib/api.server";
+import { getInvoice, getInvoiceLink, listPayments } from "@/lib/server-api/invoices";
 import { todayInNairobi } from "@/lib/format";
 import { loadEditorData } from "../editor-data";
 

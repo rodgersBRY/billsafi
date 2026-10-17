@@ -3,7 +3,8 @@ import { Suspense } from "react";
 import { BrandLoader } from "@/components/brand/brand-loader";
 import { type SettingsTab, settingsTabs } from "@/components/settings/settings-tabs";
 import { SettingsView } from "@/components/settings/settings-view";
-import { getBusiness, getSessionUser, listPaymentInstructions } from "@/lib/api.server";
+import { getSessionUser } from "@/lib/server-api/auth";
+import { getBusiness, listPaymentInstructions } from "@/lib/server-api/businesses";
 
 export const metadata: Metadata = { title: "Settings · TallyNest" };
 

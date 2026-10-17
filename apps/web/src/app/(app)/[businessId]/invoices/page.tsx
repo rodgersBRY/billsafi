@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { BrandLoader } from "@/components/brand/brand-loader";
 import { StatusPill } from "@/components/ui/status-pill";
-import { listInvoices } from "@/lib/api.server";
+import { listInvoices } from "@/lib/server-api/invoices";
 import { formatAmount, formatDate } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Invoices · TallyNest" };

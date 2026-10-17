@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { BrandLoader } from "@/components/brand/brand-loader";
-import { listBusinesses } from "@/lib/api.server";
+import { listBusinesses } from "@/lib/server-api/businesses";
 
 /** Sends signed-in users to their first business, or to setup if they have none. */
 async function Destination(): Promise<never> {
