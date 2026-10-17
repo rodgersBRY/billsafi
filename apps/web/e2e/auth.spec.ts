@@ -70,3 +70,27 @@ test("reset a forgotten password through the emailed link", async ({ page }) => 
   await skipIntro(page);
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
 });
+
+test("the account menu sits at the right and closes on an outside click or Escape", async ({
+  page,
+}) => {
+  await signUp(page, "Achieng Odhiambo", uniqueEmail("menu"));
+  await createFirstBusiness(page);
+
+  const trigger = page.getByLabel("Account menu for Achieng Odhiambo");
+  const banner = page.getByRole("banner");
+  const [triggerBox, bannerBox] = await Promise.all([trigger.boundingBox(), banner.boundingBox()]);
+  // Within the header's right padding.
+  expect(bannerBox!.x + bannerBox!.width - (triggerBox!.x + triggerBox!.width)).toBeLessThan(40);
+
+  const signOut = page.getByRole("button", { name: "Sign out" });
+  await trigger.click();
+  await expect(signOut).toBeVisible();
+  await page.getByRole("heading", { name: "Overview" }).click();
+  await expect(signOut).toBeHidden();
+
+  await trigger.click();
+  await expect(signOut).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(signOut).toBeHidden();
+});

@@ -2,7 +2,7 @@
 
 import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 
 function initials(name: string) {
@@ -24,6 +24,30 @@ export function AccountMenu({ name, email }: { name: string; email: string }) {
     const menu = menuRef.current;
     return () => {
       if (menu) menu.open = false;
+    };
+  }, []);
+
+  // Close on a click or tap anywhere outside the menu, and on Escape.
+  useEffect(() => {
+    const menu = menuRef.current;
+    if (!menu) return;
+    const close = () => {
+      menu.open = false;
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      if (menu.open && !menu.contains(event.target as Node)) close();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (menu.open && event.key === "Escape") {
+        close();
+        menu.querySelector("summary")?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
     };
   }, []);
 

@@ -1,24 +1,39 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { BrandLoader } from "@/components/brand/brand-loader";
+import { InvoiceDetails } from "@/components/invoices/invoice-details";
 import { InvoiceEditor } from "@/components/invoices/invoice-editor";
-import { getInvoice } from "@/lib/api.server";
+import { getInvoice, getInvoiceLink, listPayments } from "@/lib/api.server";
+import { todayInNairobi } from "@/lib/format";
 import { loadEditorData } from "../editor-data";
 
 export const metadata: Metadata = { title: "Invoice · TallyNest" };
 
-async function ExistingInvoice({
-  params,
-}: {
-  params: Promise<{ businessId: string; invoiceId: string }>;
-}) {
+type Params = Promise<{ businessId: string; invoiceId: string }>;
+
+/** Drafts open in the editor; issued invoices open their details (D039). */
+async function InvoiceScreen({ params }: { params: Params }) {
   const { businessId, invoiceId } = await params;
-  const [data, invoice] = await Promise.all([
-    loadEditorData(businessId),
-    getInvoice(businessId, invoiceId),
+  const invoice = await getInvoice(businessId, invoiceId);
+  if (invoice.status === "draft") {
+    const data = await loadEditorData(businessId);
+    return <InvoiceEditor key={`${invoice.id}:${invoice.updatedAt}`} {...data} invoice={invoice} />;
+  }
+  await connection();
+  const [payments, link] = await Promise.all([
+    listPayments(businessId, invoiceId),
+    getInvoiceLink(businessId, invoiceId),
   ]);
-  // Remount when the server data changes (for example after Mark as Ready).
-  return <InvoiceEditor key={`${invoice.id}:${invoice.updatedAt}`} {...data} invoice={invoice} />;
+  return (
+    <InvoiceDetails
+      businessId={businessId}
+      invoice={invoice}
+      payments={payments}
+      link={link}
+      today={todayInNairobi()}
+    />
+  );
 }
 
 export default function InvoicePage({ params }: PageProps<"/[businessId]/invoices/[invoiceId]">) {
@@ -30,7 +45,7 @@ export default function InvoicePage({ params }: PageProps<"/[businessId]/invoice
         </div>
       }
     >
-      <ExistingInvoice params={params} />
+      <InvoiceScreen params={params} />
     </Suspense>
   );
 }

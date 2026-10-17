@@ -32,7 +32,11 @@ export function Dialog({ open, onClose, title, description, children }: DialogPr
   return (
     <dialog
       ref={ref}
-      onClose={onClose}
+      // A close event can arrive after the dialog was reopened (for example React's
+      // development double-mount); only report a close that actually left it closed.
+      onClose={() => {
+        if (!ref.current?.open) onClose();
+      }}
       aria-labelledby={titleId}
       className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-panel border border-line bg-panel p-0 text-ink backdrop:bg-black/40"
     >

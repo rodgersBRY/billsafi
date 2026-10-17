@@ -3,10 +3,14 @@ import type {
   AllowanceUsage,
   Business,
   Client,
+  Dashboard,
+  InvoiceLinkStatus,
+  Payment,
   Invoice,
   InvoiceStatus,
   InvoiceSummary,
   PaymentInstruction,
+  PublicInvoice,
 } from "@tallynest/contracts";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
@@ -69,7 +73,7 @@ export function listClients(
 
 export function listInvoices(
   businessId: string,
-  filter: { status?: InvoiceStatus; search?: string } = {},
+  filter: { status?: InvoiceStatus | "overdue"; search?: string } = {},
 ): Promise<InvoiceSummary[]> {
   return apiGet<InvoiceSummary[]>(`${businessPath(businessId)}/invoices${query(filter)}`);
 }
@@ -84,4 +88,37 @@ export function listPaymentInstructions(businessId: string): Promise<PaymentInst
 
 export function getUsage(): Promise<AllowanceUsage> {
   return apiGet<AllowanceUsage>("/usage");
+}
+
+const invoicePath = (businessId: string, invoiceId: string) =>
+  `${businessPath(businessId)}/invoices/${encodeURIComponent(invoiceId)}`;
+
+export function listPayments(businessId: string, invoiceId: string): Promise<Payment[]> {
+  return apiGet<Payment[]>(`${invoicePath(businessId, invoiceId)}/payments`);
+}
+
+export async function getInvoiceLink(
+  businessId: string,
+  invoiceId: string,
+): Promise<InvoiceLinkStatus | null> {
+  return (
+    await apiGet<{ link: InvoiceLinkStatus | null }>(`${invoicePath(businessId, invoiceId)}/link`)
+  ).link;
+}
+
+export function getDashboard(businessId: string): Promise<Dashboard> {
+  return apiGet<Dashboard>(`${businessPath(businessId)}/dashboard`);
+}
+
+/**
+ * Account-free invoice view (D011). Sends no cookies; any unusable link
+ * (expired, replaced, disabled, draft, cancelled) returns null.
+ */
+export async function getPublicInvoice(token: string): Promise<PublicInvoice | null> {
+  const response = await fetch(
+    `${apiInternalUrl}/api/v1/public/invoices/${encodeURIComponent(token)}`,
+    { cache: "no-store" },
+  );
+  if (response.status === 404) return null;
+  return parseApiResponse<PublicInvoice>(response);
 }

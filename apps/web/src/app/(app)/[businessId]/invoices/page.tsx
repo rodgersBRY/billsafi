@@ -10,17 +10,22 @@ import { formatAmount, formatDate } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Invoices · TallyNest" };
 
-function isStatus(value: unknown): value is InvoiceStatus {
-  return invoiceStatuses.includes(value as InvoiceStatus);
+type Filter = InvoiceStatus | "overdue";
+const FILTERS: Filter[] = [...invoiceStatuses, "overdue"];
+const filterLabel = (value: Filter) =>
+  value === "overdue" ? "Overdue" : invoiceStatusLabels[value];
+
+function isFilter(value: unknown): value is Filter {
+  return FILTERS.includes(value as Filter);
 }
 
 async function Invoices({ params, searchParams }: PageProps<"/[businessId]/invoices">) {
   const [{ businessId }, query] = await Promise.all([params, searchParams]);
-  const status = isStatus(query.status) ? query.status : undefined;
+  const status = isFilter(query.status) ? query.status : undefined;
   const search = typeof query.q === "string" ? query.q.trim() : "";
   const invoices = await listInvoices(businessId, { status, search: search || undefined });
   const base = `/${businessId}/invoices`;
-  const tabHref = (value?: InvoiceStatus) => {
+  const tabHref = (value?: Filter) => {
     const params = new URLSearchParams();
     if (value) params.set("status", value);
     if (search) params.set("q", search);
@@ -65,14 +70,14 @@ async function Invoices({ params, searchParams }: PageProps<"/[businessId]/invoi
         </form>
       </div>
       <nav aria-label="Invoice status" className="mb-4 flex flex-wrap gap-1.5">
-        {[undefined, ...invoiceStatuses].map((value) => (
+        {[undefined, ...FILTERS].map((value) => (
           <Link
             key={value ?? "all"}
             href={tabHref(value)}
             aria-current={status === value ? "page" : undefined}
             className="rounded-panel border border-line px-3 py-2 text-sm aria-[current=page]:border-transparent aria-[current=page]:bg-soft aria-[current=page]:text-teal"
           >
-            {value ? invoiceStatusLabels[value] : "All invoices"}
+            {value ? filterLabel(value) : "All invoices"}
           </Link>
         ))}
       </nav>
@@ -124,7 +129,7 @@ async function Invoices({ params, searchParams }: PageProps<"/[businessId]/invoi
                     {formatAmount(invoice.balanceDue)}
                   </td>
                   <td className="px-4 py-4">
-                    <StatusPill status={invoice.status} />
+                    <StatusPill status={invoice.status} overdue={invoice.overdue} />
                   </td>
                 </tr>
               ))}

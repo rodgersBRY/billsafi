@@ -10,6 +10,11 @@ export default defineConfig(
     rules: {
       // Nest modules are decorated empty classes.
       "@typescript-eslint/no-extraneous-class": "off",
+      // Underscore-prefixed names mark fields deliberately dropped by destructuring.
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { varsIgnorePattern: "^_", argsIgnorePattern: "^_", ignoreRestSiblings: true },
+      ],
     },
   },
 );

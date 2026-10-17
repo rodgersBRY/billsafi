@@ -11,7 +11,8 @@ const PUBLIC_PATHS = ["/sign-in", "/sign-up", "/forgot-password", "/reset-passwo
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSession = Boolean(getSessionCookie(request));
-  const isPublic = PUBLIC_PATHS.some((path) => pathname === path);
+  // Clients open shared invoices at /i/{token} without an account (D011).
+  const isPublic = PUBLIC_PATHS.some((path) => pathname === path) || pathname.startsWith("/i/");
 
   if (!hasSession && !isPublic) {
     return NextResponse.redirect(new URL("/sign-in", request.url));

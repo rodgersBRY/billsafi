@@ -1,4 +1,7 @@
 export * from "./businesses.js";
 export * from "./clients.js";
+export * from "./dashboard.js";
 export * from "./fields.js";
 export * from "./invoices.js";
+export * from "./payments.js";
+export * from "./sharing.js";

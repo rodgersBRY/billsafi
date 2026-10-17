@@ -212,9 +212,9 @@ The user's M-Pesa account type and integration eligibility/credentials have not 
 
 - Confirm the remaining onboarding proposals above; email verification is skipped for V1.
 - Available payment-term options. Input limits, phone format, and number padding are settled in D047 and D048.
-- Overdue timing and dashboard reporting timezone.
-- Display of payment change history and whether a reversed payment can be reinstated. Refunds are deferred beyond V1.
-- Share-message content, link expiry, public information visibility, and unavailable-invoice page behavior.
+- Overdue timing and dashboard reporting timezone are settled in D049.
+- Payment change history display is settled in D049. Whether a reversed payment can be reinstated remains open. Refunds are deferred beyond V1.
+- Share copy, link expiry, public visibility, and the unavailable page are settled in D049.
 - Subscription collection route for the personal M-Pesa number, reminder timing and channel, tax/fee presentation, refund policy, Pro-cap behavior, and accounting for mid-month Pro reactivation and repeated plan changes.
 - Remaining business ownership rules, business limits and deletion/archival; multiple businesses per account and owner-only management are confirmed, with team access deferred.
 - Additional reporting, supported currencies beyond KES, and measurable release criteria.

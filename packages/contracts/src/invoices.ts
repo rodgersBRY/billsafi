@@ -111,8 +111,10 @@ export interface InvoiceSummary {
   dueDate: string;
   currency: string;
   total: string;
-  /** Payments arrive in Phase 3; until then the balance equals the total. */
+  paymentsReceived: string;
   balanceDue: string;
+  /** Ready or Partially paid and past the due date in Nairobi time (D049). */
+  overdue: boolean;
   updatedAt: string;
 }
 
@@ -127,10 +129,12 @@ export interface Invoice extends InvoiceSummary {
   subtotal: string;
   discountAmount: string;
   taxAmount: string;
-  paymentsReceived: string;
   paymentInstructions: string | null;
   notes: string | null;
   readyAt: string | null;
+  cancelledAt: string | null;
+  /** True once any payment has been recorded; financial fields then stay locked (D043). */
+  financialsLocked: boolean;
 }
 
 export interface AllowanceUsage {

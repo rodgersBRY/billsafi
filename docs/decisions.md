@@ -421,3 +421,16 @@ Status: confirmed on 2026-10-16 by the user's answers before Phase 2.
 - Input limits: up to 100 line items per invoice; item description up to 500 characters; quantity from 0.01 to 1,000,000; unit price from 0 to 100,000,000; tax rate from 0 to 100 percent; percentage discount from 0 to 100 percent; fixed discount from 0 up to the subtotal; notes up to 2,000 characters.
 
 This resolves the precision/scale, padding, snapshot-timing, and validation-limit items left open in D013, D022, and the database model. `decimal.js` is the decimal library (D046).
+
+## D049 — Settle Phase 3 overdue timing, public links, PDF pages, history display, and share copy
+
+Status: confirmed on 2026-10-17. The first four items were answered by the user; the history display and share copy were proposed the same day and accepted without change.
+
+- An invoice is overdue from 00:00 Africa/Nairobi on the day after its due date, while it is Ready or Partially paid. Dashboard "this month" figures use Nairobi calendar months, matching D044.
+- Public invoice links expire 30 days after they are created. Owners can disable a link or replace it with a new one at any time; replacing invalidates the old link immediately. Expired, disabled, Draft, and Cancelled invoices show the same unavailable page.
+- The public page shows the same details as the PDF: business name, contact email, phone, address, and KRA PIN when set; Bill to; items; totals; the compact payment summary; payment instructions; and notes. No payment history (D023).
+- PDFs are A4. Line items flow onto new pages with the table header repeated; totals and the payment summary stay together; the footer shows the invoice number and "Page X of Y".
+- Payment change history appears only inside the app, on the invoice details page. Each payment shows amount, date, method, and reference; corrected and reversed payments are labelled and expand to show before and after values, the reason, and when the change was made.
+- Share copy. WhatsApp: "Hi {client}, here is invoice {number} from {business} for KES {balance due}, due {due date}: {link}". Email subject: "Invoice {number} from {business}". Email body: the same message followed by "The link works for 30 days. Thank you."
+
+Implementation note: PDFs are generated with `@react-pdf/renderer` in the API rather than headless Chrome, so the server does not need a browser installed. This resolves the overdue/reporting timezone, change-history display, link expiry, public visibility, unavailable page, PDF pagination, and share copy items left open in the PRD and implementation plan. Reinstating a reversed payment remains unresolved.
