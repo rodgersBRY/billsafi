@@ -5,7 +5,7 @@ import { BillingView } from "@/components/billing/billing-view";
 import { getBilling } from "@/lib/server-api/billing";
 import { getBusiness, listBusinesses } from "@/lib/server-api/businesses";
 
-export const metadata: Metadata = { title: "Billing · TallyNest" };
+export const metadata: Metadata = { title: "Billing · Billsafi" };
 
 async function Billing({ params }: { params: Promise<{ businessId: string }> }) {
   const { businessId } = await params;

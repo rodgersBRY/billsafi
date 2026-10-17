@@ -1,5 +1,5 @@
-import type { Database } from "@tallynest/db";
-import { schema } from "@tallynest/db";
+import type { Database } from "@billsafi/db";
+import { schema } from "@billsafi/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import type { Env } from "../config/env.js";
@@ -17,7 +17,7 @@ export interface AuthDependencies {
 
 export function createAuth({ db, env, mailer }: AuthDependencies) {
   return betterAuth({
-    appName: "TallyNest",
+    appName: "Billsafi",
     baseURL: env.WEB_ORIGIN,
     basePath: AUTH_BASE_PATH,
     secret: env.BETTER_AUTH_SECRET,

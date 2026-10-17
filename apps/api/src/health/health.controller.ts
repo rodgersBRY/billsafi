@@ -1,6 +1,6 @@
 import { Controller, Get, Inject, ServiceUnavailableException } from "@nestjs/common";
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth";
-import { type DatabaseConnection, sql } from "@tallynest/db";
+import { type DatabaseConnection, sql } from "@billsafi/db";
 import { DATABASE } from "../database/database.module.js";
 
 @AllowAnonymous()

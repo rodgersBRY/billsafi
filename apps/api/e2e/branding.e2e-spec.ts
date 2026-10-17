@@ -1,5 +1,5 @@
 import type { INestApplication } from "@nestjs/common";
-import { type DatabaseConnection, eq, schema } from "@tallynest/db";
+import { type DatabaseConnection, eq, schema } from "@billsafi/db";
 import request from "supertest";
 import { DATABASE } from "../src/database/database.module.js";
 import { createBusiness, createClient, createTestApp, signUp } from "./support/app.js";
@@ -90,7 +90,7 @@ describe("logos and invoice branding", () => {
     await api().get(`/api/v1/public/invoices/${token}/pdf`).expect(200);
   });
 
-  it("hides the TallyNest footer for Pro accounts", async () => {
+  it("hides the Billsafi footer for Pro accounts", async () => {
     const account = await setup();
     const token = await account.readyInvoiceLink();
     const db = app.get<DatabaseConnection>(DATABASE).db;

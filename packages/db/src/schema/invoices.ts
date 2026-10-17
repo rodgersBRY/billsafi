@@ -33,7 +33,7 @@ export const invoiceStatus = pgEnum("invoice_status", [
 
 export const discountType = pgEnum("discount_type", ["fixed", "percentage"]);
 
-/** Copied when an invoice is first marked Ready (D048). Shapes live in @tallynest/contracts. */
+/** Copied when an invoice is first marked Ready (D048). Shapes live in @billsafi/contracts. */
 export type ClientSnapshot = {
   name: string;
   phone: string;

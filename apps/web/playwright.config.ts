@@ -15,13 +15,13 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "pnpm --filter @tallynest/api start",
+      command: "pnpm --filter @billsafi/api start",
       url: "http://localhost:4000/api/v1/health",
       reuseExistingServer: !process.env.CI,
       cwd: "../..",
     },
     {
-      command: "pnpm --filter @tallynest/web start",
+      command: "pnpm --filter @billsafi/web start",
       url: "http://localhost:3000/sign-in",
       reuseExistingServer: !process.env.CI,
       cwd: "../..",

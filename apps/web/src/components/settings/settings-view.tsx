@@ -1,6 +1,6 @@
 "use client";
 
-import type { Business, PaymentInstruction } from "@tallynest/contracts";
+import type { Business, PaymentInstruction } from "@billsafi/contracts";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AccountSettings } from "./account-settings";

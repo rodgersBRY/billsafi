@@ -1,6 +1,6 @@
 import type { INestApplication } from "@nestjs/common";
-import { type DatabaseConnection, schema, sql } from "@tallynest/db";
-import { nairobiDate } from "@tallynest/domain";
+import { type DatabaseConnection, schema, sql } from "@billsafi/db";
+import { nairobiDate } from "@billsafi/domain";
 import request from "supertest";
 import { DATABASE } from "../src/database/database.module.js";
 import { createBusiness, createClient, createTestApp, signUp } from "./support/app.js";

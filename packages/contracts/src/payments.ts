@@ -18,7 +18,7 @@ const paymentFields = {
   reference: optionalText(100),
 };
 
-/** Recording a payment received outside TallyNest (D002). */
+/** Recording a payment received outside Billsafi (D002). */
 export const recordPaymentSchema = z.object(paymentFields);
 export type RecordPaymentInput = z.input<typeof recordPaymentSchema>;
 export type RecordPayment = z.output<typeof recordPaymentSchema>;

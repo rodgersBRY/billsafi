@@ -8,7 +8,7 @@ import {
   receivedPaymentMethodLabels,
   receivedPaymentMethods,
   type ReceivedPaymentMethod,
-} from "@tallynest/contracts";
+} from "@billsafi/contracts";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/field";

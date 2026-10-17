@@ -1,5 +1,5 @@
 {
-  "extends": "@tallynest/config/tsconfig.base.json",
+  "extends": "@billsafi/config/tsconfig.base.json",
   "compilerOptions": {
     "module": "NodeNext",
     "moduleResolution": "NodeNext",

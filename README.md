@@ -1,4 +1,4 @@
-# TallyNest
+# Billsafi
 
 Invoicing for Kenyan freelancers and independent professionals. Product and design specifications live in [docs/](docs/README.md).
 

@@ -1,7 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { Dashboard } from "@tallynest/contracts";
-import { type DatabaseConnection, schema, sql } from "@tallynest/db";
-import { nairobiCalendarMonth, nairobiDate } from "@tallynest/domain";
+import type { Dashboard } from "@billsafi/contracts";
+import { type DatabaseConnection, schema, sql } from "@billsafi/db";
+import { nairobiCalendarMonth, nairobiDate } from "@billsafi/domain";
 import { DATABASE } from "../database/database.module.js";
 import { InvoicesService } from "./invoices.service.js";
 

@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import type { SaveInvoice } from "@tallynest/contracts";
+import type { SaveInvoice } from "@billsafi/contracts";
 import {
   and,
   asc,
@@ -15,13 +15,13 @@ import {
   eq,
   schema,
   sql,
-} from "@tallynest/db";
+} from "@billsafi/db";
 import {
   calculateInvoice,
   DiscountExceedsSubtotalError,
   formatInvoiceNumber,
-} from "@tallynest/domain";
-import { nairobiDate } from "@tallynest/domain";
+} from "@billsafi/domain";
+import { nairobiDate } from "@billsafi/domain";
 import { containsPattern } from "../common/like-pattern.js";
 import { DATABASE } from "../database/database.module.js";
 import { AllowanceService } from "../billing/allowance.service.js";

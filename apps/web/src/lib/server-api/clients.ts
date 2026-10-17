@@ -1,5 +1,5 @@
 import "server-only";
-import type { Client } from "@tallynest/contracts";
+import type { Client } from "@billsafi/contracts";
 import { apiGet, businessPath, query } from "./request";
 
 export function listClients(

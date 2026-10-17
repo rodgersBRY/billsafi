@@ -1,5 +1,5 @@
-import type { Business, PaymentInstruction } from "@tallynest/contracts";
-import type { schema } from "@tallynest/db";
+import type { Business, PaymentInstruction } from "@billsafi/contracts";
+import type { schema } from "@billsafi/db";
 
 type BusinessRow = typeof schema.businesses.$inferSelect;
 type PaymentInstructionRow = typeof schema.businessPaymentInstructions.$inferSelect;

@@ -1,4 +1,4 @@
-import { normalizeKenyanPhone } from "@tallynest/domain";
+import { normalizeKenyanPhone } from "@billsafi/domain";
 import { z } from "zod";
 
 /** Accepts 07…, 01…, 254… or +254… and outputs +254XXXXXXXXX (D047). */

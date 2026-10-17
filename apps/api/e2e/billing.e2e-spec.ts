@@ -1,6 +1,6 @@
 import type { INestApplication } from "@nestjs/common";
-import { type DatabaseConnection, eq, schema, sql } from "@tallynest/db";
-import { addNairobiMonths } from "@tallynest/domain";
+import { type DatabaseConnection, eq, schema, sql } from "@billsafi/db";
+import { addNairobiMonths } from "@billsafi/domain";
 import request from "supertest";
 import { BillingService } from "../src/billing/billing.service.js";
 import type { FakeMpesaProvider } from "../src/billing/mpesa/fake.provider.js";
@@ -320,7 +320,7 @@ describe("billing", () => {
     await billing.sendReminders();
     const forActive = mailer.sent.filter((message) => message.to === active.email);
     expect(forActive).toHaveLength(1);
-    expect(forActive[0]!.subject).toBe("Your TallyNest Pro ends soon");
+    expect(forActive[0]!.subject).toBe("Your Billsafi Pro ends soon");
     expect(mailer.sent.some((message) => message.to === cancelled.email)).toBe(false);
     expect((await active.overview()).subscription.renewalDue).toBe(true);
   });

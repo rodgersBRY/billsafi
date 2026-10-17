@@ -14,7 +14,7 @@ export default function GlobalError({ error, retry }: { error: unknown; retry: (
     <html lang="en">
       <body className="flex min-h-dvh items-center justify-center bg-background p-6 font-sans text-ink">
         <div role="alert" className="max-w-md text-center">
-          <h1 className="text-xl font-semibold">TallyNest is having trouble</h1>
+          <h1 className="text-xl font-semibold">Billsafi is having trouble</h1>
           <p className="mt-2 text-sm text-sub">Please try again in a moment.</p>
           <button
             type="button"

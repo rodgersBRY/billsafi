@@ -1,14 +1,14 @@
-# TallyNest — brand and product design
+# Billsafi — brand and product design
 
 Last updated: 2026-10-15
 Status: confirmed brand foundation; visual design in progress.
 
 ## Confirmed
 
-Product name: **TallyNest**.
+Product name: **Billsafi**.
 Primary brand colour: **Deep teal — `#0F766E`**.
 
-Source: the user's “I like tallynest and the deep teal” in the continuation chat. Name, domain, and trademark availability have not been checked.
+The product was first named TallyNest (D027, from the user’s “I like tallynest and the deep teal”). It was renamed Billsafi on 2026-10-17 because TallyNest already has a large online presence (D053). The deep teal stays. Name, domain, and trademark availability for Billsafi have not been checked.
 
 ## Proposed supporting direction — awaiting confirmation
 
@@ -47,7 +47,7 @@ The preview selector and sample values/contact text are demonstration content, n
 
 ## Confirmed PDF colour treatment
 
-Confirmed on 2026-10-15 by the user's “thats fine”. Downloaded PDFs use a white background with black/dark-grey text, neutral headings, thin grey dividers, and bold totals. The freelancer's business name and optional logo lead the document. TallyNest teal remains in the application interface rather than being imposed on the PDF. Preserve the approved invoice layout and compact payment summary. This does not require recolouring uploaded business logos. Footer branding policy remains unresolved.
+Confirmed on 2026-10-15 by the user's “thats fine”. Downloaded PDFs use a white background with black/dark-grey text, neutral headings, thin grey dividers, and bold totals. The freelancer's business name and optional logo lead the document. Billsafi teal remains in the application interface rather than being imposed on the PDF. Preserve the approved invoice layout and compact payment summary. This does not require recolouring uploaded business logos. Footer branding policy remains unresolved.
 
 ## Onboarding revision: required phone and editable M-Pesa default
 
@@ -126,7 +126,7 @@ Screens and states missing for confirmed requirements:
 
 Open design questions raised by the previews:
 
-- The client-facing invoice footer shows "Created with TallyNest", but footer branding policy is unresolved.
+- The client-facing invoice footer shows "Created with Billsafi", but footer branding policy is unresolved.
 - The client-facing invoice ends with a fixed "Thank you for choosing Mawira Studio." line. Decide whether this is fixed text, a business setting, or removed.
 - The previews follow the system colour scheme and render dark on dark-mode devices. Only a light theme is described, and some dark-mode badges and labels have low contrast. Decide whether dark mode is in V1.
 

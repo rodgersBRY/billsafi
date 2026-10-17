@@ -9,7 +9,7 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
-import { type Client, createClientSchema, updateClientSchema } from "@tallynest/contracts";
+import { type Client, createClientSchema, updateClientSchema } from "@billsafi/contracts";
 import { z } from "zod";
 import { BusinessOwnerGuard } from "../businesses/business-owner.guard.js";
 import { UuidParamPipe } from "../common/uuid-param.pipe.js";

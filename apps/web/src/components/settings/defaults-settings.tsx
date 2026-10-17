@@ -1,6 +1,6 @@
 "use client";
 
-import type { Business } from "@tallynest/contracts";
+import type { Business } from "@billsafi/contracts";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -47,7 +47,7 @@ export function DefaultsSettings({ business }: { business: Business }) {
           label="Default currency"
           value={business.defaultCurrency}
           disabled
-          hint="TallyNest invoices in Kenyan shillings for now."
+          hint="Billsafi invoices in Kenyan shillings for now."
         >
           <option value="KES">KES · Kenyan shilling</option>
         </SelectField>

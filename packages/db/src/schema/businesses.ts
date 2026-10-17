@@ -56,7 +56,7 @@ export const paymentMethod = pgEnum("payment_method", [
 ]);
 
 /**
- * How clients pay a business outside TallyNest. M-Pesa methods carry a number;
+ * How clients pay a business outside Billsafi. M-Pesa methods carry a number;
  * bank transfer relies on the free-text instructions, matching the approved
  * onboarding design until bank fields are decided.
  */

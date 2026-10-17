@@ -1,6 +1,6 @@
-# Production stack for the droplet. Lives in /opt/tallynest next to .env (see deploy/.env.example).
+# Production stack for the droplet. Lives in /opt/billsafi next to .env (see deploy/.env.example).
 # Only Caddy publishes ports; the web app proxies /api to the API over the internal network.
-name: tallynest
+name: billsafi
 
 x-image: &image
   pull_policy: missing
@@ -38,7 +38,7 @@ services:
     environment:
       API_PORT: 4000
       WEB_ORIGIN: https://${DOMAIN:?}
-      DATABASE_URL: postgres://tallynest:${POSTGRES_PASSWORD:?}@postgres:5432/tallynest
+      DATABASE_URL: postgres://billsafi:${POSTGRES_PASSWORD:?}@postgres:5432/billsafi
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?}
       SMTP_URL: ${SMTP_URL:?}
       MAIL_FROM: ${MAIL_FROM:?}
@@ -67,7 +67,7 @@ services:
     pull_policy: missing
     profiles: [migrate]
     environment:
-      DATABASE_URL: postgres://tallynest:${POSTGRES_PASSWORD:?}@postgres:5432/tallynest
+      DATABASE_URL: postgres://billsafi:${POSTGRES_PASSWORD:?}@postgres:5432/billsafi
     depends_on:
       postgres:
         condition: service_healthy
@@ -76,13 +76,13 @@ services:
     image: postgres:18-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: tallynest
+      POSTGRES_USER: billsafi
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
-      POSTGRES_DB: tallynest
+      POSTGRES_DB: billsafi
     volumes:
       - postgres-data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tallynest -d tallynest"]
+      test: ["CMD-SHELL", "pg_isready -U billsafi -d billsafi"]
       interval: 5s
       timeout: 5s
       retries: 10

@@ -1,4 +1,4 @@
-import { schema, sql } from "@tallynest/db";
+import { schema, sql } from "@billsafi/db";
 
 const { invoices } = schema;
 

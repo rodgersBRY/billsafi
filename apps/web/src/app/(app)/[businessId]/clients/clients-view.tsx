@@ -1,7 +1,7 @@
 "use client";
 
-import type { Client } from "@tallynest/contracts";
-import { formatKenyanPhone } from "@tallynest/domain";
+import type { Client } from "@billsafi/contracts";
+import { formatKenyanPhone } from "@billsafi/domain";
 import { Archive, Pencil, Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

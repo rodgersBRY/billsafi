@@ -1,4 +1,4 @@
-import { type InvoiceStatus, invoiceStatusLabels, invoiceStatuses } from "@tallynest/contracts";
+import { type InvoiceStatus, invoiceStatusLabels, invoiceStatuses } from "@billsafi/contracts";
 import { Plus, Search } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -8,7 +8,7 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { listInvoices } from "@/lib/server-api/invoices";
 import { formatAmount, formatDate } from "@/lib/format";
 
-export const metadata: Metadata = { title: "Invoices · TallyNest" };
+export const metadata: Metadata = { title: "Invoices · Billsafi" };
 
 type Filter = InvoiceStatus | "overdue";
 const FILTERS: Filter[] = [...invoiceStatuses, "overdue"];

@@ -1,6 +1,6 @@
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
-import type { createClientSchema, updateClientSchema } from "@tallynest/contracts";
-import { and, asc, type DatabaseConnection, eq, isNull, or, schema, sql } from "@tallynest/db";
+import type { createClientSchema, updateClientSchema } from "@billsafi/contracts";
+import { and, asc, type DatabaseConnection, eq, isNull, or, schema, sql } from "@billsafi/db";
 import type { z } from "zod";
 import { containsPattern } from "../common/like-pattern.js";
 import { DATABASE } from "../database/database.module.js";

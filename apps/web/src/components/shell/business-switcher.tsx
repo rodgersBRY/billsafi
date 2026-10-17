@@ -1,6 +1,6 @@
 "use client";
 
-import type { Business } from "@tallynest/contracts";
+import type { Business } from "@billsafi/contracts";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

@@ -19,7 +19,7 @@ import {
   createPaymentInstructionSchema,
   type PaymentInstruction,
   updateBusinessSchema,
-} from "@tallynest/contracts";
+} from "@billsafi/contracts";
 import type { z } from "zod";
 import { CurrentUserId } from "../common/current-user.js";
 import { UuidParamPipe } from "../common/uuid-param.pipe.js";

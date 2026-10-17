@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 # Updates production to one image tag: pull, migrate, restart, health check.
-# Run on the droplet from /opt/tallynest:
+# Run on the droplet from /opt/billsafi:
 #   ./deploy.sh          deploy the newest images (tag `latest`)
 #   ./deploy.sh <sha>    deploy a specific commit, e.g. to roll back
 set -eu

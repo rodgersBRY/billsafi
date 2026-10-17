@@ -34,7 +34,7 @@ import {
   reversePaymentSchema,
   type SaveInvoice,
   saveInvoiceSchema,
-} from "@tallynest/contracts";
+} from "@billsafi/contracts";
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth";
 import { z } from "zod";
 import { BusinessOwnerGuard } from "../businesses/business-owner.guard.js";

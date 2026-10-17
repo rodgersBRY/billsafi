@@ -1,5 +1,5 @@
-import type { InvoiceBusinessDetails, InvoiceStatus } from "@tallynest/contracts";
-import { billToLines, formatKenyanPhone, type InvoiceCalculation } from "@tallynest/domain";
+import type { InvoiceBusinessDetails, InvoiceStatus } from "@billsafi/contracts";
+import { billToLines, formatKenyanPhone, type InvoiceCalculation } from "@billsafi/domain";
 import { StatusPill } from "@/components/ui/status-pill";
 import { formatAmount, formatDate } from "@/lib/format";
 
@@ -22,7 +22,7 @@ export interface PreviewProps {
   overdue?: boolean;
   /** Where the business logo is served from, when it has one (D052). */
   logoSrc?: string | null;
-  /** "Created with TallyNest" for Free accounts on the public page (D052). */
+  /** "Created with Billsafi" for Free accounts on the public page (D052). */
   showBranding?: boolean;
 }
 
@@ -168,7 +168,7 @@ export function InvoicePreview(props: PreviewProps) {
 
       {props.showBranding && (
         <p className="mt-6 border-t border-line pt-3 text-center text-xs text-sub">
-          Created with TallyNest
+          Created with Billsafi
         </p>
       )}
     </article>

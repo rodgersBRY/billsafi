@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { renderToBuffer } from "@react-pdf/renderer";
-import type { PublicInvoice } from "@tallynest/contracts";
+import type { PublicInvoice } from "@billsafi/contracts";
 import type { InvoiceLogo } from "./branding.service.js";
 import { InvoicePdf } from "./invoice-pdf.js";
 

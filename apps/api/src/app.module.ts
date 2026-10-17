@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { APP_FILTER } from "@nestjs/core";
 import { SentryGlobalFilter, SentryModule } from "@sentry/nestjs/setup";
-import type { DatabaseConnection } from "@tallynest/db";
+import type { DatabaseConnection } from "@billsafi/db";
 import { AuthModule } from "@thallesp/nestjs-better-auth";
 import { createAuth } from "./auth/auth.js";
 import { ConfigModule, ENV } from "./config/config.module.js";

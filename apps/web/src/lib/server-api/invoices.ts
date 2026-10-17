@@ -6,7 +6,7 @@ import type {
   InvoiceStatus,
   InvoiceSummary,
   Payment,
-} from "@tallynest/contracts";
+} from "@billsafi/contracts";
 import { apiGet, businessPath, invoicePath, query } from "./request";
 
 export function listInvoices(

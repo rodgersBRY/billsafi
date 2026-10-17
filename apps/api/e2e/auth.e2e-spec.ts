@@ -57,7 +57,7 @@ describe("authentication", () => {
     // Sending is fire-and-forget; give it a tick.
     await new Promise((resolve) => setTimeout(resolve, 50));
     const message = mailer.lastTo(email);
-    expect(message?.subject).toBe("Reset your TallyNest password");
+    expect(message?.subject).toBe("Reset your Billsafi password");
     const link = /(http\S+\/reset-password\/(\S+?)\?\S*)/.exec(message!.text);
     expect(link?.[1]).toContain(`${WEB_ORIGIN}/api/v1/auth/reset-password/`);
     const token = link![2]!;

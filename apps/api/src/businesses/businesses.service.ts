@@ -3,8 +3,8 @@ import type {
   CreateBusiness,
   createPaymentInstructionSchema,
   updateBusinessSchema,
-} from "@tallynest/contracts";
-import { and, asc, type DatabaseConnection, eq, schema } from "@tallynest/db";
+} from "@billsafi/contracts";
+import { and, asc, type DatabaseConnection, eq, schema } from "@billsafi/db";
 import type { z } from "zod";
 import { DATABASE } from "../database/database.module.js";
 

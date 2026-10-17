@@ -6,7 +6,7 @@ import {
   type Invoice,
   type InvoiceLinkStatus,
   whatsappMessage,
-} from "@tallynest/contracts";
+} from "@billsafi/contracts";
 import { Copy, Download, Link2, Link2Off, Mail, MessageCircle, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,7 @@ interface ShareDialogProps {
 
 // Tokens are only stored as hashes on the server, so a created link is remembered
 // for this browser tab only.
-const storageKey = (linkId: string) => `tallynest:link:${linkId}`;
+const storageKey = (linkId: string) => `billsafi:link:${linkId}`;
 
 function rememberedToken(linkId: string): string | null {
   try {

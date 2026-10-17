@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { Invoice, PublicInvoice } from "@tallynest/contracts";
-import { type DatabaseConnection, eq, schema } from "@tallynest/db";
+import type { Invoice, PublicInvoice } from "@billsafi/contracts";
+import { type DatabaseConnection, eq, schema } from "@billsafi/db";
 import { AllowanceService } from "../billing/allowance.service.js";
 import { BusinessesService } from "../businesses/businesses.service.js";
 import { DATABASE } from "../database/database.module.js";

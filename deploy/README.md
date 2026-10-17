@@ -1,4 +1,4 @@
-# Deploying TallyNest to a DigitalOcean droplet
+# Deploying Billsafi to a DigitalOcean droplet
 
 This guide explains how production works and lists every step to get it running, starting from an empty DigitalOcean account. Do the one-time setup in order. After that, each release is a merge to `main` followed by one command on the droplet.
 
@@ -45,7 +45,7 @@ Local development and CI behave exactly as before.
 You need:
 
 - A DigitalOcean account.
-- A domain you control, for example `app.tallynest.co.ke`.
+- A domain you control, for example `app.billsafi.co.ke`.
 - A production email provider that gives you SMTP credentials (Postmark, Resend, Brevo, Amazon SES and others all work). Password reset emails won't send without it.
 - Your GitHub account, to create a token that lets the droplet pull images.
 
@@ -66,7 +66,7 @@ Note the droplet's public IPv4 address.
 At your DNS provider, create an `A` record for your domain with the droplet's IP as the value. Caddy can only get a certificate once this record resolves, so do it early. Check it from your laptop:
 
 ```sh
-dig +short app.tallynest.co.ke
+dig +short app.billsafi.co.ke
 ```
 
 ## Step 3: Prepare the server
@@ -88,8 +88,8 @@ Create a `deploy` user for running the app, give it Docker access and the app fo
 ```sh
 adduser --disabled-password --gecos "" deploy
 usermod -aG docker deploy
-mkdir -p /opt/tallynest
-chown deploy:deploy /opt/tallynest
+mkdir -p /opt/billsafi
+chown deploy:deploy /opt/billsafi
 mkdir -p /home/deploy/.ssh
 cp /root/.ssh/authorized_keys /home/deploy/.ssh/
 chown -R deploy:deploy /home/deploy/.ssh
@@ -132,8 +132,8 @@ Docker saves the login in `/home/deploy/.docker/config.json`, so you only do thi
 From your laptop, in the repository root:
 
 ```sh
-scp deploy/compose.yml deploy/Caddyfile deploy/deploy.sh deploy/backup.sh deploy@<droplet-ip>:/opt/tallynest/
-ssh deploy@<droplet-ip> chmod +x /opt/tallynest/deploy.sh /opt/tallynest/backup.sh
+scp deploy/compose.yml deploy/Caddyfile deploy/deploy.sh deploy/backup.sh deploy@<droplet-ip>:/opt/billsafi/
+ssh deploy@<droplet-ip> chmod +x /opt/billsafi/deploy.sh /opt/billsafi/backup.sh
 ```
 
 Run the same `scp` again whenever one of these four files changes in the repository. They rarely do.
@@ -143,14 +143,14 @@ Run the same `scp` again whenever one of these four files changes in the reposit
 On the droplet, as `deploy`:
 
 ```sh
-cd /opt/tallynest
+cd /opt/billsafi
 nano .env
 ```
 
 Paste the template from `deploy/.env.example` and fill it in:
 
 - `DOMAIN`: your domain, without `https://`.
-- `IMAGE_PREFIX`: `ghcr.io/<your GitHub username in lowercase>/tallynest`. For this repository that is `ghcr.io/rodgersbrian/tallynest`, unless the repo moves to an organization.
+- `IMAGE_PREFIX`: `ghcr.io/<your GitHub username in lowercase>/billsafi`. For `rodgersBRY/billsafi` that is `ghcr.io/rodgersbry/billsafi`. It changes only if the repository moves to another owner.
 - `IMAGE_TAG`: leave it as `latest`. `deploy.sh` manages this line.
 - `POSTGRES_PASSWORD` and `BETTER_AUTH_SECRET`: run `openssl rand -hex 32` once for each. Use hex values because the password goes into a connection URL, where characters like `/` or `@` would break it.
 - `SMTP_URL` and `MAIL_FROM`: the email provider is Resend (D052). Verify your domain in Resend first, then use `smtps://resend:<API key>@smtp.resend.com:465` and a `MAIL_FROM` address on that domain.
@@ -171,14 +171,14 @@ Keep a copy of these values in a password manager. Losing `BETTER_AUTH_SECRET` s
 
 In the **Actions** tab, wait for CI to finish on `main`. The **Publish images** workflow then starts on its own. The first run takes several minutes; later runs reuse cached layers and finish faster. When it's done, the run summary shows the commit SHA it published.
 
-The three packages appear under **Packages** on your GitHub profile as `tallynest-api`, `tallynest-migrate` and `tallynest-web`.
+The three packages appear under **Packages** on your GitHub profile as `billsafi-api`, `billsafi-migrate` and `billsafi-web`.
 
 ## Step 8: Deploy
 
 On the droplet, as `deploy`:
 
 ```sh
-cd /opt/tallynest
+cd /opt/billsafi
 ./deploy.sh
 ```
 
@@ -211,13 +211,13 @@ crontab -e
 Add this line:
 
 ```
-15 2 * * * /opt/tallynest/backup.sh >> /home/deploy/backup.log 2>&1
+15 2 * * * /opt/billsafi/backup.sh >> /home/deploy/backup.log 2>&1
 ```
 
-This writes a dump to `/opt/tallynest/backups` at 02:15 UTC every night and deletes dumps older than 14 days. Run it once by hand to check it works:
+This writes a dump to `/opt/billsafi/backups` at 02:15 UTC every night and deletes dumps older than 14 days. Run it once by hand to check it works:
 
 ```sh
-/opt/tallynest/backup.sh
+/opt/billsafi/backup.sh
 ```
 
 These dumps sit on the same disk as the database, so they won't help if the droplet is destroyed. The weekly droplet backups from Step 1 cover that case. For a tighter recovery window, copy the dumps to DigitalOcean Spaces with `rclone` or `s3cmd` after each run.
@@ -235,7 +235,7 @@ To publish images for a commit that never went through the workflow, open **Acti
 **Logs.**
 
 ```sh
-cd /opt/tallynest
+cd /opt/billsafi
 docker compose logs -f api
 docker compose logs -f web
 ```
@@ -249,14 +249,14 @@ docker compose ps
 **Restoring a backup.** This replaces the current database contents, so take a fresh backup first.
 
 ```sh
-cd /opt/tallynest
+cd /opt/billsafi
 ./backup.sh
 docker compose stop api web
-docker compose exec -T postgres pg_restore -U tallynest -d tallynest --clean --if-exists < backups/<file>.dump
+docker compose exec -T postgres pg_restore -U billsafi -d billsafi --clean --if-exists < backups/<file>.dump
 docker compose start api web
 ```
 
-**Changing a secret.** Edit `/opt/tallynest/.env`, then run `docker compose up -d` in the same folder. Compose recreates only the containers whose settings changed.
+**Changing a secret.** Edit `/opt/billsafi/.env`, then run `docker compose up -d` in the same folder. Compose recreates only the containers whose settings changed.
 
 **Replacing the GHCR token.** Generate a new classic token with `read:packages` and run the `docker login` command from Step 4 again.
 

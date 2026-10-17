@@ -19,7 +19,7 @@ The available conversation contains summarized/truncated assistant responses. Th
 - [System architecture](system-architecture.md): accepted architecture direction and pending implementation decisions.
 - [Decision log](decisions.md): decisions, provenance, and superseded payment direction.
 
-- [Brand and product design](brand-and-design.md): TallyNest name, primary colour, approved screen designs, and pending visual choices.
+- [Brand and product design](brand-and-design.md): Billsafi name, primary colour, approved screen designs, and pending visual choices.
 
 - [Implementation plan](implementation-plan.md): proposed delivery sequence and unresolved implementation gates.
 

@@ -1,4 +1,4 @@
-# TallyNest database specification
+# Billsafi database specification
 
 Last updated: 2026-10-15
 Status: conceptual model adopted; migration-level details remain open.

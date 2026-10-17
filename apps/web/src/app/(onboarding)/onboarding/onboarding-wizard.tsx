@@ -8,7 +8,7 @@ import {
   type PaymentMethod,
   paymentMethodLabels,
   paymentMethods,
-} from "@tallynest/contracts";
+} from "@billsafi/contracts";
 import { ArrowLeft, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -236,7 +236,7 @@ export function OnboardingWizard({ user, isAdditionalBusiness }: Props) {
         <Stepper current={3} />
         <StepPanel
           title="Tell clients how to pay you."
-          description="These instructions appear on your invoices. Clients pay you outside TallyNest."
+          description="These instructions appear on your invoices. Clients pay you outside Billsafi."
         >
           <form method="post" onSubmit={savePayment} noValidate>
             <SelectField
