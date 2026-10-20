@@ -1,0 +1,93 @@
+import { expect, test } from "@playwright/test";
+import {
+  createFirstBusiness,
+  latestEmailText,
+  signIn,
+  signUp,
+  skipIntro,
+  uniqueEmail,
+  waitUntilInteractive,
+} from "./support";
+
+test("signed-out visitors are sent to sign in", async ({ page }) => {
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/sign-in$/);
+});
+
+test("sign out and sign back in", async ({ page }) => {
+  const email = uniqueEmail("signin");
+  await signUp(page, "Achieng Odhiambo", email);
+  await createFirstBusiness(page);
+
+  await page.getByLabel("Account menu for Achieng Odhiambo").filter({ visible: true }).click();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page).toHaveURL(/\/sign-in$/);
+
+  await signIn(page, email, "wrong-password");
+  await expect(page.getByText("That email and password don't match.")).toBeVisible();
+
+  await signIn(page, email);
+  await skipIntro(page);
+  await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
+});
+
+test("reset a forgotten password through the emailed link", async ({ page }) => {
+  const email = uniqueEmail("reset");
+  await signUp(page, "Kamau Njoroge", email);
+  await createFirstBusiness(page);
+  await page.context().clearCookies();
+
+  await page.goto("/sign-in");
+  await page.getByRole("link", { name: "Forgot password?" }).click();
+  await waitUntilInteractive(page, "Send reset link");
+  await page.getByLabel("Email address").filter({ visible: true }).fill(email);
+  await page.getByRole("button", { name: "Send reset link" }).click();
+  await expect(page.getByRole("heading", { name: "Check your email" })).toBeVisible();
+
+  const text = await latestEmailText(email);
+  const link = /(https?:\/\/\S+\/reset-password\/\S+)/.exec(text)?.[1];
+  expect(link).toBeTruthy();
+  await page.goto(link!);
+  await expect(page.getByRole("heading", { name: "Choose a new password" })).toBeVisible();
+  await waitUntilInteractive(page, "Update password");
+
+  await page
+    .getByLabel("New password", { exact: true })
+    .filter({ visible: true })
+    .fill("a-brand-new-passphrase");
+  await page
+    .getByLabel("Confirm new password")
+    .filter({ visible: true })
+    .fill("a-brand-new-passphrase");
+  await page.getByRole("button", { name: "Update password" }).click();
+  await expect(page.getByRole("heading", { name: "Password updated" })).toBeVisible();
+
+  // The same link cannot be reused.
+  await page.goto(link!);
+  await expect(page.getByRole("heading", { name: "This link has expired" })).toBeVisible();
+
+  await signIn(page, email, "a-brand-new-passphrase");
+  await skipIntro(page);
+  await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
+});
+
+test("the account menu sits in the sidebar and closes on an outside click or Escape", async ({
+  page,
+}) => {
+  await signUp(page, "Achieng Odhiambo", uniqueEmail("menu"));
+  await createFirstBusiness(page);
+
+  const trigger = page.getByLabel("Account menu for Achieng Odhiambo").filter({ visible: true });
+  await expect(page.getByRole("complementary").getByLabel(/Account menu/)).toBeVisible();
+
+  const signOut = page.getByRole("button", { name: "Sign out" });
+  await trigger.click();
+  await expect(signOut).toBeVisible();
+  await page.getByRole("heading", { name: "Overview" }).click();
+  await expect(signOut).toBeHidden();
+
+  await trigger.click();
+  await expect(signOut).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(signOut).toBeHidden();
+});

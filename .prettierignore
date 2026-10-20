@@ -1,0 +1,6 @@
+pnpm-lock.yaml
+docs/
+packages/db/drizzle/
+**/test-results/
+**/playwright-report/
+.vscode/

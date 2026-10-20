@@ -1,0 +1,17 @@
+{
+  "extends": "@billsafi/config/tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "./dist",
+    "rootDir": ".",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
+    "strictPropertyInitialization": false,
+    "removeComments": true,
+    "types": ["node", "vitest/globals"],
+    "jsx": "react-jsx"
+  },
+  "include": ["src", "e2e"]
+}

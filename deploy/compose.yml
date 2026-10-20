@@ -1,0 +1,93 @@
+# Production stack for the droplet. Lives in /opt/billsafi next to .env (see deploy/.env.example).
+# Only Caddy publishes ports; the web app proxies /api to the API over the internal network.
+name: billsafi
+
+x-image: &image
+  pull_policy: missing
+  restart: unless-stopped
+
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+
+  web:
+    <<: *image
+    image: ${IMAGE_PREFIX:?}-web:${IMAGE_TAG:?}
+    environment:
+      SENTRY_DSN: ${SENTRY_WEB_DSN:-}
+    depends_on:
+      api:
+        condition: service_healthy
+
+  api:
+    <<: *image
+    image: ${IMAGE_PREFIX:?}-api:${IMAGE_TAG:?}
+    environment:
+      API_PORT: 4000
+      WEB_ORIGIN: https://${DOMAIN:?}
+      DATABASE_URL: postgres://billsafi:${POSTGRES_PASSWORD:?}@postgres:5432/billsafi
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?}
+      SMTP_URL: ${SMTP_URL:?}
+      MAIL_FROM: ${MAIL_FROM:?}
+      # disabled until Safaricom approves the Paybill (D051).
+      MPESA_ENV: ${MPESA_ENV:-disabled}
+      MPESA_CONSUMER_KEY: ${MPESA_CONSUMER_KEY:-}
+      MPESA_CONSUMER_SECRET: ${MPESA_CONSUMER_SECRET:-}
+      MPESA_SHORTCODE: ${MPESA_SHORTCODE:-174379}
+      MPESA_PASSKEY: ${MPESA_PASSKEY:-}
+      MPESA_CALLBACK_URL: https://${DOMAIN:?}
+      MPESA_CALLBACK_TOKEN: ${MPESA_CALLBACK_TOKEN:-}
+      SENTRY_DSN: ${SENTRY_API_DSN:-}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # One-off job: `docker compose run --rm migrate`. Never starts with `up`.
+  migrate:
+    image: ${IMAGE_PREFIX:?}-migrate:${IMAGE_TAG:?}
+    pull_policy: missing
+    profiles: [migrate]
+    environment:
+      DATABASE_URL: postgres://billsafi:${POSTGRES_PASSWORD:?}@postgres:5432/billsafi
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: billsafi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: billsafi
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U billsafi -d billsafi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  caddy-data:
+  caddy-config:
+  postgres-data:

@@ -1,0 +1,36 @@
+{
+  "name": "@billsafi/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test:browser": "playwright test"
+  },
+  "dependencies": {
+    "@sentry/nextjs": "11.2.0",
+    "@billsafi/contracts": "workspace:*",
+    "@billsafi/domain": "workspace:*",
+    "better-auth": "1.7.10",
+    "lucide-react": "1.58.0",
+    "next": "16.4.2",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "server-only": "0.0.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@tailwindcss/turbopack": "^4",
+    "@types/node": "24.19.2",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.2",
+    "tailwindcss": "^4",
+    "typescript": "6.0.3"
+  }
+}

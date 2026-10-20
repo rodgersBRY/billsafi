@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: billsafi
+      POSTGRES_PASSWORD: billsafi
+      POSTGRES_DB: billsafi
+    ports:
+      - "5434:5432"
+    volumes:
+      - billsafi-postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U billsafi -d billsafi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Catches outgoing email locally. Inbox at http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.29
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+volumes:
+  # Renamed with the product (D053) so the old tallynest volume is left untouched.
+  billsafi-postgres-data:

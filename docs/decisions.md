@@ -230,7 +230,7 @@ Separate sequence per business, beginning `INV-0001`, followed by `INV-0002`, wi
 
 Drafts display “Draft” without a permanent number. Assign the number when first becoming Ready and count the invoice toward the account allowance. Keep the assigned number fixed through edits/cancellation; never reuse cancelled numbers.
 
-Allocation implementation and padding beyond 9999 remain open; no gapless-sequence guarantee adopted.
+Allocation implementation and padding beyond 9999 remain open; no gapless-sequence guarantee adopted. The four-digit format is superseded by D048 (`INV-00001`).
 
 ## D023 — Omit payment history from invoices
 
@@ -297,3 +297,193 @@ Preview selectors, sample data, placeholder payment text, and mock PDF behavior 
 Status: confirmed on 2026-10-15 by “thats fine”.
 
 White PDF background, black/dark-grey text, neutral headings, thin grey dividers, bold totals. Lead with the freelancer's business name and optional logo; retain the approved layout and compact payment summary. Do not impose TallyNest teal on downloaded invoices. Uploaded logos may retain their colours. Footer branding policy remains open.
+
+## D032 — Require profile phone and prefill personal M-Pesa
+
+Status: confirmed on 2026-10-15 by explicit user request.
+
+Require phone in individual/business setup. Prefill the personal M-Pesa field with the same number, but allow editing. Supersedes D006's optional profile phone; client phone remains required. Payment setup remains skippable. Do not overwrite a separately edited payment number with contact-phone changes; exact later synchronization/validation rules remain unresolved.
+
+## D033 — Approve revised onboarding design
+
+Status: confirmed on 2026-10-15 by “but I approve the onboarding design”.
+
+Approve the revised three-step onboarding layout, including required profile phone, editable personal M-Pesa prefill, skippable payment setup, optional business details, KES/14-day defaults, and completion/first-invoice entry. This resolves the onboarding design review; sample data and mock behavior are not production specifications.
+
+## D034 — Adopt invoice client-name display rule
+
+Status: confirmed on 2026-10-15 by “okay. adopt this”.
+
+Client name is the primary Bill to name. Display an optional different company name underneath. Company name may be empty when Client name already identifies the business. Suppress duplicate company/client names. Preserve existing invoice client snapshots as previously agreed. Duplicate comparison normalization remains an implementation detail. Full client-management design approval remains pending.
+
+## D035 — Approve client-management design
+
+Status: confirmed on 2026-10-15 by “yea” in response to approval of the rest of the client-management layout.
+
+Adopt the reviewed client list, business selector, search, Active/Archived views, add/edit form, and archive confirmation, following confirmed field requirements and invoice-preservation behavior. Retain the teal/neutral styling and 6px panels. Sample data and simplified mock behavior are not production requirements. Phone validation, duplicate handling, and archive restoration remain unresolved.
+
+## D036 — Keep invoice defaults focused on user settings
+
+Status: confirmed on 2026-10-15 by explicit user request.
+
+Remove system-only information, including number assignment and PDF appearance, from the Invoice defaults settings UI. The revised design removes the static numbering/document-style block and keeps editable defaults. Numbering and PDF behavior remain unchanged as product requirements. Full business-settings design approval remains pending.
+
+## D037 — Approve revised business settings
+
+Status: confirmed on 2026-10-15 by “this is fine. move on to the next thing”.
+
+Approve the revised three-tab business-settings layout with profile, payment instructions, and user-editable invoice defaults. System-only numbering/PDF details remain omitted under D036. Keep account billing separate. Mock data and simplified field behavior do not establish additional requirements.
+
+## D038 — Approve account billing layout
+
+Status: confirmed on 2026-10-15 by “this is fine. move on”.
+
+Approve current-plan/usage display, Pro offer/renewal, M-Pesa checkout concept, and payment/subscription state presentation. Account-wide plan scope and pricing remain as previously agreed. Personal-number collection eligibility and exact billing rules remain unresolved; visual approval does not select a feasible integration route. Preview-only caveats/selectors are not production UI requirements.
+
+## D039 — Approve invoice management and consistent navigation
+
+Status: confirmed on 2026-10-15 by “okay. approved”.
+
+Adopt the reviewed invoice list/search/filter, details, contextual actions, and manual-payment form. Keep the left navigation (Overview, Invoices, Clients, Settings) and business selector consistent throughout the signed-in business app. Access account settings/billing through the account menu. Collapse desktop sidebar into a menu on smaller screens; detailed mobile behavior remains open. Public invoice and authentication/onboarding contexts are separate. Preview-only simplifications do not supersede existing product rules.
+
+## D040 — Approve mobile navigation
+
+Status: confirmed on 2026-10-15 by “yes it does”.
+
+Approve the reviewed top-left mobile menu, business switching and section navigation, account-area billing/settings access, compact invoice cards, stacked metrics, and single-column forms. Production focus handling, full mobile form details, and error/empty/loading states remain implementation work.
+
+## D041 — Reconfirm PostgreSQL
+
+Status: confirmed on 2026-10-15 by “okay lets stick with postgres”.
+
+Retain PostgreSQL after discussing MongoDB. This reaffirms D001's database direction without adopting a database change. Detailed table/schema design and ORM selection remain unresolved; the previously discussed table count is a proposal, not a finalized schema.
+
+## D042 — Adopt refined PostgreSQL model, rounding, and retention
+
+Status: confirmed on 2026-10-15 by “adopt”.
+
+Adopt the refined shared-table/account-business ownership model and twelve application entities alongside Better Auth's supported authentication tables. Retain separate invoice items, structured historical invoice snapshots, account-level subscription/usage, database relationship constraints, and atomic Ready/payment operations. Use PostgreSQL numeric and backend decimal arithmetic. Round half up at line totals, calculated discount, and tax; sum rounded lines and apply tax after discount. Calculate received/balance from effective payment records rather than an editable paid field.
+
+Retain issued financial records and payment history; allow permanent deletion of unissued Draft invoices only. No automatic account/business deletion cascade removing financial history. Full specification: database-model.md. Numeric precision, ORM/auth schema, correction/reversal details, billing transitions, and account/business retention policies remain open.
+
+## D043 — Adopt payment corrections and record reversals
+
+Status: confirmed on 2026-10-15 by “ok”.
+
+Allow correcting amount/date/method/reference with required reason and retained before/after/actor/timestamp history; total effective payments cannot exceed invoice total. Recalculate balance/status. Allow reversing erroneous payment records with reason, retaining them but excluding them from totals; wrong-invoice mistakes are reversed then recorded on the correct invoice. Reversal is bookkeeping only, not money movement.
+
+Keep invoice financial fields locked after any payment activity, including after all reversals; notes remain editable. Cancellation requires zero effective payments, refining D009's earlier wording. Preserve history and allowance consumption. Defer dedicated refund workflow; actual refunds are distinct from erroneous-payment reversals. Reinstatement behavior remains unresolved.
+
+## D044 — Adopt billing transitions and early cancellation
+
+Status: confirmed on 2026-10-15 by “adopt”.
+
+Free allowance resets each calendar month in Africa/Nairobi time. Pro has monthly activation-anniversary periods; early renewal extends paid access without unlocking the next period's allowance early. Month-end clamps to last day while preserving the original anniversary anchor.
+
+Free-to-Pro carries current Free-month usage into first paid period (7 used means 93 remaining). On expiry, Free allowance counts all first-Ready invoices in the current calendar month, including Pro invoices; at 10+ wait for reset or reactivate Pro. Preserve first issuance once, records, sharing, and payment recording. Exact expired-Pro reactivation/repeated-cycle accounting remains open.
+
+Early cancellation retains access through all paid periods (including prepaid), adds/resets no allowance, stops renewal reminders, and shows access-until date. Undo before expiry restores active state/reminders at no charge without changing dates/usage; next renewal still needs payment approval. No automatic prorated unused-day refunds in V1. Refund policy for duplicate payments/failed activations remains unresolved.
+
+## D045 — Select Drizzle and teach during implementation
+
+Status: confirmed on 2026-10-15.
+
+User: “i haven't used drizzle before. But we can use it and then you can teach me the hang of it as we go”.
+
+Select Drizzle for PostgreSQL access, with Drizzle Kit migrations and compatible Better Auth integration. Explain schema definitions, relationships, queries, transactions, and migrations using the project as it develops. Dependency versions, numeric precision/scale, and decimal-library selection remain implementation choices to finalize.
+
+## D046 — Adopt repository layout and Phase 0 tooling
+
+Status: adopted on 2026-10-16 when the user approved starting Phase 0 from the proposed plan.
+
+pnpm workspace monorepo with Turborepo: `apps/web` (Next.js), `apps/api` (NestJS, routes under `/api/v1`), `packages/db` (Drizzle schema and migrations), `packages/domain` (shared business rules), `packages/config`. Local PostgreSQL 18 runs through Docker Compose. Money uses `decimal.js` with half-up rounding. Vitest runs unit and API end-to-end tests; GitHub Actions runs format, build, typecheck, lint, and tests. TypeScript stays on 6.0 until typescript-eslint and the Nest CLI support 7.
+
+The logo animation is used for route-level loading and a skippable post-login intro capped at two seconds. Hosting, the email provider for production, and numeric precision remain open.
+
+## D047 — Settle password reset, session, auth placement, and phone format
+
+Status: confirmed on 2026-10-16 by the user's answers before Phase 1.
+
+- Password reset links expire after one hour.
+- A successful reset signs the account out of every existing session.
+- Better Auth runs inside the NestJS API. Next.js uses the Better Auth client and sends the session cookie to the API.
+- Profile and client phone fields accept Kenyan numbers only (`07…`, `01…`, `254…`, `+254…`) and store them as `+2547XXXXXXXX` or `+2541XXXXXXXX`.
+
+This resolves the reset-lifetime, post-reset session, and integration-placement items left open in D017 and the phone-format item left open in D010 and D032. Session duration uses Better Auth's defaults until a separate decision changes it.
+
+## D048 — Settle Phase 2 precision, numbering width, snapshot timing, and input limits
+
+Status: confirmed on 2026-10-16 by the user's answers before Phase 2.
+
+- Monetary amounts use `numeric(14,2)`. Quantities use `numeric(12,2)`, so quantities carry at most two decimal places (for example 1.25 hours). Line totals, discounts, and tax still round half up to two decimals.
+- Invoice numbers are padded to five digits from the start: `INV-00001`, `INV-00002`, and so on. Numbers above 99999 grow without truncation. This supersedes the four-digit `INV-0001` format in D007 and D022; the fixed prefix, per-business sequence, no yearly reset, and no reuse rules are unchanged.
+- Client, business, and payment-instruction details are copied onto an invoice when it is first marked Ready. Drafts show the current saved details. Editing a Ready invoice before any payment activity copies the details again on save; after payment activity the copy stays fixed.
+- Input limits: up to 100 line items per invoice; item description up to 500 characters; quantity from 0.01 to 1,000,000; unit price from 0 to 100,000,000; tax rate from 0 to 100 percent; percentage discount from 0 to 100 percent; fixed discount from 0 up to the subtotal; notes up to 2,000 characters.
+
+This resolves the precision/scale, padding, snapshot-timing, and validation-limit items left open in D013, D022, and the database model. `decimal.js` is the decimal library (D046).
+
+## D049 — Settle Phase 3 overdue timing, public links, PDF pages, history display, and share copy
+
+Status: confirmed on 2026-10-17. The first four items were answered by the user; the history display and share copy were proposed the same day and accepted without change.
+
+- An invoice is overdue from 00:00 Africa/Nairobi on the day after its due date, while it is Ready or Partially paid. Dashboard "this month" figures use Nairobi calendar months, matching D044.
+- Public invoice links expire 30 days after they are created. Owners can disable a link or replace it with a new one at any time; replacing invalidates the old link immediately. Expired, disabled, Draft, and Cancelled invoices show the same unavailable page.
+- The public page shows the same details as the PDF: business name, contact email, phone, address, and KRA PIN when set; Bill to; items; totals; the compact payment summary; payment instructions; and notes. No payment history (D023).
+- PDFs are A4. Line items flow onto new pages with the table header repeated; totals and the payment summary stay together; the footer shows the invoice number and "Page X of Y".
+- Payment change history appears only inside the app, on the invoice details page. Each payment shows amount, date, method, and reference; corrected and reversed payments are labelled and expand to show before and after values, the reason, and when the change was made.
+- Share copy. WhatsApp: "Hi {client}, here is invoice {number} from {business} for KES {balance due}, due {due date}: {link}". Email subject: "Invoice {number} from {business}". Email body: the same message followed by "The link works for 30 days. Thank you."
+
+Implementation note: PDFs are generated with `@react-pdf/renderer` in the API rather than headless Chrome, so the server does not need a browser installed. This resolves the overdue/reporting timezone, change-history display, link expiry, public visibility, unavailable page, PDF pagination, and share copy items left open in the PRD and implementation plan. Reinstating a reversed payment remains unresolved.
+
+## D050 — Host production on a DigitalOcean droplet with Docker Compose
+
+Status: confirmed on 2026-10-17 by the user.
+
+- Production runs on one DigitalOcean droplet. Caddy, the web app, the API, and PostgreSQL 18 run as Docker Compose services; only Caddy is public, and the web app reaches the API over the internal network.
+- PostgreSQL runs on the droplet rather than as a managed database. Nightly `pg_dump` files are kept for 14 days, and weekly droplet backups provide the off-machine copy.
+- Only `main` is released. After CI passes, GitHub Actions publishes the images to GHCR tagged with the commit SHA and `latest`. Deploying stays manual for now: on the droplet, `deploy.sh` pulls, migrates, restarts, and runs a health check. Rollback runs the same script with an earlier SHA. There is no staging environment.
+
+Setup and operations steps live in [deploy/README.md](../deploy/README.md). This resolves the hosting item left open in D046 and the implementation plan. The production email provider and monitoring remain open.
+
+## D051 — Collect Pro and invoice credits through a Paybill with M-Pesa STK Push
+
+Status: confirmed on 2026-10-17 by the user's answers before Phase 4.
+
+- Subscription payments go to a platform Paybill through Safaricom Daraja M-Pesa Express (STK Push). This replaces the personal-number plan in D021 and restores D020's business collection account. Activation still waits for a confirmed successful payment matched to the pending purchase.
+- Development and CI never touch real money. Automated tests and local work use a fake provider. Manual end-to-end checks use the Daraja sandbox (shortcode 174379 with its test passkey), with a tunnel exposing the callback URL. Production needs Safaricom's go-live approval for the Paybill first.
+- Confirmation arrives by callback to a URL carrying a secret token. The API also asks Daraja for the status of a request that stays pending, so a lost callback cannot leave a payment stuck. A checkout request or M-Pesa receipt is applied once only, and the paid amount must match the expected amount.
+- Every confirmed KES 500 Pro payment grants exactly one month. A duplicate payment extends access by a month instead of needing a refund. A payment confirmed while Pro is active extends from the current expiry. A payment confirmed after expiry starts a new period from the confirmation time, which becomes the new anniversary anchor. Paying while cancelled also clears the cancellation.
+- Reactivating Pro after it expired carries over only the invoices issued on Free in the current calendar month since Pro ended. Invoices issued on the previous Pro period do not count against the new 100. The first upgrade follows the same rule (D044).
+- Invoice credits: a pack of 50 invoices costs KES 250 and is bought through the same STK Push checkout, one pack per payment. Free and Pro accounts can both buy packs. Credits are used only after the plan allowance for the current period runs out, and they do not expire. Invoices issued with credits do not count toward the plan allowance or toward Free-to-Pro carry-over.
+- At the Pro cap of 100, or the Free cap of 10, an account with no credits cannot mark new invoices Ready until the next period, upgrade, or a credit purchase. Early renewal still does not unlock the next period's allowance early (D044).
+- Renewal reminders go by email three days before expiry and on the expiry day, and the billing page shows a banner in the last three days. Cancelled subscriptions get no reminders. Each reminder is sent once per expiry date.
+- Prices show as flat amounts (KES 500, KES 250) with no tax or fee lines. There are no in-app refunds in V1; support handles any refund by hand.
+
+This resolves the collection route, Pro-cap behavior, mid-month reactivation and repeated plan-change accounting, failed and late-confirmed renewal boundaries, reminder timing and channel, refund handling, and tax/fee presentation items left open in D020, D021, D044, and the implementation plan. Production Paybill credentials and Safaricom onboarding remain to be arranged. Whether a tax line is ever needed depends on the platform's tax registration, which is still unknown.
+
+## D052 — Settle Phase 5 email, monitoring, logos, theme, account settings, and invoice footer
+
+Status: confirmed on 2026-10-17 by the user's answers before Phase 5.
+
+- Production email goes through Resend's SMTP relay. The app keeps sending over SMTP, so only `SMTP_URL` and a verified `MAIL_FROM` domain change.
+- Monitoring uses Sentry for web and API errors, plus an external uptime check on `/api/v1/health`. Sentry stays off when no DSN is set.
+- Business logos are PNG or JPEG files up to 512 KB, stored in PostgreSQL so the existing nightly dumps back them up. WebP is left out because the PDF renderer cannot draw it. Each upload is kept as its own record, so an issued invoice keeps the logo it was made Ready with. The logo shows on the invoice preview, the public page, and the PDF.
+- The app follows the device's light or dark setting. Every screen gets a contrast check in both themes before launch. PDFs stay white with dark text (D027).
+- Account settings cover the user's name and a password change, which signs out the account's other sessions. The sign-in email cannot be changed in V1.
+- Public invoices and PDFs from Free accounts show a small "Created with TallyNest" footer; Pro accounts show none. There is no fixed thank-you line; the notes field covers it.
+
+This resolves the production email provider and monitoring items left open in D046 and D050, and the logo, dark mode, and footer questions in the brand document's design gaps.
+
+## D053 — Rename the product to Billsafi
+
+Status: confirmed on 2026-10-17.
+
+User: "I mean to change the product name to billsafi since tallynest has a lot of online presence".
+
+The product is now called Billsafi, written with only the first letter capitalised. This supersedes the name chosen in D027; the deep teal colour stays.
+
+- The rename covers everything: interface copy, emails, PDFs and the public-invoice footer ("Created with Billsafi"), current documentation, workspace packages (`@billsafi/*`), Docker images (`ghcr.io/<owner>/billsafi-*`), database names, and the production folder (`/opt/billsafi`). Nothing was live yet, so nothing needed migrating.
+- Until new brand assets exist, the app uses the document-and-leaf mark without a wordmark, with "Billsafi" written beside it. The logo animation and the old icons, which spell TallyNest, are no longer shown.
+- Earlier decision entries and the packaged design previews keep the TallyNest name as a record of when they were made.
+
+Name, domain, and trademark availability for Billsafi have not been checked.
