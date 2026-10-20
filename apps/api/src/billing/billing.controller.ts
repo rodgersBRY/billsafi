@@ -15,7 +15,7 @@ import {
   type Checkout,
   checkoutSchema,
   type SubscriptionPayment,
-} from "@tallynest/contracts";
+} from "@billsafi/contracts";
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth";
 import { z } from "zod";
 import { CurrentUserId } from "../common/current-user.js";

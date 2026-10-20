@@ -1,4 +1,4 @@
-import { type InvoiceStatus, invoiceStatusLabels } from "@tallynest/contracts";
+import { type InvoiceStatus, invoiceStatusLabels } from "@billsafi/contracts";
 
 // Approved invoice management colours: amber for partly paid, teal for paid, neutral otherwise.
 const tones: Record<InvoiceStatus, string> = {

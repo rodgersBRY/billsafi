@@ -1,5 +1,5 @@
 import "server-only";
-import type { Business, PaymentInstruction } from "@tallynest/contracts";
+import type { Business, PaymentInstruction } from "@billsafi/contracts";
 import { apiGet, businessPath } from "./request";
 
 export function listBusinesses(): Promise<Business[]> {

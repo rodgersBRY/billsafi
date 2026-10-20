@@ -8,7 +8,7 @@ import { getBusiness } from "@/lib/server-api/businesses";
 import { getDashboard } from "@/lib/server-api/invoices";
 import { formatAmount, formatDate } from "@/lib/format";
 
-export const metadata: Metadata = { title: "Overview · TallyNest" };
+export const metadata: Metadata = { title: "Overview · Billsafi" };
 
 const QUICK_ACTIONS = [
   { label: "Create invoice", icon: FilePlus, path: "invoices/new" },

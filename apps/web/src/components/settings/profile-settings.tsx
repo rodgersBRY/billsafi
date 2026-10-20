@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  type Business,
-  type BusinessProfileType,
-  updateBusinessSchema,
-} from "@tallynest/contracts";
+import { type Business, type BusinessProfileType, updateBusinessSchema } from "@billsafi/contracts";
 import { ImageUp, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";

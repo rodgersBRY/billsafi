@@ -1,5 +1,5 @@
-import type { Client } from "@tallynest/contracts";
-import type { schema } from "@tallynest/db";
+import type { Client } from "@billsafi/contracts";
+import type { schema } from "@billsafi/db";
 
 type ClientRow = typeof schema.clients.$inferSelect;
 

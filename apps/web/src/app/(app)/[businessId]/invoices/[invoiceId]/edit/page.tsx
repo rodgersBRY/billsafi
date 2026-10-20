@@ -6,7 +6,7 @@ import { InvoiceEditor } from "@/components/invoices/invoice-editor";
 import { getInvoice } from "@/lib/server-api/invoices";
 import { loadEditorData } from "../../editor-data";
 
-export const metadata: Metadata = { title: "Edit invoice · TallyNest" };
+export const metadata: Metadata = { title: "Edit invoice · Billsafi" };
 
 /** Ready invoices stay editable until payment activity locks them (D009, D043). */
 async function EditInvoice({

@@ -1,6 +1,6 @@
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
-import type { PublicInvoice } from "@tallynest/contracts";
-import { billToLines, formatKenyanPhone } from "@tallynest/domain";
+import type { PublicInvoice } from "@billsafi/contracts";
+import { billToLines, formatKenyanPhone } from "@billsafi/domain";
 import type { InvoiceLogo } from "./branding.service.js";
 
 // White page, dark text, neutral headings, thin grey dividers, bold totals (D031).
@@ -194,7 +194,7 @@ export function InvoicePdf({
         <View style={styles.footer} fixed>
           <Text>
             {invoice.invoiceNumber}
-            {invoice.showBranding && " · Created with TallyNest"}
+            {invoice.showBranding && " · Created with Billsafi"}
           </Text>
           <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
         </View>

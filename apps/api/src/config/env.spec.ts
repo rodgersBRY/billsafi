@@ -1,7 +1,7 @@
 import { loadEnv } from "./env.js";
 
 const required = {
-  DATABASE_URL: "postgres://tallynest:tallynest@localhost:5434/tallynest",
+  DATABASE_URL: "postgres://billsafi:billsafi@localhost:5434/billsafi",
   BETTER_AUTH_SECRET: "x".repeat(32),
   SMTP_URL: "smtp://localhost:1025",
   RESET_TOKEN_TTL_SECONDS: "3600",

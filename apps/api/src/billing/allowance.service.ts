@@ -1,7 +1,7 @@
 import { ConflictException, Inject, Injectable } from "@nestjs/common";
-import type { AllowanceUsage } from "@tallynest/contracts";
-import { and, type Database, type DatabaseConnection, eq, schema, sql } from "@tallynest/db";
-import { FREE_PLAN, nairobiCalendarMonth, PRO_PLAN, proPeriodAt } from "@tallynest/domain";
+import type { AllowanceUsage } from "@billsafi/contracts";
+import { and, type Database, type DatabaseConnection, eq, schema, sql } from "@billsafi/db";
+import { FREE_PLAN, nairobiCalendarMonth, PRO_PLAN, proPeriodAt } from "@billsafi/domain";
 import { DATABASE } from "../database/database.module.js";
 
 const { usagePeriods, invoiceIssuances, subscriptions, subscriptionPayments } = schema;

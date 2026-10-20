@@ -6,7 +6,7 @@ import { SettingsView } from "@/components/settings/settings-view";
 import { getSessionUser } from "@/lib/server-api/auth";
 import { getBusiness, listPaymentInstructions } from "@/lib/server-api/businesses";
 
-export const metadata: Metadata = { title: "Settings · TallyNest" };
+export const metadata: Metadata = { title: "Settings · Billsafi" };
 
 async function Settings({
   params,

@@ -9,7 +9,7 @@ const envSchema = z
     BETTER_AUTH_SECRET: z.string().min(32, "Use at least 32 random characters"),
     RESET_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(3600),
     SMTP_URL: z.url({ protocol: /^smtps?$/ }),
-    MAIL_FROM: z.string().min(3).default("TallyNest <no-reply@tallynest.local>"),
+    MAIL_FROM: z.string().min(3).default("Billsafi <no-reply@billsafi.local>"),
     /**
      * fake never calls Safaricom; sandbox and production use Daraja; disabled
      * refuses checkout until the Paybill is approved (D051).

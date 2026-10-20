@@ -1,5 +1,5 @@
 {
-  "name": "@tallynest/db",
+  "name": "@billsafi/db",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -24,7 +24,7 @@
     "pg": "8.23.1"
   },
   "devDependencies": {
-    "@tallynest/config": "workspace:*",
+    "@billsafi/config": "workspace:*",
     "@types/node": "24.19.2",
     "@types/pg": "8.23.1",
     "drizzle-kit": "0.31.11",

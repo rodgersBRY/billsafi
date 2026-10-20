@@ -6,7 +6,7 @@ import {
   type PaymentMethod,
   paymentMethodLabels,
   paymentMethods,
-} from "@tallynest/contracts";
+} from "@billsafi/contracts";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -72,7 +72,7 @@ export function PaymentSettings({
   return (
     <form onSubmit={save} noValidate>
       <h2 className="text-base font-semibold">How clients pay you</h2>
-      <p className="mt-1 text-sm text-sub">Instructions for payments made outside TallyNest.</p>
+      <p className="mt-1 text-sm text-sub">Instructions for payments made outside Billsafi.</p>
       <SelectField
         label="Payment method"
         value={method}
@@ -119,7 +119,7 @@ export function PaymentSettings({
       />
       <p className="mt-3 rounded-panel bg-soft p-3.5 text-xs text-sub">
         Your payment number can differ from your business contact number. These instructions are for
-        your clients; your TallyNest Pro subscription is managed separately in Billing.
+        your clients; your Billsafi Pro subscription is managed separately in Billing.
       </p>
       <div aria-live="polite">
         <FormMessage>{errors.form}</FormMessage>

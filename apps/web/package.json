@@ -1,5 +1,5 @@
 {
-  "name": "@tallynest/web",
+  "name": "@billsafi/web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -12,8 +12,8 @@
   },
   "dependencies": {
     "@sentry/nextjs": "11.2.0",
-    "@tallynest/contracts": "workspace:*",
-    "@tallynest/domain": "workspace:*",
+    "@billsafi/contracts": "workspace:*",
+    "@billsafi/domain": "workspace:*",
     "better-auth": "1.7.10",
     "lucide-react": "1.58.0",
     "next": "16.4.2",

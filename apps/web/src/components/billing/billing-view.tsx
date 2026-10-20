@@ -4,8 +4,8 @@ import type {
   BillingOverview,
   SubscriptionPayment,
   SubscriptionPurpose,
-} from "@tallynest/contracts";
-import { CREDIT_PACK, PRO_PLAN } from "@tallynest/domain";
+} from "@billsafi/contracts";
+import { CREDIT_PACK, PRO_PLAN } from "@billsafi/domain";
 import { CircleCheck, CircleX, Smartphone } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -433,7 +433,7 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
         </h2>
         {billing.payments.length === 0 ? (
           <p className="border-t border-line p-5 text-sm text-sub">
-            Your M-Pesa payments to TallyNest will show here.
+            Your M-Pesa payments to Billsafi will show here.
           </p>
         ) : (
           <table className="w-full text-sm">

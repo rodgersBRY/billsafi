@@ -1,4 +1,4 @@
-import type { AllowanceUsage } from "@tallynest/contracts";
+import type { AllowanceUsage } from "@billsafi/contracts";
 
 /** Account-wide allowance (D019, D051), shown in the sidebar like the approved dashboard. */
 export function UsageMeter({ usage }: { usage: AllowanceUsage }) {

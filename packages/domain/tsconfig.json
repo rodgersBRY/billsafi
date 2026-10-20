@@ -1,5 +1,5 @@
 {
-  "extends": "@tallynest/config/tsconfig.library.json",
+  "extends": "@billsafi/config/tsconfig.library.json",
   "compilerOptions": {
     "rootDir": ".",
     "types": ["node"]

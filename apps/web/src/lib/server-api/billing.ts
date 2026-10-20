@@ -1,5 +1,5 @@
 import "server-only";
-import type { AllowanceUsage, BillingOverview } from "@tallynest/contracts";
+import type { AllowanceUsage, BillingOverview } from "@billsafi/contracts";
 import { apiGet } from "./request";
 
 /** Account-wide allowance for the sidebar meter and the invoice editor. */

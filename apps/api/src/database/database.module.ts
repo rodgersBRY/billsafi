@@ -1,5 +1,5 @@
 import { Global, Inject, Module, type OnApplicationShutdown } from "@nestjs/common";
-import { createDatabase, type DatabaseConnection } from "@tallynest/db";
+import { createDatabase, type DatabaseConnection } from "@billsafi/db";
 import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
 

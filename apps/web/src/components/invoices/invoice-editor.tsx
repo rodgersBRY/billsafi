@@ -8,8 +8,8 @@ import {
   type InvoiceBusinessDetails,
   type SaveInvoiceInput,
   saveInvoiceSchema,
-} from "@tallynest/contracts";
-import { calculateInvoice, type InvoiceCalculation } from "@tallynest/domain";
+} from "@billsafi/contracts";
+import { calculateInvoice, type InvoiceCalculation } from "@billsafi/domain";
 import { Plus, Trash2, UserPlus, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

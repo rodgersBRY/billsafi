@@ -1,4 +1,4 @@
-import type { PublicInvoice } from "@tallynest/contracts";
+import type { PublicInvoice } from "@billsafi/contracts";
 import { Download, FileX } from "lucide-react";
 import type { Metadata } from "next";
 import { Suspense } from "react";

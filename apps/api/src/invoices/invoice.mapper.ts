@@ -3,9 +3,9 @@ import type {
   InvoiceBusinessDetails,
   InvoiceClientDetails,
   InvoiceSummary,
-} from "@tallynest/contracts";
-import type { schema } from "@tallynest/db";
-import { balanceDue, isOverdue } from "@tallynest/domain";
+} from "@billsafi/contracts";
+import type { schema } from "@billsafi/db";
+import { balanceDue, isOverdue } from "@billsafi/domain";
 
 type InvoiceRow = typeof schema.invoices.$inferSelect;
 type ItemRow = typeof schema.invoiceItems.$inferSelect;

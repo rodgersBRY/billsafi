@@ -473,3 +473,17 @@ Status: confirmed on 2026-10-17 by the user's answers before Phase 5.
 - Public invoices and PDFs from Free accounts show a small "Created with TallyNest" footer; Pro accounts show none. There is no fixed thank-you line; the notes field covers it.
 
 This resolves the production email provider and monitoring items left open in D046 and D050, and the logo, dark mode, and footer questions in the brand document's design gaps.
+
+## D053 — Rename the product to Billsafi
+
+Status: confirmed on 2026-10-17.
+
+User: "I mean to change the product name to billsafi since tallynest has a lot of online presence".
+
+The product is now called Billsafi, written with only the first letter capitalised. This supersedes the name chosen in D027; the deep teal colour stays.
+
+- The rename covers everything: interface copy, emails, PDFs and the public-invoice footer ("Created with Billsafi"), current documentation, workspace packages (`@billsafi/*`), Docker images (`ghcr.io/<owner>/billsafi-*`), database names, and the production folder (`/opt/billsafi`). Nothing was live yet, so nothing needed migrating.
+- Until new brand assets exist, the app uses the document-and-leaf mark without a wordmark, with "Billsafi" written beside it. The logo animation and the old icons, which spell TallyNest, are no longer shown.
+- Earlier decision entries and the packaged design previews keep the TallyNest name as a record of when they were made.
+
+Name, domain, and trademark availability for Billsafi have not been checked.

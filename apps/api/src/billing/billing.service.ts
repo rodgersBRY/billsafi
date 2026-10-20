@@ -7,15 +7,15 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from "@nestjs/common";
-import type { BillingOverview, Checkout, SubscriptionPayment } from "@tallynest/contracts";
-import { and, type DatabaseConnection, desc, eq, schema, sql } from "@tallynest/db";
+import type { BillingOverview, Checkout, SubscriptionPayment } from "@billsafi/contracts";
+import { and, type DatabaseConnection, desc, eq, schema, sql } from "@billsafi/db";
 import {
   addNairobiMonths,
   CREDIT_PACK,
   nairobiDate,
   PRO_PLAN,
   REMINDER_DAYS_BEFORE,
-} from "@tallynest/domain";
+} from "@billsafi/domain";
 import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
 import { DATABASE } from "../database/database.module.js";
@@ -163,7 +163,7 @@ export class BillingService {
       const accepted = await this.mpesa.stkPush({
         amount: Number(amount),
         phone: input.phone.replace(/^\+/, ""),
-        accountReference: "TallyNest",
+        accountReference: "Billsafi",
         description: input.purpose === "pro_month" ? "Pro month" : "Credits",
       });
       const [updated] = await this.db

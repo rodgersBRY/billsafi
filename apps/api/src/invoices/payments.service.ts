@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import type { CorrectPayment, Payment, RecordPayment } from "@tallynest/contracts";
+import type { CorrectPayment, Payment, RecordPayment } from "@billsafi/contracts";
 import {
   and,
   asc,
@@ -17,8 +17,8 @@ import {
   ne,
   schema,
   sql,
-} from "@tallynest/db";
-import { money, nairobiDate, paymentStatus, sumPayments } from "@tallynest/domain";
+} from "@billsafi/db";
+import { money, nairobiDate, paymentStatus, sumPayments } from "@billsafi/domain";
 import { DATABASE } from "../database/database.module.js";
 import { InvoicesService } from "./invoices.service.js";
 
@@ -87,7 +87,7 @@ export class PaymentsService {
     }));
   }
 
-  /** Records a payment received outside TallyNest; it may not exceed the balance (D013). */
+  /** Records a payment received outside Billsafi; it may not exceed the balance (D013). */
   async record(userId: string, businessId: string, invoiceId: string, input: RecordPayment) {
     return this.connection.db.transaction(async (tx) => {
       const invoice = await this.invoices.lockInvoice(tx, businessId, invoiceId);

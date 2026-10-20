@@ -23,7 +23,7 @@ export const receivedPaymentMethod = pgEnum("received_payment_method", [
   "other",
 ]);
 
-/** A payment the freelancer received outside TallyNest and recorded manually (D002). */
+/** A payment the freelancer received outside Billsafi and recorded manually (D002). */
 export const invoicePayments = pgTable(
   "invoice_payments",
   {

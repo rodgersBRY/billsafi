@@ -1,18 +1,18 @@
-# TallyNest launch checklist
+# Billsafi launch checklist
 
 Work through this list before inviting real users. Each item says how to check it. The deployment steps themselves are in [deploy/README.md](../deploy/README.md).
 
 ## Accounts and services
 
 - [ ] **Domain and HTTPS.** The domain points at the droplet and Caddy serves a valid certificate. Open the site and check the padlock.
-- [ ] **Email through Resend (D052).** Add the domain in Resend, publish the SPF and DKIM records it lists, and wait for it to show as verified. Set `SMTP_URL=smtps://resend:<API key>@smtp.resend.com:465` and `MAIL_FROM=TallyNest <no-reply@your-domain>`. Trigger a password reset to your own address and confirm it arrives in the inbox, not spam.
+- [ ] **Email through Resend (D052).** Add the domain in Resend, publish the SPF and DKIM records it lists, and wait for it to show as verified. Set `SMTP_URL=smtps://resend:<API key>@smtp.resend.com:465` and `MAIL_FROM=Billsafi <no-reply@your-domain>`. Trigger a password reset to your own address and confirm it arrives in the inbox, not spam.
 - [ ] **Sentry (D052).** Create one Sentry project for the API (Node) and one for the web app (Next.js). Put the DSNs in `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN`. After deploying, the API log shows `Sentry error reporting is on`. Set up an alert rule that emails you on new issues, and confirm the first event arrives by following the "Verify" step on each project's setup page.
 - [ ] **Uptime check.** Add a monitor in UptimeRobot (or any similar service) for `https://<domain>/api/v1/health`, checking every five minutes, with alerts to your email and phone. It should expect the text `"database":"ok"`.
 - [ ] **M-Pesa Paybill (D051).** Until Safaricom approves the Paybill, leave `MPESA_ENV=disabled`. After approval, switch to `production`, fill in the Daraja keys, then buy one month of Pro from your own account and confirm the receipt appears under Billing.
 
 ## Data safety
 
-- [ ] **Nightly backups run.** `ls /opt/tallynest/backups` shows a dump from last night.
+- [ ] **Nightly backups run.** `ls /opt/billsafi/backups` shows a dump from last night.
 - [ ] **A restore works.** Restore last night's dump into a scratch database and open a few invoices. Do this once before launch and again every few months.
 - [ ] **Droplet backups are on** in the DigitalOcean control panel.
 - [ ] **Secrets are stored** in a password manager: `BETTER_AUTH_SECRET`, `POSTGRES_PASSWORD`, `MPESA_CALLBACK_TOKEN`, the Resend key, and the Daraja keys.

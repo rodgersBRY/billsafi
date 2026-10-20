@@ -3,15 +3,15 @@ services:
     image: postgres:18-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: tallynest
-      POSTGRES_PASSWORD: tallynest
-      POSTGRES_DB: tallynest
+      POSTGRES_USER: billsafi
+      POSTGRES_PASSWORD: billsafi
+      POSTGRES_DB: billsafi
     ports:
       - "5434:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql
+      - billsafi-postgres-data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tallynest -d tallynest"]
+      test: ["CMD-SHELL", "pg_isready -U billsafi -d billsafi"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -25,4 +25,5 @@ services:
       - "8025:8025"
 
 volumes:
-  postgres-data:
+  # Renamed with the product (D053) so the old tallynest volume is left untouched.
+  billsafi-postgres-data:

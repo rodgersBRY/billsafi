@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import Image from "next/image";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 
-const STORAGE_KEY = "tallynest:intro";
-const MAX_DURATION_MS = 2000;
-const PLAYBACK_RATE = 2;
+const STORAGE_KEY = "billsafi:intro";
+// The old animation spelled the previous name; the mark shows briefly until new assets exist (D053).
+const MAX_DURATION_MS = 1200;
 const FADE_MS = 300;
 
 /**
@@ -36,7 +37,6 @@ type Phase = "idle" | "playing" | "leaving";
 
 export function IntroSplash() {
   const [phase, setPhase] = useState<Phase>("idle");
-  const videoRef = useRef<HTMLVideoElement>(null);
 
   // Layout effect so client-side navigation after login shows the splash before paint.
   useLayoutEffect(() => {
@@ -54,12 +54,6 @@ export function IntroSplash() {
 
   useEffect(() => {
     if (phase === "playing") {
-      const video = videoRef.current;
-      if (video) {
-        video.muted = true;
-        video.playbackRate = PLAYBACK_RATE;
-        video.play().catch(finish);
-      }
       const cap = window.setTimeout(finish, MAX_DURATION_MS);
       const onKey = (event: KeyboardEvent) => {
         if (event.key === "Escape") finish();
@@ -83,26 +77,17 @@ export function IntroSplash() {
 
   return (
     <div
-      aria-label="Welcome to TallyNest"
+      aria-label="Welcome to Billsafi"
       onClick={finish}
       className={`fixed inset-0 z-50 place-items-center bg-brand-night transition-opacity duration-300 intro:grid ${
         visible ? "grid" : "hidden"
       } ${phase === "leaving" ? "opacity-0" : "opacity-100"}`}
     >
       {visible && (
-        <video
-          ref={videoRef}
-          className="size-80 max-w-[80vw] object-contain [mask-image:radial-gradient(closest-side,black_75%,transparent)]"
-          poster="/brand/logo-poster.webp"
-          onEnded={finish}
-          muted
-          playsInline
-          preload="auto"
-          aria-hidden="true"
-        >
-          <source src="/brand/logo-animation.webm" type="video/webm" />
-          <source src="/brand/logo-animation.mp4" type="video/mp4" />
-        </video>
+        <div aria-hidden className="grid animate-pulse place-items-center gap-4 text-white">
+          <Image src="/brand/logo-mark.webp" alt="" width={112} height={112} priority />
+          <span className="text-3xl font-semibold tracking-tight">Billsafi</span>
+        </div>
       )}
       <button
         type="button"

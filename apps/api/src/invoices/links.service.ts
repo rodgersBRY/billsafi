@@ -6,8 +6,8 @@ import {
   type InvoiceLinkStatus,
   PUBLIC_LINK_LIFETIME_DAYS,
   type PublicInvoice,
-} from "@tallynest/contracts";
-import { and, type DatabaseConnection, desc, eq, schema, sql } from "@tallynest/db";
+} from "@billsafi/contracts";
+import { and, type DatabaseConnection, desc, eq, schema, sql } from "@billsafi/db";
 import { DATABASE } from "../database/database.module.js";
 import { InvoicesService } from "./invoices.service.js";
 

@@ -1,5 +1,5 @@
 import "server-only";
-import type { PublicInvoice } from "@tallynest/contracts";
+import type { PublicInvoice } from "@billsafi/contracts";
 import { parseApiResponse } from "../api-error";
 import { apiInternalUrl } from "./request";
 

@@ -5,8 +5,8 @@ import {
   type InvoiceLinkStatus,
   type Payment,
   receivedPaymentMethodLabels,
-} from "@tallynest/contracts";
-import { calculateInvoice } from "@tallynest/domain";
+} from "@billsafi/contracts";
+import { calculateInvoice } from "@billsafi/domain";
 import { Ban, ChevronDown, Lock, Pencil, Plus, Share2, Undo2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

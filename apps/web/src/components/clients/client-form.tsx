@@ -1,6 +1,6 @@
 "use client";
 
-import { type Client, createClientSchema } from "@tallynest/contracts";
+import { type Client, createClientSchema } from "@billsafi/contracts";
 import { ChevronDown, Info } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";

@@ -6,7 +6,7 @@ import { listBusinesses } from "@/lib/server-api/businesses";
 import { FreshOnNavigation } from "./fresh-on-navigation";
 import { OnboardingWizard } from "./onboarding-wizard";
 
-export const metadata: Metadata = { title: "Set up your business · TallyNest" };
+export const metadata: Metadata = { title: "Set up your business · Billsafi" };
 
 async function Wizard() {
   const [user, businesses] = await Promise.all([getSessionUser(), listBusinesses()]);

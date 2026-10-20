@@ -34,7 +34,7 @@ jobs:
           # Only the newest main commit moves `latest`; a manual rebuild of an old SHA must not.
           MOVE_LATEST: ${{ github.event_name == 'workflow_run' || inputs.sha == '' }}
         run: |
-          prefix="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/tallynest"
+          prefix="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/billsafi"
           echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
           echo "prefix=${prefix}" >> "$GITHUB_OUTPUT"
           for name in api migrate web; do
@@ -92,5 +92,5 @@ jobs:
           {
             echo "Published \`${{ steps.meta.outputs.sha }}\` to \`${{ steps.meta.outputs.prefix }}-{api,migrate,web}\`."
             echo
-            echo "Deploy on the droplet: \`cd /opt/tallynest && ./deploy.sh\` (or \`./deploy.sh ${{ steps.meta.outputs.sha }}\`)."
+            echo "Deploy on the droplet: \`cd /opt/billsafi && ./deploy.sh\` (or \`./deploy.sh ${{ steps.meta.outputs.sha }}\`)."
           } >> "$GITHUB_STEP_SUMMARY"

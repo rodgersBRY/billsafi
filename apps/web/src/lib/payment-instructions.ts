@@ -1,5 +1,5 @@
-import type { PaymentInstruction } from "@tallynest/contracts";
-import { formatKenyanPhone } from "@tallynest/domain";
+import type { PaymentInstruction } from "@billsafi/contracts";
+import { formatKenyanPhone } from "@billsafi/domain";
 
 /** Default invoice text from the business's latest saved payment details. */
 export function paymentInstructionsText(instructions: PaymentInstruction[]): string {

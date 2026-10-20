@@ -57,7 +57,7 @@ export function SignInForm() {
         Sign in
       </Button>
       <p className="mt-6 text-center text-sm text-sub">
-        New to TallyNest?{" "}
+        New to Billsafi?{" "}
         <Link href="/sign-up" className="text-accent hover:underline">
           Create an account
         </Link>

@@ -259,11 +259,11 @@ Owners can disable or replace a link. Replacement must invalidate the previous l
 
 ## Confirmed brand direction
 
-Confirmed on 2026-10-15: the user selected TallyNest and deep teal (`#0F766E`) as the brand name and primary colour. Smart Invoice Generator remains the historical project description. Name/domain/trademark availability has not been checked. Screen layouts for the main V1 screens are approved in [brand-and-design.md](brand-and-design.md). The logo and final branding assets are not yet confirmed.
+Confirmed on 2026-10-15: the user selected TallyNest and deep teal (`#0F766E`) as the brand name and primary colour. On 2026-10-17 the product was renamed Billsafi (D053); the colour is unchanged. Smart Invoice Generator remains the historical project description. Name/domain/trademark availability has not been checked. Screen layouts for the main V1 screens are approved in [brand-and-design.md](brand-and-design.md). The logo and final branding assets are not yet confirmed.
 
 ## Confirmed PDF colour treatment
 
-Confirmed on 2026-10-15 by the user's “thats fine”. Downloaded PDFs use a white background with black/dark-grey text, neutral headings, thin grey dividers, and bold totals. The freelancer's business name and optional logo lead the document. TallyNest teal remains in the application interface rather than being imposed on the PDF. Preserve the approved invoice layout and compact payment summary. This does not require recolouring uploaded business logos. Footer branding policy remains unresolved.
+Confirmed on 2026-10-15 by the user's “thats fine”. Downloaded PDFs use a white background with black/dark-grey text, neutral headings, thin grey dividers, and bold totals. The freelancer's business name and optional logo lead the document. Billsafi teal remains in the application interface rather than being imposed on the PDF. Preserve the approved invoice layout and compact payment summary. This does not require recolouring uploaded business logos. Footer branding policy remains unresolved.
 
 ## Updated onboarding phone requirement
 
