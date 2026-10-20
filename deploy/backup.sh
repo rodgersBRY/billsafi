@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 # Nightly Postgres dump kept for 14 days. Run from cron on the droplet:
-#   15 2 * * * /opt/billsafi/backup.sh >> /var/log/billsafi-backup.log 2>&1
+#   15 2 * * * /opt/billsafi/backup.sh >> /home/deploy/backup.log 2>&1
 # These files live on the droplet's own disk; copy them off the droplet too (see deploy/README.md).
 set -eu
 
