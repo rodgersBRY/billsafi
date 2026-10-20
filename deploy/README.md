@@ -196,7 +196,7 @@ The first deploy takes a little longer because Caddy has to request the certific
 
 ## Step 9: Check it works
 
-- Open your domain in a browser. You should land on the sign-in page over HTTPS.
+- Open your domain in a browser. You should land on the Billsafi landing page over HTTPS, with **Sign in** and **Create account** in the header.
 - Visit `https://<your domain>/api/v1/health`. It should return `{"status":"ok","database":"ok"}`.
 - Create an account, then trigger a password reset to confirm email delivery.
 

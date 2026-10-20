@@ -1,6 +1,6 @@
 import "server-only";
 import { redirect } from "next/navigation";
-import { apiGet } from "./request";
+import { apiGet, EXPIRED_SESSION_PATH } from "./request";
 
 export interface SessionUser {
   id: string;
@@ -10,7 +10,8 @@ export interface SessionUser {
 
 export async function getSessionUser(): Promise<SessionUser> {
   const session = await apiGet<{ user: SessionUser } | null>("/auth/get-session");
-  if (!session) redirect("/sign-in");
+  // A null session means the cookie is stale; the proxy clears it on the way to sign-in.
+  if (!session) redirect(EXPIRED_SESSION_PATH);
 
   return session.user;
 }

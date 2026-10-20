@@ -9,8 +9,14 @@ import {
   waitUntilInteractive,
 } from "./support";
 
-test("signed-out visitors are sent to sign in", async ({ page }) => {
+test("signed-out visitors land on the marketing page", async ({ page }) => {
   await page.goto("/");
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Good work.");
+});
+
+test("signed-out visitors are sent to sign in from app pages", async ({ page }) => {
+  await page.goto("/billing");
   await expect(page).toHaveURL(/\/sign-in$/);
 });
 
