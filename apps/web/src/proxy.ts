@@ -12,6 +12,14 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSession = Boolean(getSessionCookie(request));
 
+  // Signed-out visitors land on the marketing page, served at / so it stays the front door.
+  if (pathname === "/landing") {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+  if (!hasSession && pathname === "/") {
+    return NextResponse.rewrite(new URL("/landing", request.url));
+  }
+
   const isPublic = PUBLIC_PATHS.some((path) => pathname === path) || pathname.startsWith("/i/");
 
   if (!hasSession && !isPublic) {
