@@ -27,6 +27,8 @@ services:
     <<: *image
     image: ${IMAGE_PREFIX:?}-web:${IMAGE_TAG:?}
     environment:
+      # Server-side fetches read this at runtime; the /api rewrite has it baked in at build time.
+      API_INTERNAL_URL: http://api:4000
       SENTRY_DSN: ${SENTRY_WEB_DSN:-}
     depends_on:
       api:
