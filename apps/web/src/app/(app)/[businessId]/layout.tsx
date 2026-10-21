@@ -32,6 +32,7 @@ async function Sidebar({ params }: { params: Promise<{ businessId: string }> }) 
           settingsHref={`/${businessId}/settings`}
           isPro={usage.plan === "pro"}
         />
+        <p className="px-1 text-xs text-sub">Billsafi v{process.env.NEXT_PUBLIC_APP_VERSION}</p>
       </div>
     </>
   );
