@@ -55,7 +55,9 @@ export function InvoicePreview(props: PreviewProps) {
           )}
           <p className="text-base font-semibold">{business.displayName}</p>
           <p className="text-xs text-sub">{business.contactEmail}</p>
-          <p className="text-xs text-sub">{formatKenyanPhone(business.phone)}</p>
+          {business.phone && (
+            <p className="text-xs text-sub">{formatKenyanPhone(business.phone)}</p>
+          )}
           {business.address && <p className="text-xs text-sub">{business.address}</p>}
         </div>
         <div className="text-right">
