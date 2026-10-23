@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { AuthHeading } from "@/components/auth/auth-heading";
 import { Button } from "@/components/ui/button";
-import { TextField } from "@/components/ui/field";
+import { PasswordField } from "@/components/ui/password-field";
 import { FormMessage } from "@/components/ui/form-message";
 import { authClient } from "@/lib/auth-client";
 
@@ -76,19 +76,17 @@ export function ResetPasswordForm() {
   return (
     <form method="post" onSubmit={onSubmit}>
       <AuthHeading title="Choose a new password" />
-      <TextField
+      <PasswordField
         label="New password"
         name="password"
-        type="password"
         autoComplete="new-password"
         hint={`At least ${MIN_PASSWORD_LENGTH} characters.`}
         error={errors.password}
         required
       />
-      <TextField
+      <PasswordField
         label="Confirm new password"
         name="confirm"
-        type="password"
         autoComplete="new-password"
         error={errors.confirm}
         required

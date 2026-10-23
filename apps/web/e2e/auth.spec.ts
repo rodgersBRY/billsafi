@@ -120,3 +120,18 @@ test("the account menu sits in the sidebar and closes on an outside click or Esc
   await page.keyboard.press("Escape");
   await expect(signOut).toBeHidden();
 });
+
+test("the password field can show and hide what was typed", async ({ page }) => {
+  await page.goto("/sign-in");
+  await waitUntilInteractive(page, "Sign in");
+  const password = page.getByLabel("Password").filter({ visible: true });
+  await password.fill("correct-horse-battery");
+  await expect(password).toHaveAttribute("type", "password");
+
+  await page.getByRole("button", { name: "Show password" }).click();
+  await expect(password).toHaveAttribute("type", "text");
+  await expect(password).toHaveValue("correct-horse-battery");
+
+  await page.getByRole("button", { name: "Hide password" }).click();
+  await expect(password).toHaveAttribute("type", "password");
+});
