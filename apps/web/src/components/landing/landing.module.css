@@ -175,8 +175,7 @@
 
 .signIn:hover,
 .returning a:hover,
-.finalCta small a:hover,
-.modalAccount a:not(.button):hover {
+.finalCta small a:hover {
   color: var(--green);
 }
 
@@ -192,23 +191,10 @@
 }
 
 .returning a,
-.finalCta small a,
-.modalAccount a:not(.button) {
+.finalCta small a {
   color: var(--navy);
   font-weight: 600;
   border-bottom: 1px solid #acc5b6;
-}
-
-.modalAccount {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 14px 22px;
-  margin-top: 22px;
-  padding-top: 20px;
-  border-top: 1px solid var(--line);
-  font-size: 12px;
-  color: var(--text);
 }
 
 /* Buttons */
@@ -323,21 +309,6 @@
   gap: 22px;
   align-items: center;
   margin: 29px 0 21px;
-}
-
-.play {
-  border: 1px solid #b3c0ba;
-  border-radius: 50%;
-  display: inline-grid;
-  place-items: center;
-  width: 25px;
-  height: 25px;
-  margin-right: 7px;
-}
-
-.play svg {
-  width: 10px;
-  height: 10px;
 }
 
 .heroNote {
@@ -1737,115 +1708,6 @@
   color: #93a095;
 }
 
-/* Preview dialog */
-
-.dialog {
-  margin: auto;
-  border: 1px solid #dce6dd;
-  border-radius: 16px;
-  width: min(620px, calc(100% - 32px));
-  padding: 25px;
-  color: var(--navy);
-  background: #fff;
-  box-shadow: 0 20px 90px #132f3540;
-  max-height: 90vh;
-}
-
-.dialog::backdrop {
-  background: #112e3577;
-  backdrop-filter: blur(5px);
-}
-
-.modalHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.close {
-  border: 0;
-  background: #eff4ed;
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  color: var(--navy);
-}
-
-.close svg {
-  width: 18px;
-  height: 18px;
-}
-
-.modalBody {
-  padding: 20px 10px 10px;
-}
-
-.page .modalBody h2 {
-  font-size: 30px;
-  letter-spacing: -1px;
-}
-
-.page .modalBody p {
-  font-size: 13px;
-  color: var(--text);
-}
-
-.dialog label {
-  font-size: 11px;
-  font-weight: 600;
-  display: block;
-  margin: 16px 0;
-}
-
-.dialog input {
-  display: block;
-  width: 100%;
-  padding: 11px 12px;
-  border: 1px solid #cfdacf;
-  border-radius: 6px;
-  margin-top: 5px;
-  color: var(--navy);
-  background: #fafcf9;
-}
-
-.formGrid {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr;
-  gap: 15px;
-}
-
-.sampleGenerated {
-  background: #f8faf6;
-  border: 1px solid #dce5d8;
-  border-radius: 7px;
-  padding: 25px;
-  margin-bottom: 20px;
-}
-
-.sampleGenerated .paperLine {
-  font-size: 13px;
-}
-
-.sampleGenerated > small {
-  font-size: 9px;
-  color: #6a826d;
-}
-
-.sampleGenerated .sheetHeading b {
-  font-size: 10px;
-}
-
-.page .sampleGenerated h3 {
-  margin-top: 5px;
-}
-
-.page .sampleGenerated p {
-  font-size: 10px;
-  margin-top: 20px;
-}
-
 .desktop {
   display: inline;
 }
@@ -2371,27 +2233,6 @@
 
   .footer {
     padding-top: 45px;
-  }
-
-  .formGrid {
-    grid-template-columns: 1fr;
-    gap: 0;
-  }
-
-  .modalBody {
-    padding: 20px 0 0;
-  }
-
-  .page .modalBody h2 {
-    font-size: 26px;
-  }
-
-  .dialog {
-    padding: 20px;
-  }
-
-  .modalHead .eyebrow {
-    font-size: 7px;
   }
 }
 

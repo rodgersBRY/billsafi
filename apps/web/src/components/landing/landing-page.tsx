@@ -10,7 +10,6 @@ import {
   Clock,
   FileText,
   LayoutGrid,
-  Play,
   Plus,
   ReceiptText,
   Sparkle,
@@ -21,7 +20,6 @@ import Link from "next/link";
 import { Fragment } from "react";
 import { Checks } from "./checks";
 import { Pricing } from "./pricing";
-import { PreviewButton, PreviewProvider } from "./preview-dialog";
 import { SiteHeader } from "./site-header";
 import { Wordmark } from "./wordmark";
 import s from "./landing.module.css";
@@ -108,15 +106,12 @@ function Hero() {
           back to what you do best.
         </p>
         <div className={s.heroActions}>
-          <Link className={`${s.button} ${s.dark}`} href="/sign-up">
-            Create your first invoice <Trail />
+          <Link className={`${s.button} ${s.dark}`} href="/free-invoice-generator">
+            Create an invoice free <Trail />
           </Link>
-          <PreviewButton className={s.textButton}>
-            <span className={s.play}>
-              <Play aria-hidden />
-            </span>{" "}
-            Take a look inside
-          </PreviewButton>
+          <Link className={s.textButton} href="/sign-up">
+            Create an account
+          </Link>
         </div>
         <div className={s.heroNote}>
           <span>
@@ -401,12 +396,12 @@ function Features() {
               "Your payment instructions, right on the invoice",
             ]}
           />
-          <PreviewButton className={s.linkButton}>
+          <Link className={s.linkButton} href="/free-invoice-generator">
             Explore a sample invoice{" "}
             <span>
               <ArrowUpRight className={s.inlineIcon} aria-hidden />
             </span>
-          </PreviewButton>
+          </Link>
         </div>
       </div>
 
@@ -652,21 +647,19 @@ function Footer() {
 export function LandingPage() {
   return (
     <div className={`${s.page} ${manrope.variable} ${dmSans.variable}`} data-landing>
-      <PreviewProvider>
-        <SiteHeader />
-        <main>
-          <Hero />
-          <Audience />
-          <Benefits />
-          <Features />
-          <Workflow />
-          <Kenya />
-          <Pricing />
-          <Faq />
-          <FinalCta />
-        </main>
-        <Footer />
-      </PreviewProvider>
+      <SiteHeader />
+      <main>
+        <Hero />
+        <Audience />
+        <Benefits />
+        <Features />
+        <Workflow />
+        <Kenya />
+        <Pricing />
+        <Faq />
+        <FinalCta />
+      </main>
+      <Footer />
     </div>
   );
 }
