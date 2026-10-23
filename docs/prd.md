@@ -48,7 +48,7 @@ Better Auth is the selected authentication framework, confirmed on 2026-10-15. D
 
 ## Remaining onboarding proposals — unresolved
 
-The five-minute first-invoice target, social login deferral, business registration document requirements, multiple saved payment methods with per-invoice selection, and exact payment-method fields were not included in the adopted recommendation. They remain unresolved.
+The five-minute first-invoice target, social login deferral (since settled by D055), business registration document requirements, multiple saved payment methods with per-invoice selection, and exact payment-method fields were not included in the adopted recommendation. They remain unresolved.
 
 ## Confirmed invoice preferences
 

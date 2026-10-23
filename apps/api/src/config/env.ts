@@ -8,6 +8,9 @@ const envSchema = z
     DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
     BETTER_AUTH_SECRET: z.string().min(32, "Use at least 32 random characters"),
     RESET_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(3600),
+    /** Google OAuth web client; Google sign-in is off unless both are set (D055). */
+    GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+    GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
     SMTP_URL: z.url({ protocol: /^smtps?$/ }),
     MAIL_FROM: z.string().min(3).default("Billsafi <no-reply@billsafi.local>"),
     /**
@@ -40,6 +43,13 @@ const envSchema = z
       .transform((value) => value === "on"),
   })
   .superRefine((env, ctx) => {
+    if (Boolean(env.GOOGLE_CLIENT_ID) !== Boolean(env.GOOGLE_CLIENT_SECRET)) {
+      ctx.addIssue({
+        code: "custom",
+        path: [env.GOOGLE_CLIENT_ID ? "GOOGLE_CLIENT_SECRET" : "GOOGLE_CLIENT_ID"],
+        message: "Set both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET, or neither",
+      });
+    }
     if (env.MPESA_ENV === "fake" && env.NODE_ENV === "production") {
       ctx.addIssue({
         code: "custom",

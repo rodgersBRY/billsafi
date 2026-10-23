@@ -11,11 +11,51 @@ export const AUTH_BASE_PATH = "/api/v1/auth";
 /** Reset links live for one hour and a reset signs out every session (D047). */
 export interface AuthDependencies {
   db: Database;
-  env: Pick<Env, "WEB_ORIGIN" | "BETTER_AUTH_SECRET" | "RESET_TOKEN_TTL_SECONDS">;
+  env: Pick<
+    Env,
+    | "WEB_ORIGIN"
+    | "BETTER_AUTH_SECRET"
+    | "RESET_TOKEN_TTL_SECONDS"
+    | "GOOGLE_CLIENT_ID"
+    | "GOOGLE_CLIENT_SECRET"
+  >;
   mailer: Mailer;
 }
 
+const PROVIDER_TOKEN_FIELDS = [
+  "accessToken",
+  "refreshToken",
+  "idToken",
+  "accessTokenExpiresAt",
+  "refreshTokenExpiresAt",
+] as const;
+
+/**
+ * Google tokens are only needed during the sign-in round trip; Billsafi never calls Google
+ * APIs, so they are not kept. Password rows never carry these fields and pass through.
+ */
+async function dropProviderTokens<T extends Record<string, unknown>>(account: T) {
+  if (!PROVIDER_TOKEN_FIELDS.some((field) => field in account)) return;
+  const cleared = Object.fromEntries(PROVIDER_TOKEN_FIELDS.map((field) => [field, null]));
+  return { data: { ...account, ...cleared } };
+}
+
+/** Sign-in methods the web app should offer besides email and password. */
+export function enabledSocialProviders(env: AuthDependencies["env"]) {
+  return { google: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) };
+}
+
 export function createAuth({ db, env, mailer }: AuthDependencies) {
+  const google =
+    env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+      ? {
+          clientId: env.GOOGLE_CLIENT_ID,
+          clientSecret: env.GOOGLE_CLIENT_SECRET,
+          // Lets people with several Google accounts pick the right one.
+          prompt: "select_account" as const,
+        }
+      : undefined;
+
   return betterAuth({
     appName: "Billsafi",
     baseURL: env.WEB_ORIGIN,
@@ -37,6 +77,24 @@ export function createAuth({ db, env, mailer }: AuthDependencies) {
         });
       },
     },
+    // Only openid, email and profile are requested; Google confirms the email (D055).
+    socialProviders: google ? { google } : {},
+    databaseHooks: {
+      account: {
+        create: { before: dropProviderTokens },
+        update: { before: dropProviderTokens },
+      },
+    },
+    account: {
+      // Backstop if a later feature keeps tokens: they are then encrypted at rest.
+      encryptOAuthTokens: true,
+      // Never merge Google into an existing account by email. Password sign-ups are not
+      // email-verified, so a stranger could pre-register someone's address and keep a
+      // way in after the owner signs in with Google. Those users get account_not_linked.
+      accountLinking: { disableImplicitLinking: true },
+    },
+    // OAuth failures land back on the sign-in page, which explains the error code.
+    onAPIError: { errorURL: `${env.WEB_ORIGIN}/sign-in` },
     advanced: {
       database: { generateId: "uuid" },
     },

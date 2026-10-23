@@ -4,6 +4,7 @@ import { SentryGlobalFilter, SentryModule } from "@sentry/nestjs/setup";
 import type { DatabaseConnection } from "@billsafi/db";
 import { AuthModule } from "@thallesp/nestjs-better-auth";
 import { createAuth } from "./auth/auth.js";
+import { AuthProvidersModule } from "./auth/auth-providers.module.js";
 import { ConfigModule, ENV } from "./config/config.module.js";
 import type { Env } from "./config/env.js";
 import { DATABASE, DatabaseModule } from "./database/database.module.js";
@@ -32,6 +33,7 @@ import type { Mailer } from "./mail/mailer.js";
         disableTrustedOriginsCors: true,
       }),
     }),
+    AuthProvidersModule,
     HealthModule,
     BusinessesModule,
     ClientsModule,
