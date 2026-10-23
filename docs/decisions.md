@@ -552,3 +552,16 @@ Signed-in users now get a short tour of the Overview page and a checklist of fir
 - The checklist floats at the bottom right of every app page. It opens as a list on the Overview and stays a small pill elsewhere so it does not cover page actions.
 - The checklist is hidden once every item is done or the user dismisses it. Dismissal is saved in the same table.
 - The tour uses driver.js.
+
+## D058 - Open BillSafi to users outside Kenya
+
+Status: confirmed on 2026-10-23.
+
+User: "remove the word kenya or kenyan from the ladnign page. Everyone should be able to use it" and "Go on to remove kenyan from the rest of the app", then chose to accept international phone numbers and to move the landing page onto the app's teal palette.
+
+- Profile and client phone fields accept any number with a country code (`+` or `00`), stored in E.164 form such as `+442079460958`. Local `07…` and `01…` numbers are still read as Kenyan mobiles so existing users can keep typing them. This replaces the phone rule in D047.
+- M-Pesa numbers stay Kenyan only, for payment instructions and for Pro checkout, because M-Pesa only works with those numbers.
+- The database phone checks on `businesses` and `clients` widen to match (migration `0007_international_phones`). Existing numbers already pass the new check.
+- User-facing text no longer names Kenya. The business "KRA PIN" field is labelled "Tax ID"; the `kra_pin` column keeps its name.
+- Invoices are still in KES only, and Pro is still paid through M-Pesa. Other currencies and payment routes need their own decisions.
+- The landing page uses the app's colour tokens instead of its own palette, so teal `#0F766E` from the brand document is the one primary colour.
