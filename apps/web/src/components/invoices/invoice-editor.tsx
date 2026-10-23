@@ -47,9 +47,21 @@ export interface InvoiceEditorProps {
    * the account already had a business, so the typed business details were not used.
    */
   fromGenerator?: "new" | "existing";
+  /** Called once a new invoice has been created. */
+  onCreated?: () => void;
 }
 
 type Errors = Record<string, string>;
+
+/**
+ * Next keeps visited pages mounted (cacheComponents), so the new-invoice form would
+ * still hold the last invoice when someone opens it again. A fresh key after each
+ * create starts the next one blank.
+ */
+export function NewInvoiceEditor(props: Omit<InvoiceEditorProps, "invoice" | "fromGenerator">) {
+  const [round, setRound] = useState(0);
+  return <InvoiceEditor key={round} {...props} onCreated={() => setRound((n) => n + 1)} />;
+}
 
 export function InvoiceEditor(props: InvoiceEditorProps) {
   const { businessId, invoice } = props;
@@ -165,6 +177,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
       const result = await save();
       if (!invoice && result) {
         router.replace(`/${businessId}/invoices/${result.id}`);
+        props.onCreated?.();
         return;
       }
       if (!isDraft && invoice) {
@@ -199,6 +212,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
       router.replace(`/${businessId}/invoices/${result!.id}`);
       // Refresh shared layouts too, so the sidebar usage meter counts this invoice.
       router.refresh();
+      if (!invoice) props.onCreated?.();
     } catch (error) {
       fail(error);
     } finally {
