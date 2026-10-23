@@ -515,3 +515,20 @@ Sign-in and sign-up now show "Continue with Google" above the email form. This s
 - Google access, refresh and ID tokens are not stored after sign-in, because Billsafi never calls Google APIs. Token encryption is also on in case a later feature needs to keep them.
 - Failed Google sign-ins return to `/sign-in` with an error code, and the page explains it in plain words.
 - A Google-only user can still set a password through "Forgot password", since that proves they own the inbox.
+
+## D056 - Let visitors build an invoice before creating an account
+
+Status: confirmed on 2026-10-23.
+
+Visitors can now make an invoice without signing up. They only need an account when they want to save it and get the PDF.
+
+- The public generator lives at `/free-invoice-generator`. The landing page links to it from the hero, the product section and the pricing cards.
+- The draft is kept only in the visitor's browser. It survives a reload but does not follow them to another device.
+- "Save & download" checks the form with the same rules as the API. If anything is wrong, the visitor sees what to fix. If it passes, they are asked to create an account with Google or email, or to sign in.
+- After sign-up or sign-in, `POST /api/v1/guest-invoices/import` saves the business, the client and the draft invoice in one transaction.
+- If the account already has a business, the oldest one is used and the typed business details are ignored. An active client with the same phone number is reused instead of adding a new one.
+- The draft opens in the editor with a short note on what to do next. Pressing Mark as Ready gives it a number and makes the PDF available.
+- Drafts don't count against the monthly allowance, so the Free plan limit is unchanged.
+- If the session has expired by the time the import runs, the visitor goes back to the generator and the draft is still there.
+- The sample invoice dialog on the landing page is removed. The generator replaces it.
+- Not covered yet: logos for guest invoices, and saving the typed payment instructions as a payment method.
