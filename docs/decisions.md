@@ -528,6 +528,8 @@ Visitors can now make an invoice without signing up. They only need an account w
 - After sign-up or sign-in, `POST /api/v1/guest-invoices/import` saves the business, the client and the draft invoice in one transaction.
 - If the account already has a business, the oldest one is used and the typed business details are ignored. An active client with the same phone number is reused instead of adding a new one.
 - The draft opens in the editor with a short note on what to do next. Pressing Mark as Ready gives it a number and makes the PDF available.
+- Mark as Ready now opens the invoice details page for every draft, not only generator drafts, so Share and Download PDF are one click away.
+- Visitors who are already signed in skip the account step and go straight to saving.
 - Drafts don't count against the monthly allowance, so the Free plan limit is unchanged.
 - If the session has expired by the time the import runs, the visitor goes back to the generator and the draft is still there.
 - The sample invoice dialog on the landing page is removed. The generator replaces it.
