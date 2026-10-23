@@ -1,4 +1,4 @@
-# Deploying Billsafi to a DigitalOcean droplet
+# Deploying BillSafi to a DigitalOcean droplet
 
 This guide explains how production works and lists every step to get it running, starting from an empty DigitalOcean account. Do the one-time setup in order. After that, each release is a merge to `main` followed by one command on the droplet.
 
@@ -153,6 +153,7 @@ Paste the template from `deploy/.env.example` and fill it in:
 - `IMAGE_PREFIX`: `ghcr.io/<your GitHub username in lowercase>/billsafi`. For `rodgersBRY/billsafi` that is `ghcr.io/rodgersbry/billsafi`. It changes only if the repository moves to another owner.
 - `IMAGE_TAG`: leave it as `latest`. `deploy.sh` manages this line.
 - `POSTGRES_PASSWORD` and `BETTER_AUTH_SECRET`: run `openssl rand -hex 32` once for each. Use hex values because the password goes into a connection URL, where characters like `/` or `@` would break it.
+- `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`: the Google OAuth web client for "Continue with Google" (D055). Leave both blank to hide the button. In Google Cloud Console, create an OAuth client of type **Web application** and add `https://<DOMAIN>/api/v1/auth/callback/google` as an authorized redirect URI.
 - `SMTP_URL` and `MAIL_FROM`: the email provider is Resend (D052). Verify your domain in Resend first, then use `smtps://resend:<API key>@smtp.resend.com:465` and a `MAIL_FROM` address on that domain.
 - `SENTRY_API_DSN` and `SENTRY_WEB_DSN`: the DSNs of your two Sentry projects. Leave them blank to turn error reporting off. Browser errors need the web DSN at build time too: add it as a repository variable named `SENTRY_WEB_DSN` under **Settings > Secrets and variables > Actions > Variables**, then publish new images.
 - `MPESA_ENV`: keep it `disabled` until Safaricom approves the Paybill for Daraja. Checkout then shows a "not available yet" message and nothing else changes. Once approved, set it to `production` and fill in `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_SHORTCODE` (the Paybill number), `MPESA_PASSKEY`, and an `MPESA_CALLBACK_TOKEN` from `openssl rand -hex 24`. Safaricom calls back to `https://<DOMAIN>/api/v1/billing/mpesa/callback/<token>`, so the token stays private.
@@ -196,7 +197,7 @@ The first deploy takes a little longer because Caddy has to request the certific
 
 ## Step 9: Check it works
 
-- Open your domain in a browser. You should land on the Billsafi landing page over HTTPS, with **Sign in** and **Create account** in the header.
+- Open your domain in a browser. You should land on the BillSafi landing page over HTTPS, with **Sign in** and **Create account** in the header.
 - Visit `https://<your domain>/api/v1/health`. It should return `{"status":"ok","database":"ok"}`.
 - Create an account, then trigger a password reset to confirm email delivery.
 

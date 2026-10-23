@@ -36,6 +36,27 @@
       "when": 1792239207145,
       "tag": "0004_business_logos",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792743555790,
+      "tag": "0005_usd_pricing",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792765254577,
+      "tag": "0006_product_tours",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792769528015,
+      "tag": "0007_international_phones",
+      "breakpoints": true
     }
   ]
 }

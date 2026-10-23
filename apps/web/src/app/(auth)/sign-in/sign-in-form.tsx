@@ -10,7 +10,8 @@ import { TextField } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
 import { authClient } from "@/lib/auth-client";
 
-export function SignInForm() {
+/** `google` is the server-rendered "Continue with Google" block, when available. */
+export function SignInForm({ google }: { google?: React.ReactNode }) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -39,6 +40,7 @@ export function SignInForm() {
   return (
     <form method="post" onSubmit={onSubmit}>
       <AuthHeading title="Welcome back" description="Sign in to manage your invoices." />
+      {google}
       <TextField label="Email address" name="email" type="email" autoComplete="email" required />
       <TextField
         label="Password"
@@ -57,7 +59,7 @@ export function SignInForm() {
         Sign in
       </Button>
       <p className="mt-6 text-center text-sm text-sub">
-        New to Billsafi?{" "}
+        New to BillSafi?{" "}
         <Link href="/sign-up" className="text-accent hover:underline">
           Create an account
         </Link>

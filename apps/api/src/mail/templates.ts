@@ -3,11 +3,11 @@ import type { MailMessage } from "./mailer.js";
 export function passwordResetEmail(to: string, name: string, url: string): MailMessage {
   return {
     to,
-    subject: "Reset your Billsafi password",
+    subject: "Reset your BillSafi password",
     text: [
       `Hi ${name},`,
       "",
-      "Someone requested to reset the password for your Billsafi account.",
+      "Someone requested to reset the password for your BillSafi account.",
       "Use this link within the next hour to choose a new password:",
       "",
       url,
@@ -38,14 +38,14 @@ export function renewalReminderEmail(
   const when = longDate.format(expiresAt);
   return {
     to,
-    subject: kind === "on_expiry" ? "Your Billsafi Pro ends today" : "Your Billsafi Pro ends soon",
+    subject: kind === "on_expiry" ? "Your BillSafi Pro ends today" : "Your BillSafi Pro ends soon",
     text: [
       `Hi ${name},`,
       "",
       kind === "on_expiry"
         ? `Your Pro access ends today, ${when}.`
         : `Your Pro access ends on ${when}.`,
-      "Billsafi never takes payment automatically. To keep Pro, renew with M-Pesa here:",
+      "BillSafi never takes payment automatically. To keep Pro, renew with M-Pesa here:",
       "",
       billingUrl,
       "",

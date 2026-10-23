@@ -4,15 +4,18 @@ import { SentryGlobalFilter, SentryModule } from "@sentry/nestjs/setup";
 import type { DatabaseConnection } from "@billsafi/db";
 import { AuthModule } from "@thallesp/nestjs-better-auth";
 import { createAuth } from "./auth/auth.js";
+import { AuthProvidersModule } from "./auth/auth-providers.module.js";
 import { ConfigModule, ENV } from "./config/config.module.js";
 import type { Env } from "./config/env.js";
 import { DATABASE, DatabaseModule } from "./database/database.module.js";
 import { BillingModule } from "./billing/billing.module.js";
 import { BusinessesModule } from "./businesses/businesses.module.js";
 import { ClientsModule } from "./clients/clients.module.js";
+import { GuestInvoicesModule } from "./guest-invoices/guest-invoices.module.js";
 import { HealthModule } from "./health/health.module.js";
 import { InvoicesModule } from "./invoices/invoices.module.js";
 import { MAILER, MailModule } from "./mail/mail.module.js";
+import { ProductToursModule } from "./product-tours/product-tours.module.js";
 import type { Mailer } from "./mail/mailer.js";
 
 @Module({
@@ -32,11 +35,14 @@ import type { Mailer } from "./mail/mailer.js";
         disableTrustedOriginsCors: true,
       }),
     }),
+    AuthProvidersModule,
     HealthModule,
     BusinessesModule,
     ClientsModule,
     InvoicesModule,
+    GuestInvoicesModule,
     BillingModule,
+    ProductToursModule,
   ],
   // Reports unexpected errors; HTTP errors such as 404 and 409 are not sent.
   providers: [{ provide: APP_FILTER, useClass: SentryGlobalFilter }],

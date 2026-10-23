@@ -15,7 +15,7 @@ export function NavLinks({ businessId }: { businessId: string }) {
   const item = "flex items-center gap-2.75 rounded-lg p-2.75 text-sm text-sub transition-colors";
 
   return (
-    <nav aria-label="Main" className="grid gap-1.5">
+    <nav aria-label="Main" data-tour="main-nav" className="grid gap-1.5">
       {LINKS.map(({ segment, label, icon: Icon }) => {
         const href = `/${businessId}/${segment}`;
         const active = pathname.startsWith(href);

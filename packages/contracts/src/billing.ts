@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { kenyanPhone } from "./fields.js";
+import { mpesaPhone } from "./fields.js";
 import type { AllowanceUsage } from "./invoices.js";
 
 export const subscriptionPurposes = ["pro_month", "invoice_credits"] as const;
@@ -8,7 +8,7 @@ export type SubscriptionPurpose = (typeof subscriptionPurposes)[number];
 /** Starting an M-Pesa STK Push for one Pro month or one credit pack (D051). */
 export const checkoutSchema = z.object({
   purpose: z.enum(subscriptionPurposes),
-  phone: kenyanPhone,
+  phone: mpesaPhone,
 });
 export type CheckoutInput = z.input<typeof checkoutSchema>;
 export type Checkout = z.output<typeof checkoutSchema>;
@@ -36,8 +36,26 @@ export interface SubscriptionPayment {
  */
 export type SubscriptionStatus = "free" | "active" | "cancelled";
 
+export interface PurposePrices {
+  pro_month: string;
+  invoice_credits: string;
+}
+
+/**
+ * Plan prices are set in USD. M-Pesa charges the KES amount at the current
+ * exchange rate, so `kes` and `usdKesRate` are null while no rate is available.
+ */
+export interface PlanPrices {
+  usd: PurposePrices;
+  kes: PurposePrices | null;
+  usdKesRate: string | null;
+  /** When the rate source last updated the rate. */
+  rateUpdatedAt: string | null;
+}
+
 export interface BillingOverview {
   usage: AllowanceUsage;
+  prices: PlanPrices;
   subscription: {
     status: SubscriptionStatus;
     paidUntil: string | null;

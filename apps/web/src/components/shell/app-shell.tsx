@@ -55,7 +55,8 @@ export function AppShell({ sidebar, children }: AppShellProps) {
             <span className="sr-only">Menu</span>
           </button>
         </header>
-        <main className="flex-1 p-4 sm:p-7.5">{children}</main>
+        {/* Room to scroll page content clear of the floating setup checklist. */}
+        <main className="flex-1 p-4 sm:p-7.5 has-data-setup-checklist:pb-24">{children}</main>
       </div>
     </div>
   );

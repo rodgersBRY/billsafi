@@ -61,6 +61,9 @@ export const subscriptionPayments = pgTable(
     purpose: subscriptionPurpose("purpose").notNull(),
     amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
     currency: text("currency").notNull().default("KES"),
+    /** The USD list price and the USD to KES rate used to set `amount`. */
+    priceUsd: numeric("price_usd", { precision: 14, scale: 2 }),
+    usdKesRate: numeric("usd_kes_rate", { precision: 14, scale: 6 }),
     phone: text("phone").notNull(),
     status: subscriptionPaymentStatus("status").notNull().default("pending"),
     provider: text("provider").notNull(),

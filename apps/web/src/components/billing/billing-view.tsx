@@ -5,10 +5,16 @@ import type {
   SubscriptionPayment,
   SubscriptionPurpose,
 } from "@billsafi/contracts";
-import { CREDIT_PACK, PRO_PLAN } from "@billsafi/domain";
+import {
+  CREDIT_PACK,
+  FREE_PLAN,
+  type PriceCurrency,
+  PRO_PLAN,
+  priceCurrencies,
+} from "@billsafi/domain";
 import { CircleCheck, CircleX, Smartphone } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
@@ -17,6 +23,7 @@ import { ApiError } from "@/lib/api-error";
 import { formatMoney } from "@/lib/format";
 
 const POLL_MS = 3000;
+const CURRENCY_KEY = "billsafi.priceCurrency";
 /** Stop polling after this long; the backend still settles the payment later. */
 const POLL_LIMIT_MS = 3 * 60 * 1000;
 
@@ -45,6 +52,38 @@ const purposeLabels: Record<SubscriptionPurpose, string> = {
   invoice_credits: `${CREDIT_PACK.invoices} invoice credits`,
 };
 
+/** This visit's choice, kept even when the browser blocks storage. */
+let chosenCurrency: PriceCurrency | null = null;
+const currencyListeners = new Set<() => void>();
+
+/** The viewer's chosen price currency; USD until they pick one. */
+function priceCurrency(): PriceCurrency {
+  if (chosenCurrency) return chosenCurrency;
+  try {
+    const value = localStorage.getItem(CURRENCY_KEY);
+    return priceCurrencies.find((code) => code === value) ?? "USD";
+  } catch {
+    return "USD";
+  }
+}
+
+function choosePriceCurrency(code: PriceCurrency) {
+  chosenCurrency = code;
+  try {
+    localStorage.setItem(CURRENCY_KEY, code);
+  } catch {
+    // The choice still applies for this visit.
+  }
+  currencyListeners.forEach((listener) => listener());
+}
+
+function subscribeToCurrency(listener: () => void) {
+  currencyListeners.add(listener);
+  return () => {
+    currencyListeners.delete(listener);
+  };
+}
+
 /** Shows 07XX XXX XXX for a stored +2547XXXXXXXX number. */
 function localPhone(stored: string): string {
   const local = `0${stored.slice(4)}`;
@@ -60,7 +99,7 @@ interface BillingViewProps {
 /** Account billing (D038, D051): plan, usage, M-Pesa checkout, credits, and history. */
 export function BillingView({ billing, defaultPhone, businessNames }: BillingViewProps) {
   const router = useRouter();
-  const { usage, subscription } = billing;
+  const { usage, subscription, prices } = billing;
   const onPro = subscription.status !== "free";
   const [checkout, setCheckout] = useState<SubscriptionPurpose | null>(null);
   const [phone, setPhone] = useState(() => localPhone(defaultPhone));
@@ -70,6 +109,8 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
   const [payment, setPayment] = useState<SubscriptionPayment | null>(billing.pendingPayment);
   const [waitedTooLong, setWaitedTooLong] = useState(false);
   const [changingPlan, setChangingPlan] = useState(false);
+  // The server renders USD; the browser then applies any saved choice.
+  const currency = useSyncExternalStore(subscribeToCurrency, priceCurrency, () => "USD" as const);
 
   // Poll a pending payment until the backend confirms or fails it.
   useEffect(() => {
@@ -147,16 +188,40 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
       ? `Shared across ${businessNames.slice(0, -1).join(", ")} and ${businessNames.at(-1)}`
       : "Covers every business you add";
   const paymentPending = payment?.status === "pending";
+  // KES prices need a rate; fall back to USD while none is available.
+  const shownCurrency: PriceCurrency = currency === "KES" && prices.kes ? "KES" : "USD";
+  const shownPrices = shownCurrency === "KES" ? prices.kes! : prices.usd;
+  const price = (purpose: SubscriptionPurpose) =>
+    formatMoney(shownPrices[purpose], shownCurrency).replace(".00", "");
+  const rate = prices.usdKesRate ? Number(prices.usdKesRate).toFixed(2) : null;
+  const checkoutCharge = checkout && prices.kes ? prices.kes[checkout] : null;
 
   return (
     <div className="mx-auto max-w-225">
-      <div className="mb-6.25">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          One plan. All your businesses.
-        </h1>
-        <p className="mt-1.25 text-sm text-sub">
-          Manage your subscription and monthly invoice allowance.
-        </p>
+      <div className="mb-6.25 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            One plan. All your businesses.
+          </h1>
+          <p className="mt-1.25 text-sm text-sub">
+            Manage your subscription and monthly invoice allowance.
+          </p>
+        </div>
+        <div role="group" aria-label="Show prices in" className="flex gap-1.5">
+          {priceCurrencies.map((code) => (
+            <button
+              key={code}
+              type="button"
+              aria-pressed={shownCurrency === code}
+              disabled={code === "KES" && !prices.kes}
+              title={code === "KES" && !prices.kes ? "Exchange rate unavailable" : undefined}
+              onClick={() => choosePriceCurrency(code)}
+              className="rounded-md border border-line bg-panel px-2.75 py-1.25 text-xs disabled:opacity-50 aria-pressed:border-accent aria-pressed:bg-soft aria-pressed:text-accent"
+            >
+              {code}
+            </button>
+          ))}
+        </div>
       </div>
 
       {subscription.renewalDue && subscription.paidUntil && (
@@ -164,8 +229,8 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
           role="status"
           className="mb-4.5 rounded-panel border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100"
         >
-          Your Pro access ends on {formatInstant(subscription.paidUntil)}. Renew to keep 100
-          invoices a month. Nothing is charged automatically.
+          Your Pro access ends on {formatInstant(subscription.paidUntil)}. Renew to keep{" "}
+          {PRO_PLAN.invoiceLimit} invoices a month. Nothing is charged automatically.
         </div>
       )}
 
@@ -187,7 +252,7 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
             </span>
           </div>
           <p className="my-3.25 text-3xl font-semibold tracking-tight">
-            {onPro ? formatMoney(PRO_PLAN.price).replace(".00", "") : "KES 0"}{" "}
+            {onPro ? price("pro_month") : `${shownCurrency} 0`}{" "}
             <span className="text-sm font-normal tracking-normal text-sub">/ month</span>
           </p>
           <p className="text-sm text-sub">
@@ -229,7 +294,7 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
               : subscription.status === "cancelled" && subscription.paidUntil
                 ? `Cancelled. Pro stays active until ${formatInstant(subscription.paidUntil)}, then your account returns to Free.`
                 : subscription.paidUntil
-                  ? "Your Pro access has ended. Free allows 10 invoices this calendar month, including any already made Ready on Pro. Your records are all still here."
+                  ? `Your Pro access has ended. Free allows ${FREE_PLAN.invoiceLimit} invoices this calendar month, including any already made Ready on Pro. Your records are all still here.`
                   : "Each invoice counts when first marked Ready. Drafts and payment recording do not use extra allowance."}
           </div>
 
@@ -268,7 +333,8 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
             </span>
           </div>
           <p className="my-3.25 text-3xl font-semibold tracking-tight">
-            KES 500 <span className="text-sm font-normal tracking-normal text-sub">/ month</span>
+            {price("pro_month")}{" "}
+            <span className="text-sm font-normal tracking-normal text-sub">/ month</span>
           </p>
           <ul className="text-sm">
             {[
@@ -289,6 +355,11 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
             {onPro ? "Renew with M-Pesa" : "Continue with M-Pesa"}
           </Button>
           <p className="mt-3 text-xs text-sub">
+            {prices.kes
+              ? shownCurrency === "USD"
+                ? `Charged as ${formatMoney(prices.kes.pro_month)} with M-Pesa at today's rate. `
+                : `Set at ${formatMoney(prices.usd.pro_month, "USD")}, converted at today's rate. `
+              : "Charged in KES with M-Pesa at the day's exchange rate. "}
             Renew each month with your approval. No automatic deductions.
           </p>
         </section>
@@ -303,9 +374,8 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
             Need more invoices?
           </h2>
           <p className="mt-1 text-sm text-sub">
-            {CREDIT_PACK.invoices} extra invoices for{" "}
-            {formatMoney(CREDIT_PACK.price).replace(".00", "")}. Credits never expire and are used
-            only after your plan allowance runs out.
+            {CREDIT_PACK.invoices} extra invoices for {price("invoice_credits")}. Credits never
+            expire and are used only after your plan allowance runs out.
           </p>
           <p className="mt-1 text-xs text-sub">You have {usage.credits} credits.</p>
         </div>
@@ -329,9 +399,17 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
               {checkout === "pro_month" ? "Pay for Pro" : "Buy invoice credits"}
             </h2>
             <span className="font-medium">
-              {formatMoney(checkout === "pro_month" ? PRO_PLAN.price : CREDIT_PACK.price)}
+              {checkoutCharge
+                ? formatMoney(checkoutCharge)
+                : formatMoney(prices.usd[checkout], "USD")}
             </span>
           </div>
+          {checkoutCharge && (
+            <p className="mt-1 text-xs text-sub">
+              {formatMoney(prices.usd[checkout], "USD")} at KES {rate} per USD. M-Pesa charges in
+              KES.
+            </p>
+          )}
           <p className="mt-1 text-sm text-sub">
             {checkout === "pro_month"
               ? onPro
@@ -351,12 +429,17 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
             hint="A payment request will be sent to this phone for approval."
             required
           />
-          <FormMessage>{formError}</FormMessage>
+          <FormMessage>
+            {formError ??
+              (checkoutCharge
+                ? undefined
+                : "We couldn't get today's exchange rate, so M-Pesa payments are paused. Please try again in a few minutes.")}
+          </FormMessage>
           <div className="mt-5 flex flex-wrap justify-end gap-2.5">
             <Button type="button" variant="secondary" onClick={() => setCheckout(null)}>
               Cancel
             </Button>
-            <Button type="submit" pending={sending}>
+            <Button type="submit" pending={sending} disabled={!checkoutCharge}>
               Send payment request
             </Button>
           </div>
@@ -433,7 +516,7 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
         </h2>
         {billing.payments.length === 0 ? (
           <p className="border-t border-line p-5 text-sm text-sub">
-            Your M-Pesa payments to Billsafi will show here.
+            Your M-Pesa payments to BillSafi will show here.
           </p>
         ) : (
           <table className="w-full text-sm">

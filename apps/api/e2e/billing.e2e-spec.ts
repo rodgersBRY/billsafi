@@ -1,6 +1,6 @@
 import type { INestApplication } from "@nestjs/common";
 import { type DatabaseConnection, eq, schema, sql } from "@billsafi/db";
-import { addNairobiMonths } from "@billsafi/domain";
+import { addNairobiMonths, FREE_PLAN, PRO_PLAN } from "@billsafi/domain";
 import request from "supertest";
 import { BillingService } from "../src/billing/billing.service.js";
 import type { FakeMpesaProvider } from "../src/billing/mpesa/fake.provider.js";
@@ -129,6 +129,22 @@ describe("billing", () => {
     const overview = await account.overview();
     expect(overview.subscription.status).toBe("free");
     expect(overview.pendingPayment.id).toBe(response.body.id);
+
+    const [stored] = await db()
+      .select()
+      .from(schema.subscriptionPayments)
+      .where(eq(schema.subscriptionPayments.id, response.body.id));
+    expect(stored).toMatchObject({ priceUsd: "4.00", usdKesRate: "125.000000" });
+  });
+
+  it("prices plans in USD and charges KES at the current rate", async () => {
+    const account = await setup();
+    expect((await account.overview()).prices).toEqual({
+      usd: { pro_month: "4.00", invoice_credits: "2.00" },
+      kes: { pro_month: "500.00", invoice_credits: "250.00" },
+      usdKesRate: "125",
+      rateUpdatedAt: null,
+    });
   });
 
   it("activates Pro once and carries Free usage into the first period", async () => {
@@ -144,7 +160,7 @@ describe("billing", () => {
 
     const overview = await account.overview();
     expect(overview.subscription.status).toBe("active");
-    expect(overview.usage).toMatchObject({ plan: "pro", limit: 100, used: 7 });
+    expect(overview.usage).toMatchObject({ plan: "pro", limit: PRO_PLAN.invoiceLimit, used: 7 });
     const paidUntil = new Date(overview.subscription.paidUntil);
     expect(paidUntil.getTime()).toBe(
       addNairobiMonths(new Date(overview.usage.periodStart), 1).getTime(),
@@ -257,16 +273,16 @@ describe("billing", () => {
     await pay(account);
     const overview = await account.overview();
     expect(new Date(overview.usage.periodStart).getTime()).toBeGreaterThanOrEqual(beforePay - 1000);
-    expect(overview.usage).toMatchObject({ plan: "pro", used: 2, limit: 100 });
+    expect(overview.usage).toMatchObject({ plan: "pro", used: 2, limit: PRO_PLAN.invoiceLimit });
   });
 
   it("lets Free and Pro accounts continue past the cap with credits", async () => {
     const account = await setup();
-    for (let index = 0; index < 10; index++) await account.issue();
+    for (let index = 0; index < FREE_PLAN.invoiceLimit; index++) await account.issue();
     const refused = await account.issue(409);
     expect(refused.body).toMatchObject({
       code: "ALLOWANCE_REACHED",
-      usage: { plan: "free", limit: 10 },
+      usage: { plan: "free", limit: FREE_PLAN.invoiceLimit },
     });
 
     await account.checkout("invoice_credits").expect(201);
@@ -320,7 +336,7 @@ describe("billing", () => {
     await billing.sendReminders();
     const forActive = mailer.sent.filter((message) => message.to === active.email);
     expect(forActive).toHaveLength(1);
-    expect(forActive[0]!.subject).toBe("Your Billsafi Pro ends soon");
+    expect(forActive[0]!.subject).toBe("Your BillSafi Pro ends soon");
     expect(mailer.sent.some((message) => message.to === cancelled.email)).toBe(false);
     expect((await active.overview()).subscription.renewalDue).toBe(true);
   });

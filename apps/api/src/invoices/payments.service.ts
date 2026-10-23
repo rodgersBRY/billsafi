@@ -87,7 +87,7 @@ export class PaymentsService {
     }));
   }
 
-  /** Records a payment received outside Billsafi; it may not exceed the balance (D013). */
+  /** Records a payment received outside BillSafi; it may not exceed the balance (D013). */
   async record(userId: string, businessId: string, invoiceId: string, input: RecordPayment) {
     return this.connection.db.transaction(async (tx) => {
       const invoice = await this.invoices.lockInvoice(tx, businessId, invoiceId);

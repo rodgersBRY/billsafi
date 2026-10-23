@@ -1,14 +1,30 @@
-import { normalizeKenyanPhone } from "@billsafi/domain";
+import { normalizeKenyanPhone, normalizePhone } from "@billsafi/domain";
 import { z } from "zod";
 
-/** Accepts 07…, 01…, 254… or +254… and outputs +254XXXXXXXXX (D047). */
-export const kenyanPhone = z
+/** Any phone number with a country code, or a local 07…/01… mobile (D058). Outputs E.164. */
+export const phone = z
+  .string()
+  .trim()
+  .transform((value, ctx) => {
+    const normalized = normalizePhone(value);
+    if (!normalized) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Enter a phone number with its country code, like +44 20 7946 0958",
+      });
+      return z.NEVER;
+    }
+    return normalized;
+  });
+
+/** M-Pesa numbers: 07…, 01…, 254… or +254…, output as +254XXXXXXXXX (D047). */
+export const mpesaPhone = z
   .string()
   .trim()
   .transform((value, ctx) => {
     const normalized = normalizeKenyanPhone(value);
     if (!normalized) {
-      ctx.addIssue({ code: "custom", message: "Enter a Kenyan mobile number, like 0712 345 678" });
+      ctx.addIssue({ code: "custom", message: "Enter an M-Pesa number, like 0712 345 678" });
       return z.NEVER;
     }
     return normalized;

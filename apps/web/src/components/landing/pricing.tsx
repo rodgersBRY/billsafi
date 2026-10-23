@@ -1,112 +1,74 @@
-"use client";
-
+import { CREDIT_PACK, FREE_PLAN, PRO_PLAN } from "@billsafi/domain";
 import { ArrowUpRight } from "lucide-react";
-import { useState } from "react";
+import Link from "next/link";
 import { Checks } from "./checks";
-import { PreviewButton } from "./preview-dialog";
 import s from "./landing.module.css";
 
-type Billing = "monthly" | "annual";
-
-// Illustrative concept prices only; not an offer.
-const FREELANCER_PRICE: Record<Billing, string> = { monthly: "500", annual: "400" };
-
-const ANNUAL_NOTE: Record<Billing, string> = {
-  monthly: "*Illustrative annual saving; yearly billing would total KSh 4,800 for Freelancer.",
-  annual:
-    "*Illustrative annual billing: Starter KSh 0/year; Freelancer KSh 4,800/year (KSh 400/month equivalent).",
-};
+const proPrice = Number(PRO_PLAN.priceUsd);
+const creditPrice = Number(CREDIT_PACK.priceUsd);
 
 export function Pricing() {
-  const [billing, setBilling] = useState<Billing>("monthly");
-
-  const option = (value: Billing, children: React.ReactNode) => (
-    <button
-      type="button"
-      className={billing === value ? s.active : undefined}
-      aria-pressed={billing === value}
-      onClick={() => setBilling(value)}
-    >
-      {children}
-    </button>
-  );
-
   return (
     <section className={`${s.pricing} ${s.section}`} id="pricing">
       <div className={s.wrap}>
         <div className={s.sectionHeading}>
-          <div className={s.eyebrow}>ROOM TO START. SPACE TO GROW.</div>
-          <h2>
-            Simple plans for
-            <br />
-            your next big thing.
-          </h2>
-          <p>Illustrative pricing for this concept. Plans, limits, and prices are not final.</p>
-          <div className={s.billingSwitch} role="group" aria-label="Illustrative billing interval">
-            {option("monthly", "Monthly")}
-            {option(
-              "annual",
-              <>
-                Yearly <span>save 20%*</span>
-              </>,
-            )}
-          </div>
+          <div className={s.eyebrow}>PRICING</div>
+          <h2>Start free. Upgrade when you’re busy.</h2>
+          <p>Two plans, billed monthly. Prices are in US dollars.</p>
         </div>
         <div className={s.priceGrid}>
           <article className={s.priceCard}>
-            <span className={s.planLabel}>A CONFIDENT START</span>
-            <h3>Starter</h3>
-            <p>For getting your first invoices out.</p>
+            <span className={s.planLabel}>FOR GETTING STARTED</span>
+            <h3>Free</h3>
+            <p>For your first clients.</p>
             <div className={s.price}>
-              KSh <b>0</b>
+              $<b>0</b>
               <span>/ month</span>
             </div>
-            <PreviewButton plan="Starter" className={`${s.button} ${s.outline}`}>
-              Explore Starter{" "}
+            <Link className={`${s.button} ${s.outline}`} href="/sign-up">
+              Start free{" "}
               <span>
                 <ArrowUpRight className={s.icon} aria-hidden />
               </span>
-            </PreviewButton>
+            </Link>
             <Checks
               items={[
-                "Up to 5 invoices per month",
-                "PDF & hosted invoice sharing",
-                "Client management",
-                "Manual payment recording",
+                `${FREE_PLAN.invoiceLimit} invoices a month`,
+                "PDF and link sharing",
+                "Client details saved",
+                "Payment tracking",
               ]}
             />
           </article>
           <article className={`${s.priceCard} ${s.featured}`}>
-            <span className={s.popular}>
-              A LITTLE MORE ROOM <ArrowUpRight className={s.inlineIcon} aria-hidden />
-            </span>
-            <span className={s.planLabel}>FOR YOUR GROWING BUSINESS</span>
-            <h3>Freelancer</h3>
-            <p>For a steady flow of good work.</p>
+            <span className={s.planLabel}>FOR REGULAR INVOICING</span>
+            <h3>Pro</h3>
+            <p>For a steady flow of work.</p>
             <div className={s.price}>
-              KSh <b>{FREELANCER_PRICE[billing]}</b>
+              $<b>{proPrice}</b>
               <span>/ month</span>
             </div>
-            <PreviewButton plan="Freelancer" className={`${s.button} ${s.dark}`}>
-              Explore Freelancer{" "}
+            <Link className={`${s.button} ${s.dark}`} href="/sign-up">
+              Get Pro{" "}
               <span>
                 <ArrowUpRight className={s.icon} aria-hidden />
               </span>
-            </PreviewButton>
+            </Link>
             <Checks
               items={[
-                "Unlimited invoices",
-                "Everything in Starter",
-                "Payment overview dashboard",
-                "Reminders & follow-up organisation",
+                `${PRO_PLAN.invoiceLimit} invoices a month`,
+                "Everything in Free",
+                "One plan covers all your businesses",
+                "No automatic charges",
               ]}
             />
           </article>
         </div>
         <p className={s.pricingNote}>
-          SAMPLE PLANS ONLY · See your account for current plans and prices.
+          Need more in a busy month? Add {CREDIT_PACK.invoices} invoices for ${creditPrice}. Extra
+          invoices don’t expire.
           <br />
-          <span>{ANNUAL_NOTE[billing]}</span>
+          <span>Pro is currently paid through M-Pesa, charged at the day’s exchange rate.</span>
         </p>
       </div>
     </section>

@@ -10,8 +10,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Billsafi",
-  description: "Invoicing for Kenyan freelancers and independent professionals.",
+  title: "BillSafi",
+  description: "Invoicing for freelancers and independent professionals.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

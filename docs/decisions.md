@@ -474,16 +474,94 @@ Status: confirmed on 2026-10-17 by the user's answers before Phase 5.
 
 This resolves the production email provider and monitoring items left open in D046 and D050, and the logo, dark mode, and footer questions in the brand document's design gaps.
 
-## D053 — Rename the product to Billsafi
+## D053 — Rename the product to BillSafi
 
 Status: confirmed on 2026-10-17.
 
 User: "I mean to change the product name to billsafi since tallynest has a lot of online presence".
 
-The product is now called Billsafi, written with only the first letter capitalised. This supersedes the name chosen in D027; the deep teal colour stays.
+The product is now called BillSafi, written with only the first letter capitalised. This supersedes the name chosen in D027; the deep teal colour stays.
 
-- The rename covers everything: interface copy, emails, PDFs and the public-invoice footer ("Created with Billsafi"), current documentation, workspace packages (`@billsafi/*`), Docker images (`ghcr.io/<owner>/billsafi-*`), database names, and the production folder (`/opt/billsafi`). Nothing was live yet, so nothing needed migrating.
-- Until new brand assets exist, the app uses the document-and-leaf mark without a wordmark, with "Billsafi" written beside it. The logo animation and the old icons, which spell TallyNest, are no longer shown.
+- The rename covers everything: interface copy, emails, PDFs and the public-invoice footer ("Created with BillSafi"), current documentation, workspace packages (`@billsafi/*`), Docker images (`ghcr.io/<owner>/billsafi-*`), database names, and the production folder (`/opt/billsafi`). Nothing was live yet, so nothing needed migrating.
+- Until new brand assets exist, the app uses the document-and-leaf mark without a wordmark, with "BillSafi" written beside it. The logo animation and the old icons, which spell TallyNest, are no longer shown.
 - Earlier decision entries and the packaged design previews keep the TallyNest name as a record of when they were made.
 
-Name, domain, and trademark availability for Billsafi have not been checked.
+Name, domain, and trademark availability for BillSafi have not been checked.
+
+## D054 - Price plans in USD and charge KES at the daily rate
+
+Status: confirmed on 2026-10-23.
+
+Pro now costs USD 4 a month and a 50-invoice credit pack costs USD 2. This replaces the KES 500 and KES 250 prices in D020 and D051. Invoice allowances do not change.
+
+- M-Pesa only takes KES, so each checkout converts the USD price at the current USD to KES rate and rounds up to a whole shilling. At 129.87 that gives KES 520 for Pro and KES 260 for credits.
+- The API reads the rate from the free daily feed at open.er-api.com (ExchangeRate-API) and checks it at most once an hour. If the feed is down it retries after five minutes. A rate older than 48 hours is not used, and checkout is refused with `RATE_UNAVAILABLE` until a fresh one arrives.
+- `USD_KES_RATE` pins the rate. Tests use it, and operators can set it if the feed fails for a long time.
+- Each payment stores the KES amount charged, the USD price and the rate used. The callback amount check still compares against the stored KES amount.
+- The Billing page shows prices in USD by default, with a USD/KES switch. The choice is kept in the browser. The checkout form always shows the KES amount M-Pesa will charge. Payment history stays in KES because that is what was paid.
+- Invoice currency for freelancers' own invoices is not part of this change and stays KES.
+
+## D055 - Offer Google sign-in next to email and password
+
+Status: confirmed on 2026-10-23.
+
+Sign-in and sign-up now show "Continue with Google" above the email form. This settles the social login deferral the PRD left open. It runs through Better Auth inside the API, like email sign-in (D047).
+
+- Google sign-in is on only when the API has both `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. The web app asks `GET /api/v1/auth-providers` and hides the button when Google is off, so local setups without keys still work.
+- Google redirects back to `<WEB_ORIGIN>/api/v1/auth/callback/google`. The callback goes through the web origin so the session cookie stays first-party.
+- Only the `openid`, `email` and `profile` scopes are requested. Google asks the user to pick an account each time.
+- A new Google user gets an account with a verified email and goes to business setup. A returning Google user goes to the app.
+- Google is never merged into an existing account by matching email. Email sign-ups are not verified, so someone could register another person's address first and keep a way in after the real owner signs in with Google. Those users see a message telling them to sign in with their password. Linking Google to a password account from settings is a later change.
+- Google access, refresh and ID tokens are not stored after sign-in, because BillSafi never calls Google APIs. Token encryption is also on in case a later feature needs to keep them.
+- Failed Google sign-ins return to `/sign-in` with an error code, and the page explains it in plain words.
+- A Google-only user can still set a password through "Forgot password", since that proves they own the inbox.
+
+## D056 - Let visitors build an invoice before creating an account
+
+Status: confirmed on 2026-10-23.
+
+Visitors can now make an invoice without signing up. They only need an account when they want to save it and get the PDF.
+
+- The public generator lives at `/free-invoice-generator`. The landing page links to it from the hero, the product section and the pricing cards.
+- The draft is kept only in the visitor's browser. It survives a reload but does not follow them to another device.
+- "Save & download" checks the form with the same rules as the API. If anything is wrong, the visitor sees what to fix. If it passes, they are asked to create an account with Google or email, or to sign in.
+- After sign-up or sign-in, `POST /api/v1/guest-invoices/import` saves the business, the client and the draft invoice in one transaction.
+- If the account already has a business, the oldest one is used and the typed business details are ignored. An active client with the same phone number is reused instead of adding a new one.
+- The draft opens in the editor with a short note on what to do next. Pressing Mark as Ready gives it a number and makes the PDF available.
+- Mark as Ready now opens the invoice details page for every draft, not only generator drafts, so Share and Download PDF are one click away.
+- Visitors who are already signed in skip the account step and go straight to saving.
+- Drafts don't count against the monthly allowance, so the Free plan limit is unchanged.
+- If the session has expired by the time the import runs, the visitor goes back to the generator and the draft is still there.
+- The sample invoice dialog on the landing page is removed. The generator replaces it.
+- Not covered yet: logos for guest invoices, and saving the typed payment instructions as a payment method.
+
+## D057 - Guide signed-in users with a product tour and a getting-started checklist
+
+Status: confirmed on 2026-10-23.
+
+User: "I want to introduce a product tour to this system once a user is authenticated and in the system."
+
+Signed-in users now get a short tour of the Overview page and a checklist of first steps. The design is in [the product tour spec](superpowers/specs/2026-10-23-product-tour-design.md).
+
+- Every account sees the tour once, including accounts created before this change. It starts on the Overview page after the intro splash.
+- The tour has six steps: welcome, the totals, Create invoice, the Invoices and Clients links, the usage meter, and the account menu. When no business on the account has payment instructions, the last step also points to Settings.
+- On small screens, steps that point at the hidden sidebar show as a centred card.
+- Finishing or skipping is saved on the server in `user_product_tours`, so the tour does not return on another device. "Take the tour" in the account menu replays it.
+- Each tour has a version. Raising it shows the tour again to everyone.
+- The checklist covers the whole account: add a client, create an invoice, share an invoice, add payment instructions, and record a payment. An item is done when any business on the account has done it.
+- The checklist floats at the bottom right of every app page. It opens as a list on the Overview and stays a small pill elsewhere so it does not cover page actions.
+- The checklist is hidden once every item is done or the user dismisses it. Dismissal is saved in the same table.
+- The tour uses driver.js.
+
+## D058 - Open BillSafi to users outside Kenya
+
+Status: confirmed on 2026-10-23.
+
+User: "remove the word kenya or kenyan from the ladnign page. Everyone should be able to use it" and "Go on to remove kenyan from the rest of the app", then chose to accept international phone numbers and to move the landing page onto the app's teal palette.
+
+- Profile and client phone fields accept any number with a country code (`+` or `00`), stored in E.164 form such as `+442079460958`. Local `07…` and `01…` numbers are still read as Kenyan mobiles so existing users can keep typing them. This replaces the phone rule in D047.
+- M-Pesa numbers stay Kenyan only, for payment instructions and for Pro checkout, because M-Pesa only works with those numbers.
+- The database phone checks on `businesses` and `clients` widen to match (migration `0007_international_phones`). Existing numbers already pass the new check.
+- User-facing text no longer names Kenya. The business "KRA PIN" field is labelled "Tax ID"; the `kra_pin` column keeps its name.
+- Invoices are still in KES only, and Pro is still paid through M-Pesa. Other currencies and payment routes need their own decisions.
+- The landing page uses the app's colour tokens instead of its own palette, so teal `#0F766E` from the brand document is the one primary colour.

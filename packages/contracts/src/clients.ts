@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { kenyanPhone, optionalText, requiredText } from "./fields.js";
+import { phone, optionalText, requiredText } from "./fields.js";
 
 const optionalEmail = z
   .union([z.literal(""), z.email("Enter a valid email address").trim().max(254)])
@@ -8,7 +8,7 @@ const optionalEmail = z
 
 export const createClientSchema = z.object({
   name: requiredText("Client name", 120),
-  phone: kenyanPhone,
+  phone,
   email: optionalEmail,
   companyName: optionalText(160),
   address: optionalText(300),

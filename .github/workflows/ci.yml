@@ -38,6 +38,9 @@ jobs:
       SMTP_URL: smtp://localhost:1025
       WEB_ORIGIN: http://localhost:3000
       API_INTERNAL_URL: http://localhost:4000
+      # Shows "Continue with Google"; browser tests stop the redirect before Google.
+      GOOGLE_CLIENT_ID: ci-only.apps.googleusercontent.com
+      GOOGLE_CLIENT_SECRET: ci-only-google-secret
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4

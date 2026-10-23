@@ -20,6 +20,29 @@ test("signed-out visitors are sent to sign in from app pages", async ({ page }) 
   await expect(page).toHaveURL(/\/sign-in$/);
 });
 
+test("continue with Google sends the visitor to Google's consent screen", async ({ page }) => {
+  // Never reach Google from tests; the outgoing request is enough.
+  await page.route("https://accounts.google.com/**", (route) => route.abort());
+  await page.goto("/sign-in");
+  await waitUntilInteractive(page, "Continue with Google");
+
+  const [request] = await Promise.all([
+    page.waitForRequest((request) => request.url().startsWith("https://accounts.google.com/")),
+    page.getByRole("button", { name: "Continue with Google" }).click(),
+  ]);
+
+  const url = new URL(request.url());
+  expect(url.searchParams.get("redirect_uri")).toBe(
+    "http://localhost:3000/api/v1/auth/callback/google",
+  );
+  expect(url.searchParams.get("code_challenge_method")).toBe("S256");
+});
+
+test("explains a Google sign-in for an email that already has a password", async ({ page }) => {
+  await page.goto("/sign-in?error=account_not_linked");
+  await expect(page.getByText("Sign in with your password instead.")).toBeVisible();
+});
+
 test("sign out and sign back in", async ({ page }) => {
   const email = uniqueEmail("signin");
   await signUp(page, "Achieng Odhiambo", email);

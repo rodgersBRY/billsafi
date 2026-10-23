@@ -43,26 +43,37 @@ export const discountSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("percentage"), value: decimalString("Discount", 0, 100) }),
 ]);
 
+/** Every invoice field except the client, shared by saved drafts and the public generator. */
+const invoiceDetailFields = {
+  issueDate: isoDate,
+  dueDate: isoDate,
+  items: z
+    .array(invoiceItemSchema)
+    .max(INVOICE_LIMITS.maxItems, `Use ${INVOICE_LIMITS.maxItems} line items or fewer`),
+  discount: discountSchema.nullable().default(null),
+  taxRate: decimalString("Tax rate", 0, 100).nullable().default(null),
+  paymentInstructions: optionalText(INVOICE_LIMITS.paymentInstructionsLength),
+  notes: optionalText(INVOICE_LIMITS.notesLength),
+};
+
+const dueDateIsValid = (invoice: { issueDate: string; dueDate: string }) =>
+  invoice.dueDate >= invoice.issueDate;
+const dueDateIssue = {
+  path: ["dueDate"],
+  message: "Due date can't be before the issue date",
+};
+
 /** Draft create and update. Drafts may be incomplete; Mark as Ready checks the rest. */
 export const saveInvoiceSchema = z
-  .object({
-    clientId: z.uuid("Choose a client"),
-    issueDate: isoDate,
-    dueDate: isoDate,
-    items: z
-      .array(invoiceItemSchema)
-      .max(INVOICE_LIMITS.maxItems, `Use ${INVOICE_LIMITS.maxItems} line items or fewer`),
-    discount: discountSchema.nullable().default(null),
-    taxRate: decimalString("Tax rate", 0, 100).nullable().default(null),
-    paymentInstructions: optionalText(INVOICE_LIMITS.paymentInstructionsLength),
-    notes: optionalText(INVOICE_LIMITS.notesLength),
-  })
-  .refine((invoice) => invoice.dueDate >= invoice.issueDate, {
-    path: ["dueDate"],
-    message: "Due date can't be before the issue date",
-  });
+  .object({ clientId: z.uuid("Choose a client"), ...invoiceDetailFields })
+  .refine(dueDateIsValid, dueDateIssue);
 export type SaveInvoiceInput = z.input<typeof saveInvoiceSchema>;
 export type SaveInvoice = z.output<typeof saveInvoiceSchema>;
+
+/** Invoice details without a client, for the public generator (D056). */
+export const invoiceDetailsSchema = z
+  .object(invoiceDetailFields)
+  .refine(dueDateIsValid, dueDateIssue);
 
 export const invoiceStatuses = ["draft", "ready", "partially_paid", "paid", "cancelled"] as const;
 export type InvoiceStatus = (typeof invoiceStatuses)[number];

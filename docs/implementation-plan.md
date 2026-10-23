@@ -1,4 +1,4 @@
-# Billsafi — proposed implementation plan
+# BillSafi — proposed implementation plan
 
 Last updated: 2026-10-15
 Status: proposed delivery sequence based on confirmed requirements; not authorization to implement or evidence of completed development.
@@ -41,7 +41,7 @@ Settled in D051: collection runs through a platform Paybill with Daraja M-Pesa E
 
 Complete account screens, empty/loading/error states, keyboard/focus accessibility, responsive checks, PDF visual checks, backups/recovery, deployment, monitoring, and launch acceptance criteria. Confirm name availability and final branding assets before public launch. Validate the full registration-to-invoice/payment journey and plan enforcement. No launch date is yet committed.
 
-Settled in D052: Resend for email, Sentry plus an uptime check for monitoring, logos stored in PostgreSQL, system light and dark themes, name and password in account settings, and a Free-only "Created with Billsafi" footer. Business and account settings, error and not-found screens, and the dark-mode contrast pass are built. The remaining release steps are listed in [launch-checklist.md](launch-checklist.md).
+Settled in D052: Resend for email, Sentry plus an uptime check for monitoring, logos stored in PostgreSQL, system light and dark themes, name and password in account settings, and a Free-only "Created with BillSafi" footer. Business and account settings, error and not-found screens, and the dark-mode contrast pass are built. The remaining release steps are listed in [launch-checklist.md](launch-checklist.md).
 
 ## Documentation and design source handling
 

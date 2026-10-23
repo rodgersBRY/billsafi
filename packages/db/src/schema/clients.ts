@@ -24,7 +24,7 @@ export const clients = pgTable(
     // Target for composite foreign keys that keep invoices within one business.
     unique("clients_id_business_id_unique").on(table.id, table.businessId),
     index("clients_business_id_name_idx").on(table.businessId, table.name),
-    check("clients_phone_format", sql`${table.phone} ~ '^\\+254[17][0-9]{8}$'`),
+    check("clients_phone_format", sql`${table.phone} ~ '^\\+[1-9][0-9]{7,14}$'`),
   ],
 );
 

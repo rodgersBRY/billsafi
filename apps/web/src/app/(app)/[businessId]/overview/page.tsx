@@ -2,13 +2,16 @@ import { FilePlus, UserPlus, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { shouldShowTour } from "@billsafi/contracts";
 import { BrandLoader } from "@/components/brand/brand-loader";
+import { ProductTour } from "@/components/tour/product-tour";
 import { StatusPill } from "@/components/ui/status-pill";
 import { getBusiness } from "@/lib/server-api/businesses";
 import { getDashboard } from "@/lib/server-api/invoices";
+import { getGettingStarted, getProductTours } from "@/lib/server-api/product-tours";
 import { formatAmount, formatDate } from "@/lib/format";
 
-export const metadata: Metadata = { title: "Overview · Billsafi" };
+export const metadata: Metadata = { title: "Overview · BillSafi" };
 
 const QUICK_ACTIONS = [
   { label: "Create invoice", icon: FilePlus, path: "invoices/new" },
@@ -16,11 +19,19 @@ const QUICK_ACTIONS = [
   { label: "Record payment", icon: Wallet, path: "invoices" },
 ] as const;
 
-async function Overview({ params }: { params: Promise<{ businessId: string }> }) {
-  const { businessId } = await params;
-  const [business, dashboard] = await Promise.all([
+async function Overview({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ businessId: string }>;
+  searchParams: Promise<{ tour?: string }>;
+}) {
+  const [{ businessId }, { tour }] = await Promise.all([params, searchParams]);
+  const [business, dashboard, tours, progress] = await Promise.all([
     getBusiness(businessId),
     getDashboard(businessId),
+    getProductTours(),
+    getGettingStarted(),
   ]);
   const base = `/${businessId}`;
   const metrics = [
@@ -31,6 +42,11 @@ async function Overview({ params }: { params: Promise<{ businessId: string }> })
 
   return (
     <>
+      <ProductTour
+        autoStart={shouldShowTour(tours, "first-run")}
+        replay={tour === "1"}
+        paymentInstructionsMissing={!progress.paymentInstructions}
+      />
       <div className="mb-6.25 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Overview</h1>
@@ -38,7 +54,7 @@ async function Overview({ params }: { params: Promise<{ businessId: string }> })
         </div>
         <ul className="flex flex-wrap gap-2">
           {QUICK_ACTIONS.map(({ label, icon: Icon, path }, index) => (
-            <li key={label}>
+            <li key={label} data-tour={index === 0 ? "create-invoice" : undefined}>
               <Link
                 href={`${base}/${path}`}
                 className={`inline-flex items-center gap-2 rounded-panel border px-3.75 py-2.75 text-sm font-medium ${
@@ -55,7 +71,7 @@ async function Overview({ params }: { params: Promise<{ businessId: string }> })
         </ul>
       </div>
 
-      <dl className="mb-6.25 grid gap-3.25 sm:grid-cols-3">
+      <dl data-tour="totals" className="mb-6.25 grid gap-3.25 sm:grid-cols-3">
         {metrics.map((metric) => (
           <div key={metric.label} className="rounded-panel border border-line bg-panel p-5">
             <dt className="text-sm text-sub">{metric.label}</dt>
@@ -133,7 +149,10 @@ async function Overview({ params }: { params: Promise<{ businessId: string }> })
   );
 }
 
-export default function OverviewPage({ params }: PageProps<"/[businessId]/overview">) {
+export default function OverviewPage({
+  params,
+  searchParams,
+}: PageProps<"/[businessId]/overview">) {
   return (
     <Suspense
       fallback={
@@ -142,7 +161,7 @@ export default function OverviewPage({ params }: PageProps<"/[businessId]/overvi
         </div>
       }
     >
-      <Overview params={params} />
+      <Overview params={params} searchParams={searchParams} />
     </Suspense>
   );
 }

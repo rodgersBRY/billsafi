@@ -7,7 +7,12 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from "@nestjs/common";
-import type { BillingOverview, Checkout, SubscriptionPayment } from "@billsafi/contracts";
+import type {
+  BillingOverview,
+  Checkout,
+  PlanPrices,
+  SubscriptionPayment,
+} from "@billsafi/contracts";
 import { and, type DatabaseConnection, desc, eq, schema, sql } from "@billsafi/db";
 import {
   addNairobiMonths,
@@ -15,6 +20,7 @@ import {
   nairobiDate,
   PRO_PLAN,
   REMINDER_DAYS_BEFORE,
+  usdToKes,
 } from "@billsafi/domain";
 import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
@@ -23,6 +29,7 @@ import { MAILER } from "../mail/mail.module.js";
 import type { Mailer } from "../mail/mailer.js";
 import { renewalReminderEmail } from "../mail/templates.js";
 import { AllowanceService, type SubscriptionRow, type Transaction } from "./allowance.service.js";
+import { ExchangeRateService, type UsdKesRate } from "./exchange-rate.service.js";
 import { MPESA_PROVIDER, type MpesaProvider } from "./mpesa/mpesa.provider.js";
 
 const { subscriptions, subscriptionPayments, subscriptionEvents, subscriptionReminders, users } =
@@ -42,6 +49,25 @@ const ABANDON_AFTER_MS = DAY_MS;
 export type PaymentOutcome =
   | { state: "succeeded"; receipt?: string; amount?: number }
   | { state: "failed"; resultCode: string; resultDescription: string };
+
+const PRICES_USD = {
+  pro_month: PRO_PLAN.priceUsd,
+  invoice_credits: CREDIT_PACK.priceUsd,
+} as const;
+
+function planPrices(rate: UsdKesRate | null): PlanPrices {
+  return {
+    usd: PRICES_USD,
+    kes: rate
+      ? {
+          pro_month: usdToKes(PRICES_USD.pro_month, rate.rate),
+          invoice_credits: usdToKes(PRICES_USD.invoice_credits, rate.rate),
+        }
+      : null,
+    usdKesRate: rate?.rate ?? null,
+    rateUpdatedAt: rate?.updatedAt?.toISOString() ?? null,
+  };
+}
 
 export function paidThrough(subscription: SubscriptionRow): Date | null {
   return subscription.anchorAt
@@ -79,6 +105,7 @@ export class BillingService {
     @Inject(MAILER) private readonly mailer: Mailer,
     @Inject(ENV) private readonly env: Env,
     private readonly allowance: AllowanceService,
+    private readonly rates: ExchangeRateService,
   ) {}
 
   private get db() {
@@ -102,6 +129,7 @@ export class BillingService {
     const pending = recent.find((payment) => payment.status === "pending");
     return {
       usage: await this.allowance.usageFor(this.db, userId, subscription ?? null, at),
+      prices: planPrices(await this.rates.usdKes()),
       subscription: {
         status: active ? (cancelled ? "cancelled" : "active") : "free",
         paidUntil: until?.toISOString() ?? null,
@@ -145,13 +173,23 @@ export class BillingService {
       }
     }
 
-    const amount = input.purpose === "pro_month" ? PRO_PLAN.price : CREDIT_PACK.price;
+    const rate = await this.rates.usdKes();
+    if (!rate) {
+      throw new ServiceUnavailableException({
+        code: "RATE_UNAVAILABLE",
+        message: "We couldn't get today's exchange rate. Please try again in a few minutes.",
+      });
+    }
+    const priceUsd = PRICES_USD[input.purpose];
+    const amount = usdToKes(priceUsd, rate.rate);
     const [payment] = await this.db
       .insert(subscriptionPayments)
       .values({
         userId,
         purpose: input.purpose,
         amount,
+        priceUsd,
+        usdKesRate: rate.rate,
         phone: input.phone,
         provider: this.mpesa.name,
         // Pending-age checks compare against this process's clock, so stamp it here.
@@ -163,7 +201,7 @@ export class BillingService {
       const accepted = await this.mpesa.stkPush({
         amount: Number(amount),
         phone: input.phone.replace(/^\+/, ""),
-        accountReference: "Billsafi",
+        accountReference: "BillSafi",
         description: input.purpose === "pro_month" ? "Pro month" : "Credits",
       });
       const [updated] = await this.db

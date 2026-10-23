@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { kenyanPhone, optionalText, requiredText } from "./fields.js";
+import { mpesaPhone, phone, optionalText, requiredText } from "./fields.js";
 
 export const businessProfileTypes = ["individual", "business"] as const;
 export type BusinessProfileType = (typeof businessProfileTypes)[number];
@@ -8,7 +8,7 @@ export const createBusinessSchema = z.object({
   profileType: z.enum(businessProfileTypes),
   displayName: requiredText("Display name"),
   contactEmail: z.email("Enter a valid email address").trim().max(254),
-  phone: kenyanPhone,
+  phone,
   address: optionalText(300),
   kraPin: optionalText(20).transform((value) => value?.toUpperCase() ?? null),
   defaultPaymentTermsDays: z.number().int().min(0).max(365).default(14),
@@ -61,7 +61,7 @@ const tillOrPaybillNumber = z
 export const createPaymentInstructionSchema = z.discriminatedUnion("method", [
   z.object({
     method: z.literal("mpesa_personal"),
-    accountNumber: kenyanPhone,
+    accountNumber: mpesaPhone,
     instructions: optionalText(1000),
   }),
   z.object({

@@ -47,9 +47,9 @@ export function DefaultsSettings({ business }: { business: Business }) {
           label="Default currency"
           value={business.defaultCurrency}
           disabled
-          hint="Billsafi invoices in Kenyan shillings for now."
+          hint="Invoices are in KES for now."
         >
-          <option value="KES">KES · Kenyan shilling</option>
+          <option value="KES">KES</option>
         </SelectField>
         <TextField
           label="Default payment terms (days)"

@@ -1,4 +1,5 @@
 import type { INestApplication } from "@nestjs/common";
+import { FREE_PLAN } from "@billsafi/domain";
 import request from "supertest";
 import { createBusiness, createClient, createTestApp, signUp } from "./support/app.js";
 
@@ -110,7 +111,7 @@ describe("invoices", () => {
     // Marking Ready again changes nothing and uses no allowance.
     expect((await ready(first.id).expect(200)).body.invoiceNumber).toBe("INV-00001");
     const usage = await api().get("/api/v1/usage").set("Cookie", cookie).expect(200);
-    expect(usage.body).toMatchObject({ plan: "free", limit: 10, used: 2 });
+    expect(usage.body).toMatchObject({ plan: "free", limit: FREE_PLAN.invoiceLimit, used: 2 });
 
     // A second business starts its own sequence.
     const otherBusiness = await createBusiness(app, cookie, { displayName: "Second Studio" });
@@ -179,25 +180,25 @@ describe("invoices", () => {
     await api().delete(`${path}/${issued.id}`).set("Cookie", cookie).expect(409);
   });
 
-  it("stops at ten Ready invoices per month across all businesses", async () => {
+  it("stops at the Free limit of Ready invoices per month across all businesses", async () => {
     const { cookie, path, draft, ready } = await setup();
-    for (let index = 0; index < 9; index++) {
+    for (let index = 0; index < FREE_PLAN.invoiceLimit - 1; index++) {
       await ready((await draft()).id).expect(200);
     }
     const otherBusiness = await createBusiness(app, cookie, { displayName: "Second Studio" });
     const otherClient = await createClient(app, cookie, otherBusiness);
     const otherPath = `/api/v1/businesses/${otherBusiness}/invoices`;
-    const tenth = await api().post(otherPath).set("Cookie", cookie).send(draftBody(otherClient));
-    await api().post(`${otherPath}/${tenth.body.id}/ready`).set("Cookie", cookie).expect(200);
+    const last = await api().post(otherPath).set("Cookie", cookie).send(draftBody(otherClient));
+    await api().post(`${otherPath}/${last.body.id}/ready`).set("Cookie", cookie).expect(200);
 
-    const eleventh = await draft();
-    const refused = await ready(eleventh.id).expect(409);
+    const overLimit = await draft();
+    const refused = await ready(overLimit.id).expect(409);
     expect(refused.body).toMatchObject({
       code: "ALLOWANCE_REACHED",
-      usage: { used: 10, limit: 10 },
+      usage: { used: FREE_PLAN.invoiceLimit, limit: FREE_PLAN.invoiceLimit },
     });
     // The refused invoice stays a draft without a number.
-    const view = await api().get(`${path}/${eleventh.id}`).set("Cookie", cookie).expect(200);
+    const view = await api().get(`${path}/${overLimit.id}`).set("Cookie", cookie).expect(200);
     expect(view.body).toMatchObject({ status: "draft", invoiceNumber: null });
   });
 

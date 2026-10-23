@@ -1,48 +1,46 @@
+import { CREDIT_PACK, FREE_PLAN, PRO_PLAN } from "@billsafi/domain";
 import {
   ArrowDownLeft,
   ArrowRight,
   ArrowUp,
   ArrowUpRight,
   Asterisk,
-  Bell,
+  CalendarClock,
   Check,
   ChevronDown,
   Clock,
   FileText,
   LayoutGrid,
-  Play,
   Plus,
   ReceiptText,
   Sparkle,
   Users,
 } from "lucide-react";
-import { DM_Sans, Manrope } from "next/font/google";
+import { Manrope } from "next/font/google";
 import Link from "next/link";
 import { Fragment } from "react";
 import { Checks } from "./checks";
 import { Pricing } from "./pricing";
-import { PreviewButton, PreviewProvider } from "./preview-dialog";
 import { SiteHeader } from "./site-header";
 import { Wordmark } from "./wordmark";
 import s from "./landing.module.css";
 
 const manrope = Manrope({ variable: "--font-manrope", subsets: ["latin"] });
-const dmSans = DM_Sans({ variable: "--font-dm-sans", subsets: ["latin"] });
 
 const AUDIENCE = ["Designers", "Developers", "Consultants", "Creatives"];
 
 const STEPS = [
   {
-    title: "Make it yours",
-    body: "Add your business details and client. A professional first impression starts here.",
+    title: "Set up your business",
+    body: "Add your business details and payment instructions once. Every invoice uses them.",
   },
   {
-    title: "Send it off",
-    body: "List your services and payment instructions, then share your PDF or invoice link.",
+    title: "Create and share",
+    body: "Add your client and your services, then send a PDF or a link to the invoice.",
   },
   {
-    title: "Keep it all clear",
-    body: "Record payments, check balances, and use reminders to stay on top of what’s due.",
+    title: "Record payments",
+    body: "Log payments as they arrive and see what’s still owed and what’s overdue.",
   },
 ];
 
@@ -50,36 +48,39 @@ const FAQS = [
   {
     question: "Who is BillSafi for?",
     answer:
-      "BillSafi is designed for Kenyan freelancers, consultants, and independent service providers who want a simple way to create invoices, organise clients, and track money owed.",
+      "Freelancers, consultants, and independent service providers who want a simple way to create invoices, keep client details in one place, and track what they’re owed.",
   },
   {
-    question: "Can my clients pay through M-Pesa?",
+    question: "How do my clients pay me?",
     answer:
-      "You can include M-Pesa payment instructions on an invoice. Your client pays you directly outside BillSafi, and you manually record the payment. V1 has no integrated M-Pesa checkout, automatic verification, or reconciliation.",
+      "Add your bank or M-Pesa details and they appear on every invoice. Your client pays you directly, then you record the payment in BillSafi. BillSafi doesn’t collect client payments or check transactions for you.",
   },
   {
     question: "Can I record a deposit or a partial payment?",
     answer:
-      "Yes. Manually record the amount received against an invoice. BillSafi tracks the remaining balance so you can see what is still outstanding.",
+      "Yes. Record the amount you received against the invoice and BillSafi keeps track of the balance still owed.",
   },
   {
     question: "How do I share an invoice?",
     answer:
-      "V1 supports PDF invoices and hosted invoice links. Download and share a PDF, or send the hosted link using your preferred communication channel.",
+      "Download it as a PDF, or copy a link to the online version and send it however you like, by email, WhatsApp, or text.",
   },
   {
     question: "Does BillSafi replace tax or accounting software?",
     answer:
-      "This concept focuses on invoicing and payment tracking. It does not promise tax filing, eTIMS integration, or full accounting features.",
+      "No. BillSafi covers invoicing and payment tracking. It doesn’t file taxes or replace your accounting software.",
+  },
+  {
+    question: "What does Pro cost?",
+    answer: `USD ${Number(PRO_PLAN.priceUsd)} a month for ${PRO_PLAN.invoiceLimit} invoices. If you need more in a busy month, add ${CREDIT_PACK.invoices} invoices for USD ${Number(CREDIT_PACK.priceUsd)}. Extra invoices don’t expire. Pro is currently paid through M-Pesa.`,
   },
   {
     question: "Can I sign up today?",
-    answer:
-      "Yes. Create a free account to send your first invoices, or sign in if you already have one. The product screens and plans on this page are examples, so check your account for current limits and prices.",
+    answer: `Yes. The Free plan includes ${FREE_PLAN.invoiceLimit} invoices a month and doesn’t ask for payment details.`,
   },
 ];
 
-/** Arrow that trails button labels, sized like the reference's ↗ glyph. */
+/** Arrow that trails button labels. */
 function Trail() {
   return (
     <span>
@@ -93,7 +94,7 @@ function Hero() {
     <section className={`${s.hero} ${s.wrap}`}>
       <div className={s.heroCopy}>
         <div className={s.eyebrow}>
-          <span className={s.liveDot} /> BUILT FOR THE WAY YOU WORK
+          <span className={s.liveDot} /> INVOICING FOR FREELANCERS
         </div>
         <h1>
           Good work.
@@ -103,27 +104,24 @@ function Hero() {
           <em>All safi.</em>
         </h1>
         <p>
-          You do the work. We’ll help with the paperwork.
-          <br className={s.desktop} /> Create professional invoices, keep track of payments, and get
-          back to what you do best.
+          Create professional invoices, share them as a PDF or a link, and see who has paid and who
+          still owes you.
         </p>
         <div className={s.heroActions}>
-          <Link className={`${s.button} ${s.dark}`} href="/sign-up">
-            Create your first invoice <Trail />
+          <Link className={`${s.button} ${s.dark}`} href="/free-invoice-generator">
+            Create an invoice free <Trail />
           </Link>
-          <PreviewButton className={s.textButton}>
-            <span className={s.play}>
-              <Play aria-hidden />
-            </span>{" "}
-            Take a look inside
-          </PreviewButton>
+          <Link className={s.textButton} href="/sign-up">
+            Create an account
+          </Link>
         </div>
         <div className={s.heroNote}>
           <span>
-            <Check className={s.inlineIcon} aria-hidden /> Made for Kenyan freelancers
+            <Check className={s.inlineIcon} aria-hidden /> Free for {FREE_PLAN.invoiceLimit}{" "}
+            invoices a month
           </span>
           <span>
-            <Check className={s.inlineIcon} aria-hidden /> Simple from day one
+            <Check className={s.inlineIcon} aria-hidden /> No payment details to start
           </span>
         </div>
         <p className={s.returning}>
@@ -131,10 +129,14 @@ function Hero() {
         </p>
       </div>
 
-      <div className={s.heroVisual}>
+      <div
+        className={s.heroVisual}
+        role="img"
+        aria-label="The BillSafi dashboard showing money received, money outstanding, and recent invoices"
+      >
         <div className={s.visualGrid} />
         <div className={s.visualLabel}>
-          <span>YOUR BUSINESS, LOOKING THE PART.</span>
+          <span>YOUR DASHBOARD</span>
           <ArrowDownLeft aria-hidden />
         </div>
         <div className={s.dashboard}>
@@ -177,7 +179,7 @@ function Hero() {
             <div className={s.stats}>
               <div>
                 <small>Received this month</small>
-                <strong>KSh 128,500</strong>
+                <strong>$3,480</strong>
                 <span className={s.mintText}>
                   <span className={s.statusDot} />
                   Payments recorded
@@ -185,7 +187,7 @@ function Hero() {
               </div>
               <div>
                 <small>Outstanding</small>
-                <strong>KSh 42,000</strong>
+                <strong>$1,120</strong>
                 <span>Across 3 invoices</span>
               </div>
             </div>
@@ -205,7 +207,7 @@ function Hero() {
                 <b>Studio Nia</b>
                 <small>INV-024 · Brand identity</small>
               </span>
-              <b>KSh 35,000</b>
+              <b>$950</b>
               <span className={`${s.badge} ${s.paid}`}>Paid</span>
             </div>
             <div className={s.invoiceRow}>
@@ -213,7 +215,7 @@ function Hero() {
                 <b>Karibu Coffee</b>
                 <small>INV-023 · Content design</small>
               </span>
-              <b>KSh 24,000</b>
+              <b>$640</b>
               <span className={`${s.badge} ${s.partial}`}>Partial</span>
             </div>
             <div className={s.invoiceRow}>
@@ -221,8 +223,8 @@ function Hero() {
                 <b>Mawimbi Creative</b>
                 <small>INV-022 · Website design</small>
               </span>
-              <b>KSh 18,000</b>
-              <span className={`${s.badge} ${s.pending}`}>Sent</span>
+              <b>$480</b>
+              <span className={`${s.badge} ${s.pending}`}>Ready</span>
             </div>
           </div>
         </div>
@@ -237,23 +239,19 @@ function Hero() {
             </span>
           </div>
           <div className={s.paperClient}>
-            <small>FROM AMANI NJERI</small>
-            <h4>
-              Good design.
-              <br />
-              Great partnership.
-            </h4>
+            <small>BILL TO</small>
+            <h4>Studio Nia</h4>
           </div>
           <div className={s.paperLine}>
             <span>Brand identity design</span>
-            <b>KSh 35,000</b>
+            <b>$950</b>
           </div>
           <div className={s.paperTotal}>
             <span>Total</span>
-            <strong>KSh 35,000</strong>
+            <strong>$950.00</strong>
           </div>
           <div className={s.paperFooter}>
-            <Check className={s.inlineIcon} aria-hidden /> Professional. And ready to share.
+            <CalendarClock className={s.inlineIcon} aria-hidden /> Due 30 Oct 2026
           </div>
         </div>
         <div className={s.paymentToast}>
@@ -261,11 +259,10 @@ function Hero() {
             <Check aria-hidden />
           </span>
           <div>
-            <b>A little less admin. A lot more clarity.</b>
-            <small>Your work, beautifully organised.</small>
+            <b>Payment recorded</b>
+            <small>$950 from Studio Nia</small>
           </div>
         </div>
-        <span className={s.demoLabel}>ILLUSTRATIVE PRODUCT PREVIEW · SAMPLE DATA</span>
       </div>
     </section>
   );
@@ -275,9 +272,9 @@ function Audience() {
   return (
     <section className={`${s.audience} ${s.wrap}`}>
       <p>
-        FOR THE INDEPENDENT MINDS
+        MADE FOR
         <br />
-        <strong>building something of their own.</strong>
+        <strong>independent professionals.</strong>
       </p>
       <div className={s.audienceList}>
         {AUDIENCE.map((name, index) => (
@@ -295,39 +292,37 @@ function Benefits() {
   return (
     <section className={`${s.benefits} ${s.section} ${s.wrap}`}>
       <div className={s.sectionHeading}>
-        <div className={s.eyebrow}>LESS ADMIN. MORE POSSIBILITY.</div>
-        <h2>
-          Your talent is your business.
-          <br />
-          Let’s keep it that way.
-        </h2>
+        <div className={s.eyebrow}>WHY BILLSAFI</div>
+        <h2>Less admin, more paid work.</h2>
         <p>
-          From the first invoice to the final payment,
-          <br />
-          give your business a little more breathing room.
+          Your invoices, clients, and payments in one place, so you always know what you’re owed.
         </p>
       </div>
       <div className={s.benefitGrid}>
         <article>
           <span className={s.featureIcon}>
-            <ArrowUpRight className={s.icon} aria-hidden />
+            <FileText className={s.icon} aria-hidden />
           </span>
-          <h3>Look as good as your work</h3>
-          <p>Send clear, professional invoices that give clients every detail they need.</p>
+          <h3>Professional invoices</h3>
+          <p>
+            Your details, line items, totals, due date, and payment instructions on every invoice.
+          </p>
         </article>
         <article>
           <span className={s.featureIcon}>
             <Clock className={s.icon} aria-hidden />
           </span>
-          <h3>Know where you stand</h3>
-          <p>See what’s paid, what’s partially paid, and what still needs a follow-up.</p>
+          <h3>See who owes you</h3>
+          <p>Spot paid, partly paid, and overdue invoices at a glance.</p>
         </article>
         <article>
           <span className={s.featureIcon}>
-            <Asterisk className={s.icon} aria-hidden />
+            <Users className={s.icon} aria-hidden />
           </span>
-          <h3>Keep your head in the work</h3>
-          <p>Bring invoices, client details, and reminders together in one calm place.</p>
+          <h3>Everything in one place</h3>
+          <p>
+            Invoices, client details, and payments sit together, even across more than one business.
+          </p>
         </article>
       </div>
     </section>
@@ -338,7 +333,11 @@ function Features() {
   return (
     <section className={`${s.features} ${s.section} ${s.wrap}`} id="features">
       <div className={s.featureBlock}>
-        <div className={s.featureArt}>
+        <div
+          className={s.featureArt}
+          role="img"
+          aria-label="A sample invoice with line items, a total, and bank transfer instructions"
+        >
           <div className={s.invoiceSheet}>
             <div className={s.sheetHeading}>
               <span className={s.paperMark}>a.</span>
@@ -350,7 +349,7 @@ function Features() {
               <div>
                 <small>FROM</small>
                 <b>Amani Njeri</b>
-                <span>Designer · Nairobi, Kenya</span>
+                <span>Brand &amp; content designer</span>
               </div>
               <div>
                 <small>BILL TO</small>
@@ -362,56 +361,60 @@ function Features() {
               <span>DESCRIPTION</span>
               <span>AMOUNT</span>
               <b>Social content design</b>
-              <b>KSh 24,000</b>
+              <b>$640</b>
             </div>
             <div className={s.sheetTotal}>
-              Total due <strong>KSh 24,000</strong>
+              Total due <strong>$640.00</strong>
             </div>
             <div className={s.instructions}>
               <b>Payment instructions</b>
               <p>
-                M-Pesa · Send Money
+                Bank transfer
                 <br />
-                Use the phone number provided by your freelancer.
+                Account name: Amani Njeri
                 <br />
                 Reference: INV-025
               </p>
             </div>
-            <span className={s.sheetThanks}>Thank you for supporting independent work.</span>
+            <span className={s.sheetThanks}>Thank you for your business.</span>
           </div>
           <div className={s.shareChip}>
             <ArrowUpRight className={s.inlineIcon} aria-hidden /> <b>PDF or a link. Your choice.</b>
           </div>
         </div>
         <div className={s.featureCopy}>
-          <div className={s.eyebrow}>01 / MAKE IT OFFICIAL</div>
+          <div className={s.eyebrow}>01 / INVOICES</div>
           <h2>
-            From “I’ll send an invoice”
+            “I’ll send an invoice”
             <br />
-            to <em>already sent.</em>
+            becomes <em>already sent.</em>
           </h2>
           <p>
-            Add your client, list your work, and set a due date. Share a polished PDF or a hosted
-            invoice link, ready for your client to view.
+            Add your client, list your work, and set a due date. Share a polished PDF or a link to
+            the invoice online.
           </p>
           <Checks
             items={[
               "Clear line items, totals, and due dates",
               "Client details saved for next time",
-              "Your payment instructions, right on the invoice",
+              "Bank or M-Pesa details right on the invoice",
             ]}
           />
-          <PreviewButton className={s.linkButton}>
-            Explore a sample invoice{" "}
+          <Link className={s.linkButton} href="/free-invoice-generator">
+            Try the free invoice generator{" "}
             <span>
               <ArrowUpRight className={s.inlineIcon} aria-hidden />
             </span>
-          </PreviewButton>
+          </Link>
         </div>
       </div>
 
       <div className={`${s.featureBlock} ${s.reverse}`}>
-        <div className={`${s.featureArt} ${s.trackingArt}`}>
+        <div
+          className={`${s.featureArt} ${s.trackingArt}`}
+          role="img"
+          aria-label="An invoice with a partial payment recorded and the remaining balance"
+        >
           <div className={s.trackingCard}>
             <div className={s.trackingTitle}>
               <span className={s.featureIcon}>
@@ -419,20 +422,20 @@ function Features() {
               </span>
               <div>
                 <small>INVOICE INV-023</small>
-                <h3>Every payment. Accounted for.</h3>
+                <h3>Karibu Coffee</h3>
               </div>
             </div>
             <div className={s.balance}>
               <small>Remaining balance</small>
               <strong>
-                KSh 12,000<span>.00</span>
+                $320<span>.00</span>
               </strong>
               <div className={s.progress}>
                 <span />
               </div>
               <div className={s.balanceCaption}>
-                <span>KSh 12,000 received</span>
-                <span>KSh 24,000 total</span>
+                <span>$320 received</span>
+                <span>$640 total</span>
               </div>
             </div>
             <div className={s.record}>
@@ -441,39 +444,38 @@ function Features() {
               </span>
               <div>
                 <b>Payment recorded</b>
-                <small>16 Oct 2026 · M-Pesa · Added manually</small>
+                <small>16 Oct 2026 · Bank transfer · Added manually</small>
               </div>
-              <strong>+ KSh 12,000</strong>
+              <strong>+ $320</strong>
             </div>
             <div className={s.reminder}>
-              <Bell className={s.inlineIcon} aria-hidden />{" "}
-              <span>Next up: a friendly reminder</span>
+              <CalendarClock className={s.inlineIcon} aria-hidden />{" "}
+              <span>Balance due 30 Oct 2026</span>
               <ArrowUpRight className={s.inlineIcon} aria-hidden />
             </div>
           </div>
-          <span className={s.artNote}>A clearer picture. Without the spreadsheet.</span>
         </div>
         <div className={s.featureCopy}>
-          <div className={s.eyebrow}>02 / STAY IN THE KNOW</div>
+          <div className={s.eyebrow}>02 / PAYMENTS</div>
           <h2>
             Less “have they paid?”
             <br />
             More <em>peace of mind.</em>
           </h2>
           <p>
-            Record full or partial payments as they come in. Your dashboard keeps the balance clear,
-            so you know who needs a reminder and who’s all settled.
+            Record full or partial payments as they come in. Your dashboard keeps the balance up to
+            date, so you can see who is settled and who needs a nudge.
           </p>
           <Checks
             items={[
-              "Record payments received outside BillSafi",
-              "Track outstanding amounts at a glance",
-              "Keep on top of follow-ups with reminders",
+              "Record payments you receive outside BillSafi",
+              "See outstanding balances at a glance",
+              "Spot overdue invoices before they slip",
             ]}
           />
           <div className={s.honestNote}>
-            <b>You receive it. You record it.</b> BillSafi V1 does not process payments or
-            automatically verify M-Pesa transactions.
+            <b>You receive it. You record it.</b> Clients pay you directly. BillSafi doesn’t process
+            payments or check transactions for you.
           </div>
         </div>
       </div>
@@ -486,12 +488,8 @@ function Workflow() {
     <section className={`${s.workflow} ${s.section}`} id="how-it-works">
       <div className={s.wrap}>
         <div className={s.sectionHeading}>
-          <div className={s.eyebrow}>A SMALL ROUTINE. A BIG DIFFERENCE.</div>
-          <h2>
-            From done to invoiced.
-            <br />
-            In three simple steps.
-          </h2>
+          <div className={s.eyebrow}>HOW IT WORKS</div>
+          <h2>Invoice a client in three steps.</h2>
         </div>
         <div className={s.steps}>
           {STEPS.map((step, index) => (
@@ -508,84 +506,13 @@ function Workflow() {
   );
 }
 
-function Kenya() {
-  return (
-    <section className={`${s.kenya} ${s.section} ${s.wrap}`}>
-      <div className={s.kenyaCopy}>
-        <div className={s.eyebrow}>ROOTED HERE. READY FOR YOUR NEXT CHAPTER.</div>
-        <h2>
-          Built for your hustle.
-          <br />
-          <em>Right here in Kenya.</em>
-        </h2>
-        <p>
-          For the Nairobi designer, the Mombasa developer, and the consultant building from
-          anywhere. BillSafi puts the everyday details of independent work in one place.
-        </p>
-        <div className={s.localPoints}>
-          <span>
-            <b>KSh</b> Kenyan shilling invoices
-          </span>
-          <span>
-            <b>
-              <ArrowUpRight className={s.inlineIcon} aria-hidden />
-            </b>{" "}
-            M-Pesa & bank instructions
-          </span>
-          <span>
-            <b>
-              <Users className={s.inlineIcon} aria-hidden />
-            </b>{" "}
-            Your clients, organised
-          </span>
-        </div>
-        <p className={s.fineprint}>
-          Include your preferred payment details. Clients pay you directly through your chosen
-          channel; you record the payment in BillSafi.
-        </p>
-      </div>
-      <div className={s.kenyaArt}>
-        <div className={s.orbit} />
-        <div className={`${s.orbit} ${s.orbitTwo}`} />
-        <Asterisk className={`${s.star} ${s.starOne}`} aria-hidden />
-        <Sparkle className={`${s.star} ${s.starTwo}`} aria-hidden />
-        <div className={s.localCard}>
-          <span className={s.localTag}>INDEPENDENT & IN GOOD COMPANY</span>
-          <div className={s.localBig}>
-            Made of
-            <br />
-            good <em>work.</em>
-          </div>
-          <div className={s.localBottom}>
-            <span>NAIROBI · KENYA</span>
-            <span>01°17′S 36°49′E</span>
-          </div>
-        </div>
-        <div className={s.kenyaSticker}>
-          A little more
-          <b>safi.</b>
-          <ArrowUpRight className={s.inlineIcon} aria-hidden />
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function Faq() {
   return (
     <section className={`${s.faq} ${s.section} ${s.wrap}`} id="faq">
       <div className={s.faqIntro}>
-        <div className={s.eyebrow}>A FEW THINGS, CLEARED UP.</div>
-        <h2>
-          Good questions.
-          <br />
-          Straight answers.
-        </h2>
-        <p>
-          Getting the admin out of the way
-          <br />
-          starts with knowing what to expect.
-        </p>
+        <div className={s.eyebrow}>FAQ</div>
+        <h2>Questions, answered.</h2>
+        <p>What BillSafi does today, and what it doesn’t do yet.</p>
       </div>
       <div className={s.faqList}>
         {FAQS.map((faq, index) => (
@@ -606,15 +533,14 @@ function FinalCta() {
   return (
     <section className={`${s.finalCta} ${s.wrap}`}>
       <Asterisk className={s.ctaSpark} aria-hidden />
-      <div className={s.eyebrow}>YOUR NEXT CHAPTER LOOKS GOOD.</div>
       <h2>
         Big on your craft.
         <br />
         <em>Light on the admin.</em>
       </h2>
       <p>Give your good work the invoice it deserves.</p>
-      <Link className={`${s.button} ${s.dark}`} href="/sign-up">
-        Create your free account <Trail />
+      <Link className={`${s.button} ${s.dark}`} href="/free-invoice-generator">
+        Create an invoice free <Trail />
       </Link>
       <small>
         Already with us? <Link href="/sign-in">Sign in</Link>
@@ -627,7 +553,7 @@ function Footer() {
   return (
     <footer className={`${s.footer} ${s.wrap}`}>
       <div className={s.footerTop}>
-        <a className={s.logo} href="#">
+        <a className={s.logo} href="#" aria-label="BillSafi, back to top">
           <Wordmark />
         </a>
         <p>Good work. Clear invoices. All safi.</p>
@@ -638,8 +564,7 @@ function Footer() {
         <Link href="/sign-up">Create account</Link>
       </div>
       <div className={s.footerBottom}>
-        <span>© 2026 BillSafi · A product concept made for Kenya.</span>
-        <span>Visual review preview · All product data is illustrative.</span>
+        <span>© 2026 BillSafi · Invoicing for independent professionals.</span>
         <a href="#">
           Back to top <ArrowUp className={s.inlineIcon} aria-hidden />
         </a>
@@ -648,25 +573,22 @@ function Footer() {
   );
 }
 
-/** The BillSafi marketing concept: sample data and illustrative pricing only. */
+/** The BillSafi marketing page. Product previews use sample data. */
 export function LandingPage() {
   return (
-    <div className={`${s.page} ${manrope.variable} ${dmSans.variable}`} data-landing>
-      <PreviewProvider>
-        <SiteHeader />
-        <main>
-          <Hero />
-          <Audience />
-          <Benefits />
-          <Features />
-          <Workflow />
-          <Kenya />
-          <Pricing />
-          <Faq />
-          <FinalCta />
-        </main>
-        <Footer />
-      </PreviewProvider>
+    <div className={`${s.page} ${manrope.variable}`} data-landing>
+      <SiteHeader />
+      <main>
+        <Hero />
+        <Audience />
+        <Benefits />
+        <Features />
+        <Workflow />
+        <Pricing />
+        <Faq />
+        <FinalCta />
+      </main>
+      <Footer />
     </div>
   );
 }

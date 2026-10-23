@@ -19,10 +19,15 @@ describe("createBusinessSchema", () => {
     });
   });
 
-  it("rejects a foreign phone number with a helpful message", () => {
-    const result = createBusinessSchema.safeParse({ ...valid, phone: "+255712345678" });
+  it("accepts a phone number from any country", () => {
+    const result = createBusinessSchema.safeParse({ ...valid, phone: "+44 20 7946 0958" });
+    expect(result.data?.phone).toBe("+442079460958");
+  });
+
+  it("rejects a number without a country code with a helpful message", () => {
+    const result = createBusinessSchema.safeParse({ ...valid, phone: "020 7946 0958" });
     expect(result.success).toBe(false);
-    expect(result.error?.issues[0]?.message).toMatch(/Kenyan mobile number/);
+    expect(result.error?.issues[0]?.message).toMatch(/country code/);
   });
 
   it("requires a display name", () => {
@@ -38,6 +43,15 @@ describe("createPaymentInstructionSchema", () => {
         accountNumber: "0712345678",
       }),
     ).toMatchObject({ accountNumber: "+254712345678" });
+  });
+
+  it("keeps M-Pesa numbers to Kenyan mobiles", () => {
+    const result = createPaymentInstructionSchema.safeParse({
+      method: "mpesa_personal",
+      accountNumber: "+44 20 7946 0958",
+    });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.message).toMatch(/M-Pesa number/);
   });
 
   it("requires instructions for bank transfer and drops any number", () => {
