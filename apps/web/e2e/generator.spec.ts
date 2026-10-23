@@ -72,11 +72,8 @@ test("build an invoice, sign up, mark it Ready and download the PDF", async ({ p
 
   await waitUntilInteractive(page, "Mark as Ready");
   await page.getByRole("button", { name: "Mark as Ready" }).click();
+  await expect(page).toHaveURL(/\/invoices\/[^/?]+$/);
   await expect(page.getByRole("heading", { name: "INV-00001" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Mark as Ready" })).toHaveCount(0);
-
-  // The editor stays open after Ready; the PDF lives on the invoice's details page.
-  await page.goto(page.url().replace(/\/edit\?from=generator$/, ""));
   await waitUntilInteractive(page, "Share");
   await page.getByRole("button", { name: "Share" }).click();
   const share = page.getByRole("dialog", { name: "Share INV-00001" });

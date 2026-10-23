@@ -191,7 +191,8 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
       await apiRequest<Invoice>(`/businesses/${businessId}/invoices/${result!.id}/ready`, {
         method: "POST",
       });
-      if (!invoice) router.replace(`/${businessId}/invoices/${result!.id}`);
+      // The details page holds Share and Download PDF, so go there for any draft.
+      router.replace(`/${businessId}/invoices/${result!.id}`);
       // Refresh shared layouts too, so the sidebar usage meter counts this invoice.
       router.refresh();
     } catch (error) {
