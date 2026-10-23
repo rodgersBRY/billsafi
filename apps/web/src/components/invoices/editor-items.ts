@@ -9,7 +9,7 @@ export interface EditorItem {
 
 export type Discount = { type: "fixed" | "percentage"; value: string } | null;
 
-export const DECIMAL = /^\d+(\.\d+)?$/;
+const DECIMAL = /^\d+(\.\d+)?$/;
 
 /** React keys only; never rendered, so they need not match between server and client. */
 let itemKeys = 0;

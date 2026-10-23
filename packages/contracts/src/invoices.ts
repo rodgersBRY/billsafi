@@ -74,8 +74,6 @@ export type SaveInvoice = z.output<typeof saveInvoiceSchema>;
 export const invoiceDetailsSchema = z
   .object(invoiceDetailFields)
   .refine(dueDateIsValid, dueDateIssue);
-export type InvoiceDetailsInput = z.input<typeof invoiceDetailsSchema>;
-export type InvoiceDetails = z.output<typeof invoiceDetailsSchema>;
 
 export const invoiceStatuses = ["draft", "ready", "partially_paid", "paid", "cancelled"] as const;
 export type InvoiceStatus = (typeof invoiceStatuses)[number];
