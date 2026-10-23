@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { shouldShowTour } from "@billsafi/contracts";
 import { BrandLoader } from "@/components/brand/brand-loader";
-import { GettingStartedCard } from "@/components/tour/getting-started";
 import { ProductTour } from "@/components/tour/product-tour";
 import { StatusPill } from "@/components/ui/status-pill";
 import { getBusiness } from "@/lib/server-api/businesses";
@@ -34,8 +33,6 @@ async function Overview({
     getProductTours(),
     getGettingStarted(),
   ]);
-  const showChecklist =
-    !Object.values(progress).every(Boolean) && shouldShowTour(tours, "getting-started-checklist");
   const base = `/${businessId}`;
   const metrics = [
     { label: "Outstanding", value: dashboard.outstanding, hint: "Ready and partly paid invoices" },
@@ -73,8 +70,6 @@ async function Overview({
           ))}
         </ul>
       </div>
-
-      {showChecklist && <GettingStartedCard businessId={businessId} progress={progress} />}
 
       <dl data-tour="totals" className="mb-6.25 grid gap-3.25 sm:grid-cols-3">
         {metrics.map((metric) => (

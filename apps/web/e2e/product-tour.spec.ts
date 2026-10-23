@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { signUp, skipIntro, uniqueEmail } from "./support";
+import { signUp, skipIntro, uniqueEmail, waitUntilInteractive } from "./support";
 
 /** Onboarding without payment details, stopping on the Overview before the tour is touched. */
 async function reachOverview(page: Page) {
@@ -29,8 +29,9 @@ test("a new account takes the tour once and it stays done after a reload", async
   await expect(tour).toHaveAccessibleName("Your monthly allowance");
   await tour.getByRole("button", { name: "Next" }).click();
 
-  // Payment details were skipped during onboarding, so the last step points to Settings.
-  await expect(tour).toHaveAccessibleName("Tell clients how to pay you");
+  // The account menu closes the tour; payment details were skipped, so it points to Settings.
+  await expect(tour).toHaveAccessibleName("Your account menu");
+  await expect(tour.getByText("add your M-Pesa, Till, Paybill or bank details")).toBeVisible();
   await expect(tour.getByText("6 of 6")).toBeVisible();
   await expect(tour.getByRole("button", { name: "Skip tour" })).toBeHidden();
   await tour.getByRole("button", { name: "Done" }).click();
@@ -50,17 +51,32 @@ test("a skipped tour can be replayed from the account menu", async ({ page }) =>
   await tour.getByRole("button", { name: "Skip tour" }).click();
   await expect(tour).toBeHidden();
 
-  await page.getByLabel("Account menu for Njeri Mwangi").filter({ visible: true }).click();
-  await page.getByRole("link", { name: "Take the tour" }).click();
-  await expect(tour).toHaveAccessibleName("Welcome to Billsafi");
-  // The replay flag is removed so a reload does not start it again.
-  await expect(page).toHaveURL(/\/overview$/);
+  const takeTour = async () => {
+    await page.getByLabel("Account menu for Njeri Mwangi").filter({ visible: true }).click();
+    await page.getByRole("link", { name: "Take the tour" }).click();
+  };
 
+  // From the Overview itself, twice in a row, without a reload.
+  for (let round = 0; round < 2; round++) {
+    await takeTour();
+    await expect(tour).toHaveAccessibleName("Welcome to Billsafi");
+    await page.keyboard.press("Escape");
+    await expect(tour).toBeHidden();
+  }
+
+  // From another page it opens the Overview and drops the replay flag.
+  await page.getByRole("link", { name: "Clients" }).click();
+  await expect(page).toHaveURL(/\/clients$/);
+  await takeTour();
+  await expect(tour).toHaveAccessibleName("Welcome to Billsafi");
+  await expect(page).toHaveURL(/\/overview$/);
   await page.keyboard.press("Escape");
   await expect(tour).toBeHidden();
 });
 
-test("the setup checklist links to each step and can be hidden", async ({ page }) => {
+test("the floating setup checklist follows the account, minimises and can be hidden", async ({
+  page,
+}) => {
   await reachOverview(page);
   await tourDialog(page).getByRole("button", { name: "Skip tour" }).click();
 
@@ -71,11 +87,34 @@ test("the setup checklist links to each step and can be hidden", async ({ page }
     /\/settings\?tab=payment$/,
   );
 
+  // On other pages it shrinks to a pill and still ticks steps off.
+  await checklist.getByRole("link", { name: "Add a client" }).click();
+  await expect(page).toHaveURL(/\/clients$/);
+  await waitUntilInteractive(page, "Add client");
+  await page.getByRole("button", { name: "Add client" }).click();
+  const dialog = page.getByRole("dialog", { name: "Add client" });
+  await dialog.getByLabel("Client name").fill("Karibu Coffee");
+  await dialog.getByLabel("Phone").fill("0722 111 222");
+  await dialog.getByRole("button", { name: "Save client" }).click();
+  await expect(dialog).toBeHidden();
+  const launcher = page.getByRole("button", { name: "Get set up, 1 of 5 done" });
+  await expect(launcher).toBeVisible();
+  await expect(checklist).toBeHidden();
+
+  // Minimising on the Overview is remembered in this browser.
+  await page.getByRole("link", { name: "Overview" }).click();
+  await checklist.getByRole("button", { name: "Minimise setup checklist" }).click();
+  await expect(launcher).toBeVisible();
+  await page.reload();
+  await expect(launcher).toBeVisible();
+  await launcher.click();
+
   await checklist.getByRole("button", { name: "Hide setup checklist" }).click();
   await expect(checklist).toBeHidden();
   await page.reload();
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
   await expect(checklist).toBeHidden();
+  await expect(launcher).toBeHidden();
 });
 
 test.describe("on a phone", () => {
