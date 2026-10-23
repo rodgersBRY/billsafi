@@ -15,3 +15,7 @@ next-env.d.ts
 *.log
 
 .vscode
+
+# Local design work, kept out of the repository
+docs/designs/
+docs/superpowers/

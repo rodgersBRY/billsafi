@@ -1,9 +1,9 @@
 "use client";
 
 import { ArrowUpRight } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { Checks } from "./checks";
-import { PreviewButton } from "./preview-dialog";
 import s from "./landing.module.css";
 
 type Billing = "monthly" | "annual";
@@ -61,12 +61,12 @@ export function Pricing() {
               KSh <b>0</b>
               <span>/ month</span>
             </div>
-            <PreviewButton plan="Starter" className={`${s.button} ${s.outline}`}>
+            <Link className={`${s.button} ${s.outline}`} href="/free-invoice-generator">
               Explore Starter{" "}
               <span>
                 <ArrowUpRight className={s.icon} aria-hidden />
               </span>
-            </PreviewButton>
+            </Link>
             <Checks
               items={[
                 "Up to 5 invoices per month",
@@ -87,12 +87,12 @@ export function Pricing() {
               KSh <b>{FREELANCER_PRICE[billing]}</b>
               <span>/ month</span>
             </div>
-            <PreviewButton plan="Freelancer" className={`${s.button} ${s.dark}`}>
+            <Link className={`${s.button} ${s.dark}`} href="/free-invoice-generator">
               Explore Freelancer{" "}
               <span>
                 <ArrowUpRight className={s.icon} aria-hidden />
               </span>
-            </PreviewButton>
+            </Link>
             <Checks
               items={[
                 "Unlimited invoices",

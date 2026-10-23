@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { saveInvoiceSchema } from "./invoices.js";
+import { invoiceDetailsSchema, saveInvoiceSchema } from "./invoices.js";
 
 const base = {
   clientId: "01a143e6-3893-73c6-b4ce-24527eebbf2b",
@@ -51,6 +51,19 @@ describe("saveInvoiceSchema", () => {
   it("limits line items to 100", () => {
     const items = Array.from({ length: 101 }, () => base.items[0]);
     expect(saveInvoiceSchema.safeParse({ ...base, items }).success).toBe(false);
+  });
+});
+
+describe("invoiceDetailsSchema", () => {
+  const { clientId: _clientId, ...details } = base;
+
+  it("accepts details without a client and defaults optional pricing to off", () => {
+    expect(invoiceDetailsSchema.parse(details)).toMatchObject({ discount: null, taxRate: null });
+  });
+
+  it("rejects a due date before the issue date", () => {
+    const result = invoiceDetailsSchema.safeParse({ ...details, dueDate: "2026-10-01" });
+    expect(result.error?.issues[0]?.path).toEqual(["dueDate"]);
   });
 });
 

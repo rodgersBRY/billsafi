@@ -4,6 +4,7 @@ import { and, asc, type DatabaseConnection, eq, isNull, or, schema, sql } from "
 import type { z } from "zod";
 import { containsPattern } from "../common/like-pattern.js";
 import { DATABASE } from "../database/database.module.js";
+import type { Executor } from "../database/transaction.js";
 
 const { clients } = schema;
 
@@ -42,8 +43,12 @@ export class ClientsService {
       .orderBy(asc(sql`lower(${clients.name})`));
   }
 
-  async create(businessId: string, input: z.output<typeof createClientSchema>) {
-    const [client] = await this.db
+  async create(
+    businessId: string,
+    input: z.output<typeof createClientSchema>,
+    db: Executor = this.db,
+  ) {
+    const [client] = await db
       .insert(clients)
       .values({ ...input, businessId })
       .returning();

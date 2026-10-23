@@ -3,14 +3,12 @@
 import {
   type AllowanceUsage,
   type Client,
-  INVOICE_LIMITS,
   type Invoice,
   type InvoiceBusinessDetails,
   type SaveInvoiceInput,
   saveInvoiceSchema,
 } from "@billsafi/contracts";
-import { calculateInvoice, type InvoiceCalculation } from "@billsafi/domain";
-import { Plus, Trash2, UserPlus, X } from "lucide-react";
+import { Trash2, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -23,14 +21,16 @@ import { apiPost, apiRequest, apiSend } from "@/lib/api.client";
 import { ApiError } from "@/lib/api-error";
 import { addDays, formatDate } from "@/lib/format";
 import { logoUrl } from "@/lib/logo";
+import { type Adjustments, AdjustmentsFields } from "./adjustments-fields";
+import {
+  type Discount,
+  discountLabel,
+  type EditorItem,
+  newItem,
+  previewTotals,
+} from "./editor-items";
 import { InvoicePreview } from "./invoice-preview";
-
-interface EditorItem {
-  key: number;
-  description: string;
-  quantity: string;
-  unitPrice: string;
-}
+import { LineItemsFields } from "./line-items-fields";
 
 export interface InvoiceEditorProps {
   businessId: string;
@@ -42,48 +42,14 @@ export interface InvoiceEditorProps {
   usage: AllowanceUsage;
   /** Existing invoice; omit when creating. */
   invoice?: Invoice;
+  /**
+   * Set when the draft just came from the public generator (D056). "existing" means
+   * the account already had a business, so the typed business details were not used.
+   */
+  fromGenerator?: "new" | "existing";
 }
 
 type Errors = Record<string, string>;
-
-const DECIMAL = /^\d+(\.\d+)?$/;
-
-/** React keys only; never rendered, so they need not match between server and client. */
-let itemKeys = 0;
-
-function newItem(item?: Partial<EditorItem>): EditorItem {
-  itemKeys += 1;
-  return {
-    key: itemKeys,
-    description: item?.description ?? "",
-    quantity: item?.quantity ?? "1",
-    unitPrice: item?.unitPrice ?? "",
-  };
-}
-
-/** Preview totals tolerate half-typed numbers; validation happens on save. */
-function previewTotals(
-  items: EditorItem[],
-  discount: { type: "fixed" | "percentage"; value: string } | null,
-  taxRate: string | null,
-): { totals: InvoiceCalculation | null; discountError: boolean } {
-  const clean = (value: string) => (DECIMAL.test(value.trim()) ? value.trim() : "0");
-  try {
-    return {
-      totals: calculateInvoice({
-        items: items.map((item) => ({
-          quantity: clean(item.quantity),
-          unitPrice: clean(item.unitPrice),
-        })),
-        discount: discount ? { type: discount.type, value: clean(discount.value) } : null,
-        taxRate: taxRate ? clean(taxRate) : null,
-      }),
-      discountError: false,
-    };
-  } catch {
-    return { totals: null, discountError: true };
-  }
-}
 
 export function InvoiceEditor(props: InvoiceEditorProps) {
   const { businessId, invoice } = props;
@@ -106,13 +72,13 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         )
       : [newItem()],
   );
-  const [discountOn, setDiscountOn] = useState(Boolean(invoice?.discount));
-  const [discountType, setDiscountType] = useState<"fixed" | "percentage">(
-    invoice?.discount?.type ?? "fixed",
-  );
-  const [discountValue, setDiscountValue] = useState(invoice?.discount?.value ?? "");
-  const [taxOn, setTaxOn] = useState(Boolean(invoice?.taxRate));
-  const [taxRate, setTaxRate] = useState(invoice?.taxRate ?? "16");
+  const [adjustments, setAdjustments] = useState<Adjustments>(() => ({
+    discountOn: Boolean(invoice?.discount),
+    discountType: invoice?.discount?.type ?? "fixed",
+    discountValue: invoice?.discount?.value ?? "",
+    taxOn: Boolean(invoice?.taxRate),
+    taxRate: invoice?.taxRate ?? "16",
+  }));
   const [paymentInstructions, setPaymentInstructions] = useState(
     invoice ? (invoice.paymentInstructions ?? "") : props.defaultPaymentInstructions,
   );
@@ -127,21 +93,18 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   const status = invoice?.status ?? "draft";
   const isDraft = status === "draft";
   const editable = status === "draft" || status === "ready";
-  const discount = discountOn ? { type: discountType, value: discountValue } : null;
+  const discount: Discount = adjustments.discountOn
+    ? { type: adjustments.discountType, value: adjustments.discountValue }
+    : null;
+  const taxRate = adjustments.taxOn ? adjustments.taxRate : null;
   const { totals, discountError } = useMemo(
-    () => previewTotals(items, discount, taxOn ? taxRate : null),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- discount is derived from these
-    [items, discountOn, discountType, discountValue, taxOn, taxRate],
+    () => previewTotals(items, discount, taxRate),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- discount and taxRate are derived from these
+    [items, adjustments],
   );
 
   const selectedClient = clients.find((client) => client.id === clientId);
   const previewClient = invoice && clientId === invoice.clientId ? invoice.client : selectedClient;
-
-  function updateItem(key: number, field: keyof Omit<EditorItem, "key">, value: string) {
-    setItems((current) =>
-      current.map((item) => (item.key === key ? { ...item, [field]: value } : item)),
-    );
-  }
 
   function body(): SaveInvoiceInput {
     return {
@@ -154,7 +117,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         unitPrice,
       })),
       discount,
-      taxRate: taxOn ? taxRate : null,
+      taxRate,
       paymentInstructions,
       notes,
     };
@@ -211,6 +174,10 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         return;
       }
       setSaved(isDraft ? "Draft saved." : "Changes saved.");
+      // Drop ?from=generator once they've saved, so the first-visit banner goes away.
+      if (props.fromGenerator && invoice) {
+        router.replace(`/${businessId}/invoices/${invoice.id}/edit`);
+      }
       router.refresh();
     } catch (error) {
       fail(error);
@@ -228,7 +195,8 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
       await apiRequest<Invoice>(`/businesses/${businessId}/invoices/${result!.id}/ready`, {
         method: "POST",
       });
-      if (!invoice) router.replace(`/${businessId}/invoices/${result!.id}`);
+      // The details page holds Share and Download PDF, so go there for any draft.
+      router.replace(`/${businessId}/invoices/${result!.id}`);
       // Refresh shared layouts too, so the sidebar usage meter counts this invoice.
       router.refresh();
     } catch (error) {
@@ -300,6 +268,13 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         )}
       </div>
 
+      {props.fromGenerator && (
+        <p role="status" className="rounded-panel border border-line bg-panel p-4 text-sm">
+          Your invoice is saved as a draft. Check it, then press Mark as Ready to get your PDF.
+          {props.fromGenerator === "existing" &&
+            ` Added to ${props.business.displayName}. The business details you typed weren't used.`}
+        </p>
+      )}
       <div aria-live="polite">
         <FormMessage>{errors.form}</FormMessage>
         {errors.billing && (
@@ -388,119 +363,8 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
 
           <section className="mb-3.5 rounded-panel border border-line bg-panel p-5">
             <h2 className="text-base font-semibold">What are you billing for?</h2>
-            {errors.items && (
-              <p className="mt-2 text-xs text-red-700 dark:text-red-300">{errors.items}</p>
-            )}
-            <ol className="mt-2">
-              {items.map((item, index) => {
-                const n = index + 1;
-                return (
-                  <li
-                    key={item.key}
-                    aria-label={`Line item ${n}`}
-                    className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-start gap-x-2 border-b border-line pb-3.5 sm:grid-cols-[minmax(0,1fr)_5rem_7rem_auto]"
-                  >
-                    <div className="col-span-2 sm:col-span-1">
-                      <TextField
-                        label={n === 1 ? "Description" : `Description ${n}`}
-                        value={item.description}
-                        error={errors[`items.${index}.description`]}
-                        onChange={(event) =>
-                          updateItem(item.key, "description", event.target.value)
-                        }
-                      />
-                    </div>
-                    <TextField
-                      label={n === 1 ? "Qty" : `Qty ${n}`}
-                      inputMode="decimal"
-                      value={item.quantity}
-                      error={errors[`items.${index}.quantity`]}
-                      onChange={(event) => updateItem(item.key, "quantity", event.target.value)}
-                    />
-                    <TextField
-                      label={n === 1 ? "Unit price" : `Unit price ${n}`}
-                      inputMode="decimal"
-                      value={item.unitPrice}
-                      error={errors[`items.${index}.unitPrice`]}
-                      onChange={(event) => updateItem(item.key, "unitPrice", event.target.value)}
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setItems((current) => current.filter((row) => row.key !== item.key))
-                      }
-                      className="col-start-3 row-start-1 mt-10 rounded-lg p-1.5 text-sub hover:bg-soft hover:text-ink sm:col-start-auto sm:row-start-auto"
-                    >
-                      <X aria-hidden className="size-4" />
-                      <span className="sr-only">Remove line item {n}</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
-            <Button
-              type="button"
-              variant="ghost"
-              className="mt-3"
-              disabled={items.length >= INVOICE_LIMITS.maxItems}
-              onClick={() => setItems((current) => [...current, newItem()])}
-            >
-              <Plus aria-hidden className="size-4" />
-              Add line item
-            </Button>
-
-            <div className="mt-3.5 border-t border-line pt-3.5">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={discountOn}
-                  onChange={(event) => setDiscountOn(event.target.checked)}
-                  className="accent-teal"
-                />
-                Add discount <span className="text-xs text-sub">Optional</span>
-              </label>
-              {discountOn && (
-                <div className="grid grid-cols-2 gap-3">
-                  <SelectField
-                    label="Discount type"
-                    value={discountType}
-                    onChange={(event) =>
-                      setDiscountType(event.target.value as "fixed" | "percentage")
-                    }
-                  >
-                    <option value="fixed">Fixed amount (KES)</option>
-                    <option value="percentage">Percentage</option>
-                  </SelectField>
-                  <TextField
-                    label="Discount"
-                    inputMode="decimal"
-                    value={discountValue}
-                    error={errors["discount.value"]}
-                    onChange={(event) => setDiscountValue(event.target.value)}
-                  />
-                </div>
-              )}
-            </div>
-            <div className="mt-3.5 border-t border-line pt-3.5">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={taxOn}
-                  onChange={(event) => setTaxOn(event.target.checked)}
-                  className="accent-teal"
-                />
-                Add tax <span className="text-xs text-sub">Optional</span>
-              </label>
-              {taxOn && (
-                <TextField
-                  label="Tax rate (%)"
-                  inputMode="decimal"
-                  value={taxRate}
-                  error={errors.taxRate}
-                  onChange={(event) => setTaxRate(event.target.value)}
-                />
-              )}
-            </div>
+            <LineItemsFields items={items} onChange={setItems} errors={errors} />
+            <AdjustmentsFields value={adjustments} onChange={setAdjustments} errors={errors} />
           </section>
 
           <section className="rounded-panel border border-line bg-panel p-5">
@@ -539,14 +403,8 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
             dueDate={dueDate}
             items={items}
             totals={totals}
-            discountLabel={
-              discountOn
-                ? discountType === "percentage"
-                  ? `Discount (${discountValue || 0}%)`
-                  : "Discount"
-                : null
-            }
-            taxRate={taxOn ? taxRate : null}
+            discountLabel={discountLabel(discount)}
+            taxRate={taxRate}
             paymentInstructions={paymentInstructions}
             notes={notes}
           />

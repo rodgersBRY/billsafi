@@ -6,16 +6,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import type { SaveInvoice } from "@billsafi/contracts";
-import {
-  and,
-  asc,
-  type Database,
-  type DatabaseConnection,
-  desc,
-  eq,
-  schema,
-  sql,
-} from "@billsafi/db";
+import { and, asc, type DatabaseConnection, desc, eq, schema, sql } from "@billsafi/db";
 import {
   calculateInvoice,
   DiscountExceedsSubtotalError,
@@ -24,13 +15,12 @@ import {
 import { nairobiDate } from "@billsafi/domain";
 import { containsPattern } from "../common/like-pattern.js";
 import { DATABASE } from "../database/database.module.js";
+import type { Executor, Transaction } from "../database/transaction.js";
 import { AllowanceService } from "../billing/allowance.service.js";
 import { effectivePaymentsSql } from "./effective-payments.js";
 import { businessDetails, clientDetails, toInvoice, toInvoiceSummary } from "./invoice.mapper.js";
 
 const { invoices, invoiceItems, invoiceIssuances, invoiceLinks, clients, businesses } = schema;
-
-type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 export type InvoiceListFilter = {
   status?: (typeof invoices.status.enumValues)[number] | "overdue";
@@ -86,8 +76,8 @@ export class InvoicesService {
     return this.load(this.db, businessId, invoiceId);
   }
 
-  async createDraft(businessId: string, input: SaveInvoice) {
-    return this.db.transaction(async (tx) => {
+  async createDraft(businessId: string, input: SaveInvoice, db: Executor = this.db) {
+    return db.transaction(async (tx) => {
       await this.selectableClient(tx, businessId, input.clientId);
       const totals = this.calculate(input);
       const [invoice] = await tx
@@ -300,7 +290,7 @@ export class InvoicesService {
     return invoice;
   }
 
-  private async findClient(db: Database | Transaction, businessId: string, clientId: string) {
+  private async findClient(db: Executor, businessId: string, clientId: string) {
     const [client] = await db
       .select()
       .from(clients)
@@ -316,7 +306,7 @@ export class InvoicesService {
     return client;
   }
 
-  async load(db: Database | Transaction, businessId: string, invoiceId: string) {
+  async load(db: Executor, businessId: string, invoiceId: string) {
     const [row] = await db
       .select({
         invoice: invoices,

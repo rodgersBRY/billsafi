@@ -1,7 +1,14 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 
-const PUBLIC_PATHS = ["/sign-in", "/sign-up", "/forgot-password", "/reset-password"];
+// Exact matches only, so /free-invoice-generator/finish still needs a session.
+const PUBLIC_PATHS = [
+  "/sign-in",
+  "/sign-up",
+  "/forgot-password",
+  "/reset-password",
+  "/free-invoice-generator",
+];
 
 /**
  * Optimistic redirects based on the presence of a session cookie only. The API
