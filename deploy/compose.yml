@@ -42,6 +42,8 @@ services:
       WEB_ORIGIN: https://${DOMAIN:?}
       DATABASE_URL: postgres://billsafi:${POSTGRES_PASSWORD:?}@postgres:5432/billsafi
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       SMTP_URL: ${SMTP_URL:?}
       MAIL_FROM: ${MAIL_FROM:?}
       # disabled until Safaricom approves the Paybill (D051).

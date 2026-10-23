@@ -28,6 +28,17 @@ describe("loadEnv", () => {
     );
   });
 
+  it("accepts Google OAuth settings only as a pair", () => {
+    expect(loadEnv(required).GOOGLE_CLIENT_ID).toBeUndefined();
+    expect(
+      loadEnv({ ...required, GOOGLE_CLIENT_ID: "id", GOOGLE_CLIENT_SECRET: "secret" }),
+    ).toMatchObject({ GOOGLE_CLIENT_ID: "id", GOOGLE_CLIENT_SECRET: "secret" });
+    expect(() => loadEnv({ ...required, GOOGLE_CLIENT_ID: "id" })).toThrow(/GOOGLE_CLIENT_SECRET/);
+    expect(() => loadEnv({ ...required, GOOGLE_CLIENT_SECRET: "secret" })).toThrow(
+      /GOOGLE_CLIENT_ID/,
+    );
+  });
+
   it("rejects an invalid web origin", () => {
     expect(() => loadEnv({ ...required, WEB_ORIGIN: "not-a-url" })).toThrow(/WEB_ORIGIN/);
   });
