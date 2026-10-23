@@ -500,3 +500,18 @@ Pro now costs USD 4 a month and a 50-invoice credit pack costs USD 2. This repla
 - Each payment stores the KES amount charged, the USD price and the rate used. The callback amount check still compares against the stored KES amount.
 - The Billing page shows prices in USD by default, with a USD/KES switch. The choice is kept in the browser. The checkout form always shows the KES amount M-Pesa will charge. Payment history stays in KES because that is what was paid.
 - Invoice currency for freelancers' own invoices is not part of this change and stays KES.
+
+## D055 - Offer Google sign-in next to email and password
+
+Status: confirmed on 2026-10-23.
+
+Sign-in and sign-up now show "Continue with Google" above the email form. This settles the social login deferral the PRD left open. It runs through Better Auth inside the API, like email sign-in (D047).
+
+- Google sign-in is on only when the API has both `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. The web app asks `GET /api/v1/auth-providers` and hides the button when Google is off, so local setups without keys still work.
+- Google redirects back to `<WEB_ORIGIN>/api/v1/auth/callback/google`. The callback goes through the web origin so the session cookie stays first-party.
+- Only the `openid`, `email` and `profile` scopes are requested. Google asks the user to pick an account each time.
+- A new Google user gets an account with a verified email and goes to business setup. A returning Google user goes to the app.
+- Google is never merged into an existing account by matching email. Email sign-ups are not verified, so someone could register another person's address first and keep a way in after the real owner signs in with Google. Those users see a message telling them to sign in with their password. Linking Google to a password account from settings is a later change.
+- Google access, refresh and ID tokens are not stored after sign-in, because Billsafi never calls Google APIs. Token encryption is also on in case a later feature needs to keep them.
+- Failed Google sign-ins return to `/sign-in` with an error code, and the page explains it in plain words.
+- A Google-only user can still set a password through "Forgot password", since that proves they own the inbox.
