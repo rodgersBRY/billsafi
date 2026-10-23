@@ -18,8 +18,9 @@
   --brand-night: #0a363e;
 }
 
+/* The marketing page has no dark design, so it keeps the light tokens. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(:has([data-landing])) {
     --accent: #5fd4c4;
     --background: #142421;
     --panel: #1d302c;
