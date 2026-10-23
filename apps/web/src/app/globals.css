@@ -61,93 +61,164 @@ html:has([data-landing]) {
   }
 }
 
-/* Product tour popover (driver.js), matched to the app palette (D057). */
+/* Product tour popover (driver.js), matched to the app palette (D057).
+   Selectors start with .driver-popover.billsafi-tour so they beat driver.css,
+   which loads later and would otherwise repaint buttons on hover. */
 .driver-popover.billsafi-tour {
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   background: var(--panel);
   color: var(--ink);
   border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 18px;
-  max-width: min(320px, calc(100vw - 32px));
-  box-shadow: 0 12px 32px rgb(0 0 0 / 0.18);
+  border-radius: 12px;
+  padding: 20px;
+  min-width: 300px;
+  max-width: min(360px, calc(100vw - 32px));
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.22);
 }
 
-.billsafi-tour .driver-popover-title {
+.driver-popover.billsafi-tour .driver-popover-title {
+  padding-right: 80px;
   font-size: 16px;
   font-weight: 600;
+  line-height: 1.4;
 }
 
-.billsafi-tour .driver-popover-description {
-  margin-top: 4px;
+.driver-popover.billsafi-tour .driver-popover-description {
+  margin-top: 6px;
   font-size: 14px;
+  line-height: 1.55;
   color: var(--sub);
 }
 
-.billsafi-tour .driver-popover-footer {
+.driver-popover.billsafi-tour .driver-popover-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+/* Progress as dots; the step count stays readable to screen readers. */
+.driver-popover.billsafi-tour .billsafi-tour-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.driver-popover.billsafi-tour .billsafi-tour-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line);
+  transition: width 0.2s ease;
+}
+
+.driver-popover.billsafi-tour .billsafi-tour-dots span[data-active] {
+  width: 16px;
+  background: var(--teal);
+}
+
+.driver-popover.billsafi-tour .billsafi-tour-dots span[data-done] {
+  background: var(--accent);
+  opacity: 0.45;
+}
+
+.driver-popover.billsafi-tour .driver-popover-progress-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.driver-popover.billsafi-tour .driver-popover-navigation-btns {
+  flex-grow: 0;
   gap: 8px;
-  margin-top: 16px;
 }
 
-.billsafi-tour .driver-popover-progress-text {
-  color: var(--sub);
-  font-size: 12px;
+.driver-popover.billsafi-tour .driver-popover-navigation-btns button + button {
+  margin-left: 0;
 }
 
-.billsafi-tour .driver-popover-footer-btn,
-.billsafi-tour .billsafi-tour-skip {
+.driver-popover.billsafi-tour .driver-popover-footer-btn {
   all: unset;
   box-sizing: border-box;
   cursor: pointer;
+  white-space: nowrap;
   border-radius: var(--radius-panel);
-  padding: 7px 12px;
+  padding: 8px 14px;
   font-size: 13px;
   font-weight: 500;
+  line-height: 1.2;
+  text-shadow: none;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 
-.billsafi-tour .driver-popover-prev-btn {
+.driver-popover.billsafi-tour .driver-popover-prev-btn,
+.driver-popover.billsafi-tour .driver-popover-prev-btn:focus {
   border: 1px solid var(--line);
+  background: var(--panel);
   color: var(--ink);
 }
 
-.billsafi-tour .driver-popover-next-btn {
+.driver-popover.billsafi-tour .driver-popover-prev-btn:hover {
+  background: var(--soft);
+  color: var(--ink);
+}
+
+.driver-popover.billsafi-tour .driver-popover-next-btn,
+.driver-popover.billsafi-tour .driver-popover-next-btn:focus {
+  border: 1px solid var(--teal);
   background: var(--teal);
   color: #fff;
-  margin-left: 6px;
 }
 
-.billsafi-tour .billsafi-tour-skip {
+.driver-popover.billsafi-tour .driver-popover-next-btn:hover {
+  background: color-mix(in srgb, var(--teal) 88%, #000);
+  color: #fff;
+}
+
+/* "Skip" sits in the top corner, away from the main actions. */
+.driver-popover.billsafi-tour .billsafi-tour-skip {
+  all: unset;
+  box-sizing: border-box;
+  position: absolute;
+  top: 16px;
+  right: 14px;
+  cursor: pointer;
+  border-radius: var(--radius-panel);
+  padding: 4px 8px;
+  font-size: 13px;
   color: var(--sub);
-  padding-left: 0;
 }
 
-.billsafi-tour .driver-popover-footer-btn:hover,
-.billsafi-tour .billsafi-tour-skip:hover {
-  filter: brightness(0.95);
-}
-
-.billsafi-tour .billsafi-tour-skip:hover {
+.driver-popover.billsafi-tour .billsafi-tour-skip:hover {
+  background: var(--soft);
   color: var(--ink);
 }
 
-.billsafi-tour button:focus-visible {
+.driver-popover.billsafi-tour button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 /* Only the side facing the target is coloured; the rest stay transparent. */
-.billsafi-tour .driver-popover-arrow-side-left {
+.driver-popover.billsafi-tour .driver-popover-arrow-side-left {
   border-left-color: var(--panel);
 }
 
-.billsafi-tour .driver-popover-arrow-side-right {
+.driver-popover.billsafi-tour .driver-popover-arrow-side-right {
   border-right-color: var(--panel);
 }
 
-.billsafi-tour .driver-popover-arrow-side-top {
+.driver-popover.billsafi-tour .driver-popover-arrow-side-top {
   border-top-color: var(--panel);
 }
 
-.billsafi-tour .driver-popover-arrow-side-bottom {
+.driver-popover.billsafi-tour .driver-popover-arrow-side-bottom {
   border-bottom-color: var(--panel);
 }

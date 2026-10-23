@@ -2,8 +2,9 @@
 
 import { Compass, CreditCard, Ellipsis, LogOut, Settings, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { START_TOUR_EVENT } from "@/components/tour/product-tour";
 import { authClient } from "@/lib/auth-client";
 
 function initials(name: string) {
@@ -33,6 +34,7 @@ export function AccountMenu({
   isPro: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [signingOut, setSigningOut] = useState(false);
   const menuRef = useRef<HTMLDetailsElement>(null);
   const item =
@@ -74,6 +76,16 @@ export function AccountMenu({
     if (menuRef.current) menuRef.current.open = false;
   }
 
+  // On the Overview already, start the tour in place; navigating to the same page
+  // with the same props would not restart it.
+  function startTour(event: React.MouseEvent<HTMLAnchorElement>) {
+    closeMenu();
+    if (pathname === tourHref.split("?")[0]) {
+      event.preventDefault();
+      window.dispatchEvent(new Event(START_TOUR_EVENT));
+    }
+  }
+
   async function signOut() {
     setSigningOut(true);
     await authClient.signOut();
@@ -111,7 +123,7 @@ export function AccountMenu({
           Settings
           <Settings aria-hidden className="size-4 text-sub" />
         </Link>
-        <Link href={tourHref} onClick={closeMenu} className={`${item} hover:bg-soft`}>
+        <Link href={tourHref} onClick={startTour} className={`${item} hover:bg-soft`}>
           Take the tour
           <Compass aria-hidden className="size-4 text-sub" />
         </Link>
