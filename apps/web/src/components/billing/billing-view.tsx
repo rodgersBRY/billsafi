@@ -5,7 +5,7 @@ import type {
   SubscriptionPayment,
   SubscriptionPurpose,
 } from "@billsafi/contracts";
-import { CREDIT_PACK, PRO_PLAN } from "@billsafi/domain";
+import { CREDIT_PACK, FREE_PLAN, PRO_PLAN } from "@billsafi/domain";
 import { CircleCheck, CircleX, Smartphone } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -229,7 +229,7 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
               : subscription.status === "cancelled" && subscription.paidUntil
                 ? `Cancelled. Pro stays active until ${formatInstant(subscription.paidUntil)}, then your account returns to Free.`
                 : subscription.paidUntil
-                  ? "Your Pro access has ended. Free allows 10 invoices this calendar month, including any already made Ready on Pro. Your records are all still here."
+                  ? `Your Pro access has ended. Free allows ${FREE_PLAN.invoiceLimit} invoices this calendar month, including any already made Ready on Pro. Your records are all still here.`
                   : "Each invoice counts when first marked Ready. Drafts and payment recording do not use extra allowance."}
           </div>
 
