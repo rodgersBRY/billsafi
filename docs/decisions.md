@@ -487,3 +487,16 @@ The product is now called Billsafi, written with only the first letter capitalis
 - Earlier decision entries and the packaged design previews keep the TallyNest name as a record of when they were made.
 
 Name, domain, and trademark availability for Billsafi have not been checked.
+
+## D054 - Price plans in USD and charge KES at the daily rate
+
+Status: confirmed on 2026-10-23.
+
+Pro now costs USD 4 a month and a 50-invoice credit pack costs USD 2. This replaces the KES 500 and KES 250 prices in D020 and D051. Invoice allowances do not change.
+
+- M-Pesa only takes KES, so each checkout converts the USD price at the current USD to KES rate and rounds up to a whole shilling. At 129.87 that gives KES 520 for Pro and KES 260 for credits.
+- The API reads the rate from the free daily feed at open.er-api.com (ExchangeRate-API) and checks it at most once an hour. If the feed is down it retries after five minutes. A rate older than 48 hours is not used, and checkout is refused with `RATE_UNAVAILABLE` until a fresh one arrives.
+- `USD_KES_RATE` pins the rate. Tests use it, and operators can set it if the feed fails for a long time.
+- Each payment stores the KES amount charged, the USD price and the rate used. The callback amount check still compares against the stored KES amount.
+- The Billing page shows prices in USD by default, with a USD/KES switch. The choice is kept in the browser. The checkout form always shows the KES amount M-Pesa will charge. Payment history stays in KES because that is what was paid.
+- Invoice currency for freelancers' own invoices is not part of this change and stays KES.

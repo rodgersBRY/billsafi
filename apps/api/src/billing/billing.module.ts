@@ -5,6 +5,7 @@ import { AllowanceService } from "./allowance.service.js";
 import { BillingController, MpesaCallbackController } from "./billing.controller.js";
 import { BillingJobs } from "./billing.jobs.js";
 import { BillingService } from "./billing.service.js";
+import { ExchangeRateService } from "./exchange-rate.service.js";
 import { DarajaMpesaProvider } from "./mpesa/daraja.provider.js";
 import { FakeMpesaProvider } from "./mpesa/fake.provider.js";
 import {
@@ -32,6 +33,7 @@ export function createMpesaProvider(env: Env): MpesaProvider {
     AllowanceService,
     BillingService,
     BillingJobs,
+    ExchangeRateService,
     { provide: MPESA_PROVIDER, inject: [ENV], useFactory: createMpesaProvider },
   ],
   exports: [AllowanceService],

@@ -36,8 +36,26 @@ export interface SubscriptionPayment {
  */
 export type SubscriptionStatus = "free" | "active" | "cancelled";
 
+export interface PurposePrices {
+  pro_month: string;
+  invoice_credits: string;
+}
+
+/**
+ * Plan prices are set in USD. M-Pesa charges the KES amount at the current
+ * exchange rate, so `kes` and `usdKesRate` are null while no rate is available.
+ */
+export interface PlanPrices {
+  usd: PurposePrices;
+  kes: PurposePrices | null;
+  usdKesRate: string | null;
+  /** When the rate source last updated the rate. */
+  rateUpdatedAt: string | null;
+}
+
 export interface BillingOverview {
   usage: AllowanceUsage;
+  prices: PlanPrices;
   subscription: {
     status: SubscriptionStatus;
     paidUntil: string | null;

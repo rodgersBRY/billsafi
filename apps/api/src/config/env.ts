@@ -26,6 +26,11 @@ const envSchema = z
     MPESA_CALLBACK_URL: z.url({ protocol: /^https$/ }).optional(),
     /** Secret path segment that marks a callback as coming from our own STK request. */
     MPESA_CALLBACK_TOKEN: z.string().min(24, "Use at least 24 random characters").optional(),
+    /**
+     * Pins the USD to KES rate used for plan prices. Leave unset to use the
+     * daily published rate; set it for tests or if the rate source is down.
+     */
+    USD_KES_RATE: z.coerce.number().positive().optional(),
     /** Sentry project DSN for API errors; reporting is off when unset (D052). */
     SENTRY_DSN: z.url().optional(),
     /** Runs the renewal reminder job inside the API process. */

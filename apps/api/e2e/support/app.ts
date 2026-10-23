@@ -15,6 +15,8 @@ loadRootEnvFile();
 process.env.MPESA_ENV = "fake";
 process.env.MPESA_CALLBACK_TOKEN = "e2e-callback-token-0123456789";
 process.env.BILLING_JOBS = "off";
+// A pinned rate keeps charges predictable: USD 4 is KES 500, USD 2 is KES 250.
+process.env.USD_KES_RATE = "125";
 
 export const WEB_ORIGIN = "http://localhost:3000";
 

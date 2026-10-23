@@ -36,6 +36,13 @@
       "when": 1792239207145,
       "tag": "0004_business_logos",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792743555790,
+      "tag": "0005_usd_pricing",
+      "breakpoints": true
     }
   ]
 }
