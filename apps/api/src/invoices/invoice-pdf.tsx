@@ -1,6 +1,6 @@
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { PublicInvoice } from "@billsafi/contracts";
-import { billToLines, formatKenyanPhone } from "@billsafi/domain";
+import { billToLines, formatPhone } from "@billsafi/domain";
 import type { InvoiceLogo } from "./branding.service.js";
 
 // White page, dark text, neutral headings, thin grey dividers, bold totals (D031).
@@ -107,9 +107,9 @@ export function InvoicePdf({
             )}
             <Text style={styles.businessName}>{business.displayName}</Text>
             <Text style={styles.muted}>{business.contactEmail}</Text>
-            <Text style={styles.muted}>{formatKenyanPhone(business.phone)}</Text>
+            <Text style={styles.muted}>{formatPhone(business.phone)}</Text>
             {business.address && <Text style={styles.muted}>{business.address}</Text>}
-            {business.kraPin && <Text style={styles.muted}>KRA PIN {business.kraPin}</Text>}
+            {business.kraPin && <Text style={styles.muted}>Tax ID {business.kraPin}</Text>}
           </View>
           <View>
             <Text style={[styles.label, { textAlign: "right" }]}>INVOICE</Text>

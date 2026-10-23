@@ -1,7 +1,7 @@
 "use client";
 
 import { importGuestInvoiceSchema } from "@billsafi/contracts";
-import { normalizeKenyanPhone } from "@billsafi/domain";
+import { normalizePhone } from "@billsafi/domain";
 import { Download } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
@@ -197,7 +197,7 @@ export function GuestInvoiceForm({ google }: { google: ReactNode }) {
             business={{
               displayName: business.displayName.trim() || "Your business",
               contactEmail: business.contactEmail,
-              phone: normalizeKenyanPhone(business.phone) ?? "",
+              phone: normalizePhone(business.phone) ?? "",
               address: business.address.trim() || null,
               kraPin: business.kraPin.trim() || null,
               logoKey: null,

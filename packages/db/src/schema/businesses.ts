@@ -39,7 +39,7 @@ export const businesses = pgTable(
   },
   (table) => [
     index("businesses_owner_user_id_idx").on(table.ownerUserId),
-    check("businesses_phone_format", sql`${table.phone} ~ '^\\+254[17][0-9]{8}$'`),
+    check("businesses_phone_format", sql`${table.phone} ~ '^\\+[1-9][0-9]{7,14}$'`),
     check(
       "businesses_payment_terms_range",
       sql`${table.defaultPaymentTermsDays} between 0 and 365`,

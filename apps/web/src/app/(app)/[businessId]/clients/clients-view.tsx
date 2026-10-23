@@ -1,7 +1,7 @@
 "use client";
 
 import type { Client } from "@billsafi/contracts";
-import { formatKenyanPhone } from "@billsafi/domain";
+import { formatPhone } from "@billsafi/domain";
 import { Archive, Pencil, Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -138,7 +138,7 @@ export function ClientsView({ businessId, clients, status, search }: ClientsView
                   </div>
                 </div>
                 <div className="hidden min-w-0 text-sm text-sub sm:block">
-                  <p>{formatKenyanPhone(client.phone)}</p>
+                  <p>{formatPhone(client.phone)}</p>
                   {client.email && <p className="truncate">{client.email}</p>}
                 </div>
                 <div className="flex gap-1">

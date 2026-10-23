@@ -1,5 +1,6 @@
 "use client";
 
+import { editablePhone } from "@billsafi/domain";
 import { type Business, type BusinessProfileType, updateBusinessSchema } from "@billsafi/contracts";
 import { ImageUp, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -15,12 +16,6 @@ import { type Errors, issuesToErrors } from "./form-errors";
 
 const LOGO_MAX_BYTES = 512 * 1024;
 
-/** Shows a stored +2547XXXXXXXX number as 07XX XXX XXX for editing. */
-function localPhone(stored: string): string {
-  const local = `0${stored.slice(4)}`;
-  return `${local.slice(0, 4)} ${local.slice(4, 7)} ${local.slice(7)}`;
-}
-
 export function ProfileSettings({ business }: { business: Business }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -31,7 +26,7 @@ export function ProfileSettings({ business }: { business: Business }) {
   const [details, setDetails] = useState({
     displayName: business.displayName,
     contactEmail: business.contactEmail,
-    phone: localPhone(business.phone),
+    phone: editablePhone(business.phone),
     address: business.address ?? "",
     kraPin: business.kraPin ?? "",
   });
@@ -210,7 +205,7 @@ export function ProfileSettings({ business }: { business: Business }) {
           <TextField
             label="Phone"
             type="tel"
-            placeholder="07XX XXX XXX"
+            placeholder="+44 20 7946 0958"
             value={details.phone}
             onChange={update("phone")}
             error={errors.phone}
@@ -225,7 +220,7 @@ export function ProfileSettings({ business }: { business: Business }) {
           autoComplete="street-address"
         />
         <TextField
-          label="KRA PIN · Optional"
+          label="Tax ID · Optional"
           value={details.kraPin}
           onChange={update("kraPin")}
           error={errors.kraPin}

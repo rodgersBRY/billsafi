@@ -22,7 +22,7 @@ test("new account sets up a business, payment details and lands on the overview"
   await expect(page.getByLabel("Contact email").filter({ visible: true })).toHaveValue(email);
 
   await page.getByRole("button", { name: "Continue" }).click();
-  await expect(page.getByText("Enter a Kenyan mobile number")).toBeVisible();
+  await expect(page.getByText("Enter a phone number with its country code")).toBeVisible();
 
   await page.getByRole("button", { name: "Business", exact: true }).click();
   await page.getByLabel("Display name").filter({ visible: true }).fill("Wanjiku Designs");
