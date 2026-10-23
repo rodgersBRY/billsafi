@@ -18,7 +18,7 @@ test("a new account takes the tour once and it stays done after a reload", async
   await reachOverview(page);
 
   const tour = tourDialog(page);
-  await expect(tour).toHaveAccessibleName("Welcome to Billsafi");
+  await expect(tour).toHaveAccessibleName("Welcome to BillSafi");
   await tour.getByRole("button", { name: "Show me around" }).click();
   await expect(tour).toHaveAccessibleName("Your money at a glance");
   await tour.getByRole("button", { name: "Next" }).click();
@@ -59,7 +59,7 @@ test("a skipped tour can be replayed from the account menu", async ({ page }) =>
   // From the Overview itself, twice in a row, without a reload.
   for (let round = 0; round < 2; round++) {
     await takeTour();
-    await expect(tour).toHaveAccessibleName("Welcome to Billsafi");
+    await expect(tour).toHaveAccessibleName("Welcome to BillSafi");
     await page.keyboard.press("Escape");
     await expect(tour).toBeHidden();
   }
@@ -68,7 +68,7 @@ test("a skipped tour can be replayed from the account menu", async ({ page }) =>
   await page.getByRole("link", { name: "Clients" }).click();
   await expect(page).toHaveURL(/\/clients$/);
   await takeTour();
-  await expect(tour).toHaveAccessibleName("Welcome to Billsafi");
+  await expect(tour).toHaveAccessibleName("Welcome to BillSafi");
   await expect(page).toHaveURL(/\/overview$/);
   await page.keyboard.press("Escape");
   await expect(tour).toBeHidden();

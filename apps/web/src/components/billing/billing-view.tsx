@@ -516,7 +516,7 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
         </h2>
         {billing.payments.length === 0 ? (
           <p className="border-t border-line p-5 text-sm text-sub">
-            Your M-Pesa payments to Billsafi will show here.
+            Your M-Pesa payments to BillSafi will show here.
           </p>
         ) : (
           <table className="w-full text-sm">

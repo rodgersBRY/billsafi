@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Billsafi",
-    short_name: "Billsafi",
+    name: "BillSafi",
+    short_name: "BillSafi",
     description: "Invoicing for Kenyan freelancers and independent professionals.",
     start_url: "/",
     display: "standalone",

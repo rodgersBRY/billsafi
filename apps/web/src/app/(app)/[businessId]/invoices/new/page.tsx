@@ -4,7 +4,7 @@ import { BrandLoader } from "@/components/brand/brand-loader";
 import { NewInvoiceEditor } from "@/components/invoices/invoice-editor";
 import { loadEditorData } from "../editor-data";
 
-export const metadata: Metadata = { title: "New invoice · Billsafi" };
+export const metadata: Metadata = { title: "New invoice · BillSafi" };
 
 async function NewInvoice({ params }: { params: Promise<{ businessId: string }> }) {
   const data = await loadEditorData((await params).businessId);

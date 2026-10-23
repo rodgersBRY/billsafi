@@ -3,7 +3,7 @@
 /* Set on <html> before hydration while the post-login intro splash is queued. */
 @custom-variant intro (html[data-intro] &);
 
-/* Palette taken from the approved Billsafi dashboard design (docs/designs). */
+/* Palette taken from the approved BillSafi dashboard design (docs/designs). */
 :root {
   --teal: #0f766e;
   /* Teal for text and icons; lightened in dark mode to keep contrast (D052). */

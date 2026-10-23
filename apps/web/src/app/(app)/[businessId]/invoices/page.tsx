@@ -8,7 +8,7 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { listInvoices } from "@/lib/server-api/invoices";
 import { formatAmount, formatDate } from "@/lib/format";
 
-export const metadata: Metadata = { title: "Invoices · Billsafi" };
+export const metadata: Metadata = { title: "Invoices · BillSafi" };
 
 type Filter = InvoiceStatus | "overdue";
 const FILTERS: Filter[] = [...invoiceStatuses, "overdue"];

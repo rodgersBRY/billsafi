@@ -336,7 +336,7 @@ describe("billing", () => {
     await billing.sendReminders();
     const forActive = mailer.sent.filter((message) => message.to === active.email);
     expect(forActive).toHaveLength(1);
-    expect(forActive[0]!.subject).toBe("Your Billsafi Pro ends soon");
+    expect(forActive[0]!.subject).toBe("Your BillSafi Pro ends soon");
     expect(mailer.sent.some((message) => message.to === cancelled.email)).toBe(false);
     expect((await active.overview()).subscription.renewalDue).toBe(true);
   });

@@ -4,7 +4,7 @@ import { BrandLoader } from "@/components/brand/brand-loader";
 import { listClients } from "@/lib/server-api/clients";
 import { ClientsView } from "./clients-view";
 
-export const metadata: Metadata = { title: "Clients · Billsafi" };
+export const metadata: Metadata = { title: "Clients · BillSafi" };
 
 async function Clients({ params, searchParams }: PageProps<"/[businessId]/clients">) {
   const [{ businessId }, query] = await Promise.all([params, searchParams]);

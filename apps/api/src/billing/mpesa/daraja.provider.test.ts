@@ -40,7 +40,7 @@ describe("DarajaMpesaProvider", () => {
     const accepted = await provider.stkPush({
       amount: 500,
       phone: "254708374149",
-      accountReference: "Billsafi",
+      accountReference: "BillSafi",
       description: "Pro month",
     });
 
@@ -110,7 +110,7 @@ describe("DarajaMpesaProvider", () => {
       provider.stkPush({
         amount: 500,
         phone: "1",
-        accountReference: "Billsafi",
+        accountReference: "BillSafi",
         description: "Pro",
       }),
     ).rejects.toThrow("Bad Request - Invalid PhoneNumber");

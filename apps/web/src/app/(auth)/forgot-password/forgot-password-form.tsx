@@ -35,7 +35,7 @@ export function ForgotPasswordForm() {
       <div>
         <AuthHeading
           title="Check your email"
-          description={`If ${sentTo} has a Billsafi account, a reset link is on its way. The link works for one hour.`}
+          description={`If ${sentTo} has a BillSafi account, a reset link is on its way. The link works for one hour.`}
         />
         <Link href="/sign-in" className="mt-6 inline-block text-sm text-accent hover:underline">
           Back to sign in

@@ -22,7 +22,7 @@ export interface PreviewProps {
   overdue?: boolean;
   /** Where the business logo is served from, when it has one (D052). */
   logoSrc?: string | null;
-  /** "Created with Billsafi" for Free accounts on the public page (D052). */
+  /** "Created with BillSafi" for Free accounts on the public page (D052). */
   showBranding?: boolean;
 }
 
@@ -170,7 +170,7 @@ export function InvoicePreview(props: PreviewProps) {
 
       {props.showBranding && (
         <p className="mt-6 border-t border-line pt-3 text-center text-xs text-sub">
-          Created with Billsafi
+          Created with BillSafi
         </p>
       )}
     </article>

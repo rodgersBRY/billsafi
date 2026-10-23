@@ -84,7 +84,7 @@ export function IntroSplash() {
 
   return (
     <div
-      aria-label="Welcome to Billsafi"
+      aria-label="Welcome to BillSafi"
       onClick={finish}
       className={`fixed inset-0 z-50 place-items-center bg-brand-night transition-opacity duration-300 intro:grid ${
         visible ? "grid" : "hidden"

@@ -194,7 +194,7 @@ export function InvoicePdf({
         <View style={styles.footer} fixed>
           <Text>
             {invoice.invoiceNumber}
-            {invoice.showBranding && " · Created with Billsafi"}
+            {invoice.showBranding && " · Created with BillSafi"}
           </Text>
           <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
         </View>

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { FinishImport } from "@/components/generator/finish-import";
 
 export const metadata: Metadata = {
-  title: "Saving your invoice · Billsafi",
+  title: "Saving your invoice · BillSafi",
   robots: { index: false },
 };
 

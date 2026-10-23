@@ -7,7 +7,7 @@ type BrandLoaderProps = {
   className?: string;
 };
 
-/** Pulsing Billsafi badge while a page loads. */
+/** Pulsing BillSafi badge while a page loads. */
 export function BrandLoader({ label = "Loading", className = "" }: BrandLoaderProps) {
   return (
     <div

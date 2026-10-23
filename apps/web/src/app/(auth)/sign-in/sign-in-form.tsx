@@ -59,7 +59,7 @@ export function SignInForm({ google }: { google?: React.ReactNode }) {
         Sign in
       </Button>
       <p className="mt-6 text-center text-sm text-sub">
-        New to Billsafi?{" "}
+        New to BillSafi?{" "}
         <Link href="/sign-up" className="text-accent hover:underline">
           Create an account
         </Link>

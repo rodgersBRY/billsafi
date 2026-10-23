@@ -31,7 +31,7 @@ const PROVIDER_TOKEN_FIELDS = [
 ] as const;
 
 /**
- * Google tokens are only needed during the sign-in round trip; Billsafi never calls Google
+ * Google tokens are only needed during the sign-in round trip; BillSafi never calls Google
  * APIs, so they are not kept. Password rows never carry these fields and pass through.
  */
 async function dropProviderTokens<T extends Record<string, unknown>>(account: T) {
@@ -57,7 +57,7 @@ export function createAuth({ db, env, mailer }: AuthDependencies) {
       : undefined;
 
   return betterAuth({
-    appName: "Billsafi",
+    appName: "BillSafi",
     baseURL: env.WEB_ORIGIN,
     basePath: AUTH_BASE_PATH,
     secret: env.BETTER_AUTH_SECRET,

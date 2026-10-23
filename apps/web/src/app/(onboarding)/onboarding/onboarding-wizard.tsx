@@ -237,7 +237,7 @@ export function OnboardingWizard({ user, isAdditionalBusiness }: Props) {
         <Stepper current={3} />
         <StepPanel
           title="Tell clients how to pay you."
-          description="These instructions appear on your invoices. Clients pay you outside Billsafi."
+          description="These instructions appear on your invoices. Clients pay you outside BillSafi."
         >
           <form method="post" onSubmit={savePayment} noValidate>
             <SelectField

@@ -7,16 +7,16 @@ import { GuestInvoiceForm } from "@/components/generator/guest-invoice-form";
 import { BrandMark } from "@/components/ui/brand-mark";
 
 export const metadata: Metadata = {
-  title: "Free invoice generator for Kenyan freelancers · Billsafi",
+  title: "Free invoice generator for Kenyan freelancers · BillSafi",
   description:
-    "Make a professional invoice in your browser. Add your details, your client and what you're billing for, then save it as a PDF with a free Billsafi account.",
+    "Make a professional invoice in your browser. Add your details, your client and what you're billing for, then save it as a PDF with a free BillSafi account.",
 };
 
 export default function FreeInvoiceGeneratorPage() {
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pb-16 sm:px-6">
       <header className="flex items-center justify-between py-4">
-        <Link href="/" aria-label="Billsafi home">
+        <Link href="/" aria-label="BillSafi home">
           <BrandMark />
         </Link>
         <Link href="/sign-in" className="text-sm font-medium text-accent hover:underline">
