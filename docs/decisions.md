@@ -544,10 +544,11 @@ User: "I want to introduce a product tour to this system once a user is authenti
 Signed-in users now get a short tour of the Overview page and a checklist of first steps. The design is in [the product tour spec](superpowers/specs/2026-10-23-product-tour-design.md).
 
 - Every account sees the tour once, including accounts created before this change. It starts on the Overview page after the intro splash.
-- The tour has five steps: welcome, the totals, Create invoice, the Invoices and Clients links, and the usage meter. A sixth step points to Settings when no business on the account has payment instructions.
+- The tour has six steps: welcome, the totals, Create invoice, the Invoices and Clients links, the usage meter, and the account menu. When no business on the account has payment instructions, the last step also points to Settings.
 - On small screens, steps that point at the hidden sidebar show as a centred card.
 - Finishing or skipping is saved on the server in `user_product_tours`, so the tour does not return on another device. "Take the tour" in the account menu replays it.
 - Each tour has a version. Raising it shows the tour again to everyone.
 - The checklist covers the whole account: add a client, create an invoice, share an invoice, add payment instructions, and record a payment. An item is done when any business on the account has done it.
+- The checklist floats at the bottom right of every app page. It opens as a list on the Overview and stays a small pill elsewhere so it does not cover page actions.
 - The checklist is hidden once every item is done or the user dismisses it. Dismissal is saved in the same table.
 - The tour uses driver.js.
