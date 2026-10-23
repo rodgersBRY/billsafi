@@ -41,6 +41,8 @@ export function IntroSplash() {
   // Layout effect so client-side navigation after login shows the splash before paint.
   useLayoutEffect(() => {
     if (takeQueuedIntro()) {
+      // Also marks client-side arrivals, so the product tour waits for the splash (D057).
+      document.documentElement.dataset.intro = "";
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reads browser-only storage once on mount
       setPhase("playing");
     } else {

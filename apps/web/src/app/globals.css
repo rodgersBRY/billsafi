@@ -60,3 +60,94 @@ html:has([data-landing]) {
     scroll-behavior: auto;
   }
 }
+
+/* Product tour popover (driver.js), matched to the app palette (D057). */
+.driver-popover.billsafi-tour {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px;
+  max-width: min(320px, calc(100vw - 32px));
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.18);
+}
+
+.billsafi-tour .driver-popover-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.billsafi-tour .driver-popover-description {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--sub);
+}
+
+.billsafi-tour .driver-popover-footer {
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.billsafi-tour .driver-popover-progress-text {
+  color: var(--sub);
+  font-size: 12px;
+}
+
+.billsafi-tour .driver-popover-footer-btn,
+.billsafi-tour .billsafi-tour-skip {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  border-radius: var(--radius-panel);
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.billsafi-tour .driver-popover-prev-btn {
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.billsafi-tour .driver-popover-next-btn {
+  background: var(--teal);
+  color: #fff;
+  margin-left: 6px;
+}
+
+.billsafi-tour .billsafi-tour-skip {
+  color: var(--sub);
+  padding-left: 0;
+}
+
+.billsafi-tour .driver-popover-footer-btn:hover,
+.billsafi-tour .billsafi-tour-skip:hover {
+  filter: brightness(0.95);
+}
+
+.billsafi-tour .billsafi-tour-skip:hover {
+  color: var(--ink);
+}
+
+.billsafi-tour button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Only the side facing the target is coloured; the rest stay transparent. */
+.billsafi-tour .driver-popover-arrow-side-left {
+  border-left-color: var(--panel);
+}
+
+.billsafi-tour .driver-popover-arrow-side-right {
+  border-right-color: var(--panel);
+}
+
+.billsafi-tour .driver-popover-arrow-side-top {
+  border-top-color: var(--panel);
+}
+
+.billsafi-tour .driver-popover-arrow-side-bottom {
+  border-bottom-color: var(--panel);
+}

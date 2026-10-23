@@ -1,6 +1,6 @@
 "use client";
 
-import { CreditCard, Ellipsis, LogOut, Settings, Sparkles } from "lucide-react";
+import { Compass, CreditCard, Ellipsis, LogOut, Settings, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -21,12 +21,15 @@ export function AccountMenu({
   email,
   billingHref,
   settingsHref,
+  tourHref,
   isPro,
 }: {
   name: string;
   email: string;
   billingHref: string;
   settingsHref: string;
+  /** Overview with the product tour queued (D057). */
+  tourHref: string;
   isPro: boolean;
 }) {
   const router = useRouter();
@@ -79,7 +82,7 @@ export function AccountMenu({
   }
 
   return (
-    <details ref={menuRef} className="group relative">
+    <details ref={menuRef} data-tour="account-menu" className="group relative">
       <summary
         aria-label={`Account menu for ${name}`}
         className="flex cursor-pointer list-none items-center gap-2.5 rounded-lg p-2 hover:bg-soft group-open:bg-soft"
@@ -107,6 +110,10 @@ export function AccountMenu({
         <Link href={settingsHref} onClick={closeMenu} className={`${item} hover:bg-soft`}>
           Settings
           <Settings aria-hidden className="size-4 text-sub" />
+        </Link>
+        <Link href={tourHref} onClick={closeMenu} className={`${item} hover:bg-soft`}>
+          Take the tour
+          <Compass aria-hidden className="size-4 text-sub" />
         </Link>
         <button
           type="button"

@@ -30,6 +30,7 @@ async function Sidebar({ params }: { params: Promise<{ businessId: string }> }) 
           email={user.email}
           billingHref={`/${businessId}/billing`}
           settingsHref={`/${businessId}/settings`}
+          tourHref={`/${businessId}/overview?tour=1`}
           isPro={usage.plan === "pro"}
         />
         <p className="px-1 text-xs text-sub">Billsafi v{process.env.NEXT_PUBLIC_APP_VERSION}</p>
