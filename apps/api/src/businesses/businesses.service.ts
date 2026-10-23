@@ -7,6 +7,7 @@ import type {
 import { and, asc, type DatabaseConnection, eq, schema } from "@billsafi/db";
 import type { z } from "zod";
 import { DATABASE } from "../database/database.module.js";
+import type { Executor } from "../database/transaction.js";
 
 const { businesses, businessPaymentInstructions, businessLogos } = schema;
 
@@ -37,8 +38,8 @@ export class BusinessesService {
       .orderBy(asc(businesses.createdAt));
   }
 
-  async create(ownerUserId: string, input: CreateBusiness) {
-    const [business] = await this.db
+  async create(ownerUserId: string, input: CreateBusiness, db: Executor = this.db) {
+    const [business] = await db
       .insert(businesses)
       .values({ ...input, ownerUserId })
       .returning();
