@@ -11,7 +11,8 @@ import { authClient } from "@/lib/auth-client";
 
 const MIN_PASSWORD_LENGTH = 8;
 
-export function SignUpForm() {
+/** `google` is the server-rendered "Continue with Google" block, when available. */
+export function SignUpForm({ google }: { google?: React.ReactNode }) {
   const router = useRouter();
   const [errors, setErrors] = useState<{ name?: string; password?: string; form?: string }>({});
   const [pending, setPending] = useState(false);
@@ -51,6 +52,7 @@ export function SignUpForm() {
       title="Make room for your next project."
       description="Create your account to get started."
     >
+      {google}
       <form method="post" onSubmit={onSubmit}>
         <TextField label="Full name" name="name" autoComplete="name" error={errors.name} required />
         <TextField label="Email address" name="email" type="email" autoComplete="email" required />
