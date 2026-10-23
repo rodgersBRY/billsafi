@@ -22,7 +22,17 @@ function googleErrorMessage(code: string | null): string {
   }
 }
 
-export function GoogleSignInButton() {
+interface GoogleSignInButtonProps {
+  /** Where returning users land after Google. */
+  callbackURL?: string;
+  /** Where first-time users land after Google. */
+  newUserCallbackURL?: string;
+}
+
+export function GoogleSignInButton({
+  callbackURL = "/",
+  newUserCallbackURL = "/onboarding",
+}: GoogleSignInButtonProps) {
   const searchParams = useSearchParams();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(() => googleErrorMessage(searchParams.get("error")));
@@ -35,8 +45,8 @@ export function GoogleSignInButton() {
     const { error } = await authClient.signIn.social({
       provider: "google",
       // Relative paths only; the API refuses redirects to other origins.
-      callbackURL: "/",
-      newUserCallbackURL: "/onboarding",
+      callbackURL,
+      newUserCallbackURL,
       errorCallbackURL: "/sign-in",
     });
     // On success the browser is already leaving for Google.
