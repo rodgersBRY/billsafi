@@ -64,7 +64,7 @@ export async function latestEmailText(to: string): Promise<string> {
 
 /** A new account's first Overview visit starts the product tour (D057); skip it. */
 export async function skipTour(page: Page) {
-  const tour = page.getByRole("dialog", { name: "Welcome to Billsafi" });
+  const tour = page.getByRole("dialog", { name: "Welcome to BillSafi" });
   await expect(tour).toBeVisible();
   await tour.getByRole("button", { name: "Skip tour" }).click();
   await expect(tour).toBeHidden();

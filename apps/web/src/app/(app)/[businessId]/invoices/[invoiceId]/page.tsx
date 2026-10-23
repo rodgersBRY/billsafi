@@ -8,7 +8,7 @@ import { getInvoice, getInvoiceLink, listPayments } from "@/lib/server-api/invoi
 import { todayInNairobi } from "@/lib/format";
 import { loadEditorData } from "../editor-data";
 
-export const metadata: Metadata = { title: "Invoice · Billsafi" };
+export const metadata: Metadata = { title: "Invoice · BillSafi" };
 
 type Params = Promise<{ businessId: string; invoiceId: string }>;
 

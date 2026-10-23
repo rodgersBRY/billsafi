@@ -1,5 +1,6 @@
 "use client";
 
+import { editablePhone } from "@billsafi/domain";
 import { type Client, createClientSchema } from "@billsafi/contracts";
 import { ChevronDown, Info } from "lucide-react";
 import { useState } from "react";
@@ -17,14 +18,10 @@ interface ClientFormProps {
   onCancel: () => void;
 }
 
-function display(phone: string) {
-  return phone.startsWith("+254") ? `0${phone.slice(4)}` : phone;
-}
-
 export function ClientForm({ businessId, client, onSaved, onCancel }: ClientFormProps) {
   const [values, setValues] = useState({
     name: client?.name ?? "",
-    phone: client ? display(client.phone) : "",
+    phone: client ? editablePhone(client.phone) : "",
     email: client?.email ?? "",
     companyName: client?.companyName ?? "",
     address: client?.address ?? "",
@@ -74,7 +71,7 @@ export function ClientForm({ businessId, client, onSaved, onCancel }: ClientForm
     <form method="post" onSubmit={onSubmit} noValidate>
       <p className="mt-4 text-xs text-sub">Name and phone are required.</p>
       <TextField label="Client name" autoComplete="off" {...field("name")} />
-      <TextField label="Phone" type="tel" placeholder="07XX XXX XXX" {...field("phone")} />
+      <TextField label="Phone" type="tel" placeholder="+44 20 7946 0958" {...field("phone")} />
       <TextField label="Email · Optional" type="email" {...field("email")} />
       <TextField label="Company name · Optional" {...field("companyName")} />
       <details className="group mt-4 text-sub" open={Boolean(client?.address || client?.kraPin)}>
@@ -83,7 +80,7 @@ export function ClientForm({ businessId, client, onSaved, onCancel }: ClientForm
           More details · Optional
         </summary>
         <TextField label="Address" {...field("address")} />
-        <TextField label="KRA PIN" {...field("kraPin")} />
+        <TextField label="Tax ID" {...field("kraPin")} />
       </details>
       {client && (
         <p className="mt-4 flex gap-2 rounded-panel bg-soft p-3 text-xs text-sub">

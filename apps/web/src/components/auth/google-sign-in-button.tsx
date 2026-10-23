@@ -14,7 +14,7 @@ function googleErrorMessage(code: string | null): string {
     case null:
       return "";
     case "account_not_linked":
-      return "This email already has a Billsafi account with a password. Sign in with your password instead.";
+      return "This email already has a BillSafi account with a password. Sign in with your password instead.";
     case "access_denied":
       return "Google sign-in was cancelled.";
     default:

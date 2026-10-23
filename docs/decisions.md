@@ -474,19 +474,19 @@ Status: confirmed on 2026-10-17 by the user's answers before Phase 5.
 
 This resolves the production email provider and monitoring items left open in D046 and D050, and the logo, dark mode, and footer questions in the brand document's design gaps.
 
-## D053 — Rename the product to Billsafi
+## D053 — Rename the product to BillSafi
 
 Status: confirmed on 2026-10-17.
 
 User: "I mean to change the product name to billsafi since tallynest has a lot of online presence".
 
-The product is now called Billsafi, written with only the first letter capitalised. This supersedes the name chosen in D027; the deep teal colour stays.
+The product is now called BillSafi, written with only the first letter capitalised. This supersedes the name chosen in D027; the deep teal colour stays.
 
-- The rename covers everything: interface copy, emails, PDFs and the public-invoice footer ("Created with Billsafi"), current documentation, workspace packages (`@billsafi/*`), Docker images (`ghcr.io/<owner>/billsafi-*`), database names, and the production folder (`/opt/billsafi`). Nothing was live yet, so nothing needed migrating.
-- Until new brand assets exist, the app uses the document-and-leaf mark without a wordmark, with "Billsafi" written beside it. The logo animation and the old icons, which spell TallyNest, are no longer shown.
+- The rename covers everything: interface copy, emails, PDFs and the public-invoice footer ("Created with BillSafi"), current documentation, workspace packages (`@billsafi/*`), Docker images (`ghcr.io/<owner>/billsafi-*`), database names, and the production folder (`/opt/billsafi`). Nothing was live yet, so nothing needed migrating.
+- Until new brand assets exist, the app uses the document-and-leaf mark without a wordmark, with "BillSafi" written beside it. The logo animation and the old icons, which spell TallyNest, are no longer shown.
 - Earlier decision entries and the packaged design previews keep the TallyNest name as a record of when they were made.
 
-Name, domain, and trademark availability for Billsafi have not been checked.
+Name, domain, and trademark availability for BillSafi have not been checked.
 
 ## D054 - Price plans in USD and charge KES at the daily rate
 
@@ -512,7 +512,7 @@ Sign-in and sign-up now show "Continue with Google" above the email form. This s
 - Only the `openid`, `email` and `profile` scopes are requested. Google asks the user to pick an account each time.
 - A new Google user gets an account with a verified email and goes to business setup. A returning Google user goes to the app.
 - Google is never merged into an existing account by matching email. Email sign-ups are not verified, so someone could register another person's address first and keep a way in after the real owner signs in with Google. Those users see a message telling them to sign in with their password. Linking Google to a password account from settings is a later change.
-- Google access, refresh and ID tokens are not stored after sign-in, because Billsafi never calls Google APIs. Token encryption is also on in case a later feature needs to keep them.
+- Google access, refresh and ID tokens are not stored after sign-in, because BillSafi never calls Google APIs. Token encryption is also on in case a later feature needs to keep them.
 - Failed Google sign-ins return to `/sign-in` with an error code, and the page explains it in plain words.
 - A Google-only user can still set a password through "Forgot password", since that proves they own the inbox.
 
@@ -552,3 +552,16 @@ Signed-in users now get a short tour of the Overview page and a checklist of fir
 - The checklist floats at the bottom right of every app page. It opens as a list on the Overview and stays a small pill elsewhere so it does not cover page actions.
 - The checklist is hidden once every item is done or the user dismisses it. Dismissal is saved in the same table.
 - The tour uses driver.js.
+
+## D058 - Open BillSafi to users outside Kenya
+
+Status: confirmed on 2026-10-23.
+
+User: "remove the word kenya or kenyan from the ladnign page. Everyone should be able to use it" and "Go on to remove kenyan from the rest of the app", then chose to accept international phone numbers and to move the landing page onto the app's teal palette.
+
+- Profile and client phone fields accept any number with a country code (`+` or `00`), stored in E.164 form such as `+442079460958`. Local `07…` and `01…` numbers are still read as Kenyan mobiles so existing users can keep typing them. This replaces the phone rule in D047.
+- M-Pesa numbers stay Kenyan only, for payment instructions and for Pro checkout, because M-Pesa only works with those numbers.
+- The database phone checks on `businesses` and `clients` widen to match (migration `0007_international_phones`). Existing numbers already pass the new check.
+- User-facing text no longer names Kenya. The business "KRA PIN" field is labelled "Tax ID"; the `kra_pin` column keeps its name.
+- Invoices are still in KES only, and Pro is still paid through M-Pesa. Other currencies and payment routes need their own decisions.
+- The landing page uses the app's colour tokens instead of its own palette, so teal `#0F766E` from the brand document is the one primary colour.

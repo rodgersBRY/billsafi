@@ -50,6 +50,13 @@
       "when": 1792765254577,
       "tag": "0006_product_tours",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792769528015,
+      "tag": "0007_international_phones",
+      "breakpoints": true
     }
   ]
 }

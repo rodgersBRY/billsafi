@@ -12,7 +12,7 @@ const envSchema = z
     GOOGLE_CLIENT_ID: z.string().min(1).optional(),
     GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
     SMTP_URL: z.url({ protocol: /^smtps?$/ }),
-    MAIL_FROM: z.string().min(3).default("Billsafi <no-reply@billsafi.local>"),
+    MAIL_FROM: z.string().min(3).default("BillSafi <no-reply@billsafi.local>"),
     /**
      * fake never calls Safaricom; sandbox and production use Daraja; disabled
      * refuses checkout until the Paybill is approved (D051).

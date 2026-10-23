@@ -46,7 +46,7 @@ export interface PublicInvoice {
   notes: string | null;
   /** The logo is served from the public link's /logo path. */
   hasLogo: boolean;
-  /** "Created with Billsafi" shows for Free accounts only (D052). */
+  /** "Created with BillSafi" shows for Free accounts only (D052). */
   showBranding: boolean;
 }
 

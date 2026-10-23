@@ -126,4 +126,4 @@ Allow undoing cancellation before expiry without paying again. Restore active st
 
 ## Selected ORM: Drizzle
 
-Confirmed on 2026-10-15: the user selected Drizzle despite being new to it, requesting teaching as implementation progresses. Use Drizzle with PostgreSQL and Drizzle Kit for versioned migrations. Use a precision-preserving numeric mapping and backend decimal arithmetic; the specific decimal library and compatible dependency versions remain to be selected. This supersedes earlier ORM-selection open items. Explain schema, relationships, queries, transactions, and migrations through Billsafi examples as they are implemented.
+Confirmed on 2026-10-15: the user selected Drizzle despite being new to it, requesting teaching as implementation progresses. Use Drizzle with PostgreSQL and Drizzle Kit for versioned migrations. Use a precision-preserving numeric mapping and backend decimal arithmetic; the specific decimal library and compatible dependency versions remain to be selected. This supersedes earlier ORM-selection open items. Explain schema, relationships, queries, transactions, and migrations through BillSafi examples as they are implemented.

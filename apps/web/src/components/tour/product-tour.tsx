@@ -21,7 +21,7 @@ interface TourStep {
 function tourSteps(paymentInstructionsMissing: boolean): TourStep[] {
   const steps: TourStep[] = [
     {
-      title: "Welcome to Billsafi",
+      title: "Welcome to BillSafi",
       description: "Here's where everything lives. It takes less than a minute.",
     },
     {

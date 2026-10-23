@@ -148,7 +148,7 @@ export function GuestAuthDialog({ open, onClose, google }: GuestAuthDialogProps)
         </Button>
       </form>
       <p className="mt-5 text-center text-sm text-sub">
-        {signUp ? "Already have an account? " : "New to Billsafi? "}
+        {signUp ? "Already have an account? " : "New to BillSafi? "}
         <button
           type="button"
           onClick={() => switchMode(signUp ? "sign-in" : "sign-up")}

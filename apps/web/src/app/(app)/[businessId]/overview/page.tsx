@@ -11,7 +11,7 @@ import { getDashboard } from "@/lib/server-api/invoices";
 import { getGettingStarted, getProductTours } from "@/lib/server-api/product-tours";
 import { formatAmount, formatDate } from "@/lib/format";
 
-export const metadata: Metadata = { title: "Overview · Billsafi" };
+export const metadata: Metadata = { title: "Overview · BillSafi" };
 
 const QUICK_ACTIONS = [
   { label: "Create invoice", icon: FilePlus, path: "invoices/new" },

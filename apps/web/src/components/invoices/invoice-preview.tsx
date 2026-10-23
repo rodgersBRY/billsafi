@@ -1,5 +1,5 @@
 import type { InvoiceBusinessDetails, InvoiceStatus } from "@billsafi/contracts";
-import { billToLines, formatKenyanPhone, type InvoiceCalculation } from "@billsafi/domain";
+import { billToLines, formatPhone, type InvoiceCalculation } from "@billsafi/domain";
 import { StatusPill } from "@/components/ui/status-pill";
 import { formatAmount, formatDate } from "@/lib/format";
 
@@ -22,7 +22,7 @@ export interface PreviewProps {
   overdue?: boolean;
   /** Where the business logo is served from, when it has one (D052). */
   logoSrc?: string | null;
-  /** "Created with Billsafi" for Free accounts on the public page (D052). */
+  /** "Created with BillSafi" for Free accounts on the public page (D052). */
   showBranding?: boolean;
 }
 
@@ -55,9 +55,7 @@ export function InvoicePreview(props: PreviewProps) {
           )}
           <p className="text-base font-semibold">{business.displayName}</p>
           <p className="text-xs text-sub">{business.contactEmail}</p>
-          {business.phone && (
-            <p className="text-xs text-sub">{formatKenyanPhone(business.phone)}</p>
-          )}
+          {business.phone && <p className="text-xs text-sub">{formatPhone(business.phone)}</p>}
           {business.address && <p className="text-xs text-sub">{business.address}</p>}
         </div>
         <div className="text-right">
@@ -170,7 +168,7 @@ export function InvoicePreview(props: PreviewProps) {
 
       {props.showBranding && (
         <p className="mt-6 border-t border-line pt-3 text-center text-xs text-sub">
-          Created with Billsafi
+          Created with BillSafi
         </p>
       )}
     </article>

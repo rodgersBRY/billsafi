@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Billsafi",
-    short_name: "Billsafi",
-    description: "Invoicing for Kenyan freelancers and independent professionals.",
+    name: "BillSafi",
+    short_name: "BillSafi",
+    description: "Invoicing for freelancers and independent professionals.",
     start_url: "/",
     display: "standalone",
     // Matches the logo animation backdrop so the installed-app splash blends into it.

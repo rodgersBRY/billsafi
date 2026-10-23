@@ -48,7 +48,7 @@ export function GuestBusinessFields({
           label="Phone"
           type="tel"
           autoComplete="tel"
-          placeholder="0712 345 678"
+          placeholder="+44 20 7946 0958"
           value={value.phone}
           error={errors["business.phone"]}
           onChange={(event) => set({ phone: event.target.value })}
@@ -62,7 +62,7 @@ export function GuestBusinessFields({
         onChange={(event) => set({ address: event.target.value })}
       />
       <TextField
-        label="KRA PIN · Optional"
+        label="Tax ID · Optional"
         value={value.kraPin}
         error={errors["business.kraPin"]}
         onChange={(event) => set({ kraPin: event.target.value })}

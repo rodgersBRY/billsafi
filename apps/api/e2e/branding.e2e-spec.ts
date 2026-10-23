@@ -90,7 +90,7 @@ describe("logos and invoice branding", () => {
     await api().get(`/api/v1/public/invoices/${token}/pdf`).expect(200);
   });
 
-  it("hides the Billsafi footer for Pro accounts", async () => {
+  it("hides the BillSafi footer for Pro accounts", async () => {
     const account = await setup();
     const token = await account.readyInvoiceLink();
     const db = app.get<DatabaseConnection>(DATABASE).db;

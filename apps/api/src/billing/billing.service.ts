@@ -201,7 +201,7 @@ export class BillingService {
       const accepted = await this.mpesa.stkPush({
         amount: Number(amount),
         phone: input.phone.replace(/^\+/, ""),
-        accountReference: "Billsafi",
+        accountReference: "BillSafi",
         description: input.purpose === "pro_month" ? "Pro month" : "Credits",
       });
       const [updated] = await this.db

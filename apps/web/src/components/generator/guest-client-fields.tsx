@@ -29,7 +29,7 @@ export function GuestClientFields(props: GuestClientFieldsProps) {
         <TextField
           label="Client phone"
           type="tel"
-          placeholder="0712 345 678"
+          placeholder="+44 20 7946 0958"
           value={client.phone}
           error={errors["client.phone"]}
           onChange={(event) => set({ phone: event.target.value })}

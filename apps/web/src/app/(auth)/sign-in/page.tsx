@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { GoogleSignIn } from "@/components/auth/google-sign-in";
 import { SignInForm } from "./sign-in-form";
 
-export const metadata: Metadata = { title: "Sign in · Billsafi" };
+export const metadata: Metadata = { title: "Sign in · BillSafi" };
 
 export default function SignInPage() {
   return (

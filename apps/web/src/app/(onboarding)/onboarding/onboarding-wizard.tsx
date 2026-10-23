@@ -174,7 +174,7 @@ export function OnboardingWizard({ user, isAdditionalBusiness }: Props) {
             <TextField
               label="Phone"
               type="tel"
-              placeholder="07XX XXX XXX"
+              placeholder="+44 20 7946 0958"
               value={details.phone}
               onChange={updateDetail("phone")}
               error={errors.phone}
@@ -196,7 +196,7 @@ export function OnboardingWizard({ user, isAdditionalBusiness }: Props) {
                 autoComplete="street-address"
               />
               <TextField
-                label="KRA PIN"
+                label="Tax ID"
                 value={details.kraPin}
                 onChange={updateDetail("kraPin")}
                 error={errors.kraPin}
@@ -237,7 +237,7 @@ export function OnboardingWizard({ user, isAdditionalBusiness }: Props) {
         <Stepper current={3} />
         <StepPanel
           title="Tell clients how to pay you."
-          description="These instructions appear on your invoices. Clients pay you outside Billsafi."
+          description="These instructions appear on your invoices. Clients pay you outside BillSafi."
         >
           <form method="post" onSubmit={savePayment} noValidate>
             <SelectField
