@@ -1,5 +1,12 @@
 import { expect, type Page, test } from "@playwright/test";
-import { PASSWORD, skipIntro, uniqueEmail, waitUntilInteractive } from "./support";
+import {
+  createFirstBusiness,
+  PASSWORD,
+  signUp,
+  skipIntro,
+  uniqueEmail,
+  waitUntilInteractive,
+} from "./support";
 
 const field = (page: Page, label: string) =>
   page.getByLabel(label, { exact: true }).filter({ visible: true });
@@ -82,4 +89,23 @@ test("build an invoice, sign up, mark it Ready and download the PDF", async ({ p
     share.getByRole("link", { name: "Download PDF" }).click(),
   ]);
   expect(download.suggestedFilename()).toBe("INV-00001.pdf");
+});
+
+test("signed-in visitors save straight to their existing business", async ({ page }) => {
+  await signUp(page, "Achieng Odhiambo", uniqueEmail("generator-signed-in"));
+  await createFirstBusiness(page);
+
+  await openGenerator(page);
+  await field(page, "Display name").fill("Ignored Name");
+  await field(page, "Email").fill("ignored@example.test");
+  await field(page, "Phone").fill("0712 345 678");
+  await field(page, "Client name").fill("Karibu Coffee");
+  await field(page, "Client phone").fill("0722 111 222");
+  await field(page, "Description").fill("Brand refresh");
+  await field(page, "Unit price").fill("24000");
+  await page.getByRole("button", { name: "Save & download" }).click();
+
+  await expect(page).toHaveURL(/\/invoices\/[^/]+\/edit\?from=generator&existing=1$/);
+  await expect(page.getByRole("dialog")).toBeHidden();
+  await expect(page.getByText("The business details you typed weren't used.")).toBeVisible();
 });

@@ -174,6 +174,10 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         return;
       }
       setSaved(isDraft ? "Draft saved." : "Changes saved.");
+      // Drop ?from=generator once they've saved, so the first-visit banner goes away.
+      if (props.fromGenerator && invoice) {
+        router.replace(`/${businessId}/invoices/${invoice.id}/edit`);
+      }
       router.refresh();
     } catch (error) {
       fail(error);

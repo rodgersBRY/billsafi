@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { TextAreaField } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
 import { addDays, todayInNairobi } from "@/lib/format";
+import { authClient } from "@/lib/auth-client";
 import { FINISH_PATH, GuestAuthDialog } from "./guest-auth-dialog";
 import { GuestBusinessFields } from "./guest-business-fields";
 import { GuestClientFields } from "./guest-client-fields";
@@ -114,11 +115,11 @@ export function GuestInvoiceForm({ google }: { google: ReactNode }) {
     return Object.keys(next).length === 0;
   }
 
-  function onSave() {
+  async function onSave() {
     if (!validate()) return;
     writeGuestDraft(toGuestDraft(form));
-    // A visitor sent back by the finish page is already signed in.
-    if (returning) router.push(FINISH_PATH);
+    // Signed-in visitors (including those sent back by the finish page) skip the account step.
+    if (returning || (await hasSession())) router.push(FINISH_PATH);
     else setAuthOpen(true);
   }
 
@@ -227,4 +228,13 @@ export function GuestInvoiceForm({ google }: { google: ReactNode }) {
       <GuestAuthDialog open={authOpen} onClose={() => setAuthOpen(false)} google={google} />
     </>
   );
+}
+
+async function hasSession(): Promise<boolean> {
+  try {
+    const { data } = await authClient.getSession();
+    return Boolean(data?.session);
+  } catch {
+    return false;
+  }
 }
