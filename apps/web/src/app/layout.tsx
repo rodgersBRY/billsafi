@@ -11,7 +11,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "BillSafi",
-  description: "Invoicing for Kenyan freelancers and independent professionals.",
+  description: "Invoicing for freelancers and independent professionals.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

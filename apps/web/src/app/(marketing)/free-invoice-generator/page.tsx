@@ -7,7 +7,7 @@ import { GuestInvoiceForm } from "@/components/generator/guest-invoice-form";
 import { BrandMark } from "@/components/ui/brand-mark";
 
 export const metadata: Metadata = {
-  title: "Free invoice generator for Kenyan freelancers · BillSafi",
+  title: "Free invoice generator for freelancers · BillSafi",
   description:
     "Make a professional invoice in your browser. Add your details, your client and what you're billing for, then save it as a PDF with a free BillSafi account.",
 };
