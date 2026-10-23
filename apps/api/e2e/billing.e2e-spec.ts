@@ -129,6 +129,22 @@ describe("billing", () => {
     const overview = await account.overview();
     expect(overview.subscription.status).toBe("free");
     expect(overview.pendingPayment.id).toBe(response.body.id);
+
+    const [stored] = await db()
+      .select()
+      .from(schema.subscriptionPayments)
+      .where(eq(schema.subscriptionPayments.id, response.body.id));
+    expect(stored).toMatchObject({ priceUsd: "4.00", usdKesRate: "125.000000" });
+  });
+
+  it("prices plans in USD and charges KES at the current rate", async () => {
+    const account = await setup();
+    expect((await account.overview()).prices).toEqual({
+      usd: { pro_month: "4.00", invoice_credits: "2.00" },
+      kes: { pro_month: "500.00", invoice_credits: "250.00" },
+      usdKesRate: "125",
+      rateUpdatedAt: null,
+    });
   });
 
   it("activates Pro once and carries Free usage into the first period", async () => {
