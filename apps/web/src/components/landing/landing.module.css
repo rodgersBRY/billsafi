@@ -17,7 +17,7 @@
   color: var(--navy);
   background: #fff;
   font-family: var(--font-dm-sans), sans-serif;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.65;
   /* The root layout antialiases; the approved concept uses default smoothing. */
   -webkit-font-smoothing: auto;
@@ -138,7 +138,7 @@
 .nav {
   display: flex;
   gap: 31px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
 }
 
@@ -157,7 +157,7 @@
 }
 
 .signIn {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
 }
 
@@ -174,7 +174,7 @@
 
 .page .returning {
   margin: 14px 0 0;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text);
 }
 
@@ -196,7 +196,7 @@
   gap: 24px;
   padding: 14px 21px;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 15px;
   transition:
     transform 0.2s,
     background 0.2s;
@@ -222,8 +222,8 @@
 }
 
 .small {
-  padding: 11px 18px;
-  font-size: 12px;
+  padding: 12px 18px;
+  font-size: 14px;
 }
 
 .outline {
@@ -239,7 +239,7 @@
   border: 0;
   color: var(--navy);
   font-weight: 600;
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .textButton {
@@ -270,9 +270,9 @@
 }
 
 .eyebrow {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 1.8px;
+  letter-spacing: 1.6px;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -286,10 +286,10 @@
 }
 
 .heroCopy > p {
-  font-size: 15px;
+  font-size: 18px;
   color: var(--text);
-  max-width: 420px;
-  line-height: 1.8;
+  max-width: 470px;
+  line-height: 1.7;
 }
 
 .heroActions {
@@ -302,8 +302,8 @@
 .heroNote {
   display: flex;
   gap: 20px;
-  font-size: 10px;
-  color: #72827a;
+  font-size: 13px;
+  color: var(--text);
 }
 
 .heroNote span {
@@ -734,18 +734,18 @@
 }
 
 .page .audience p {
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 1.3px;
   line-height: 1.9;
   margin: 0;
-  color: #7f8b85;
+  color: var(--text);
 }
 
 .audience strong {
   font-weight: 500;
   letter-spacing: 0;
   color: var(--navy);
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .audienceList {
@@ -787,7 +787,7 @@
 
 .page .sectionHeading p {
   color: var(--text);
-  font-size: 14px;
+  font-size: 17px;
 }
 
 .featureIcon {
@@ -804,7 +804,7 @@
 .checks {
   list-style: none;
   padding: 0;
-  font-size: 12px;
+  font-size: 15px;
   margin: 23px 0;
   color: #536b60;
 }
@@ -817,8 +817,8 @@
 }
 
 .checks li > svg {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   margin-top: 0.4em;
   flex-shrink: 0;
   color: #3f8060;
@@ -858,15 +858,15 @@
 
 .page .benefitGrid h3 {
   font-family: var(--display);
-  font-size: 17px;
+  font-size: 19px;
   margin: 19px 0 10px;
   letter-spacing: -0.4px;
 }
 
 .page .benefitGrid p {
-  font-size: 13px;
+  font-size: 16px;
   color: var(--text);
-  max-width: 290px;
+  max-width: 320px;
   margin-bottom: 0;
 }
 
@@ -908,9 +908,9 @@
 }
 
 .featureCopy > p {
-  font-size: 14px;
+  font-size: 17px;
   color: var(--text);
-  max-width: 410px;
+  max-width: 440px;
 }
 
 .invoiceSheet {
@@ -1164,15 +1164,15 @@
 .artNote {
   position: absolute;
   bottom: 27px;
-  font-size: 10px;
-  color: #7e9889;
+  font-size: 12px;
+  color: var(--text);
 }
 
 .honestNote {
-  font-size: 11px;
+  font-size: 14px;
   padding-left: 13px;
   border-left: 2px solid #c5dacb;
-  color: #7b8f83;
+  color: var(--text);
   line-height: 1.8;
 }
 
@@ -1220,7 +1220,7 @@
 }
 
 .stepNumber {
-  font-size: 12px;
+  font-size: 14px;
   border: 1px solid #43665b;
   background: #264a46;
   display: inline-grid;
@@ -1242,15 +1242,15 @@
 }
 
 .page .steps h3 {
-  font-size: 18px;
+  font-size: 20px;
   letter-spacing: -0.4px;
   margin: 18px 0 9px;
 }
 
 .page .steps p {
-  font-size: 13px;
+  font-size: 16px;
   color: #b8cbc3;
-  max-width: 280px;
+  max-width: 300px;
 }
 
 /* Kenyan context (warm cream, full bleed) */
@@ -1276,7 +1276,7 @@
 }
 
 .kenyaCopy > p {
-  font-size: 14px;
+  font-size: 17px;
   color: var(--text);
 }
 
@@ -1288,26 +1288,26 @@
 }
 
 .localPoints > span {
-  font-size: 12px;
+  font-size: 15px;
   display: flex;
   gap: 12px;
   align-items: center;
 }
 
 .localPoints b {
-  font-size: 11px;
+  font-size: 13px;
   background: #f0ebdc;
   border: 1px solid #e2dccb;
   border-radius: 5px;
-  width: 31px;
-  height: 29px;
+  width: 36px;
+  height: 32px;
   display: grid;
   place-items: center;
 }
 
 .page .kenyaCopy .fineprint {
-  font-size: 10px;
-  max-width: 390px;
+  font-size: 13px;
+  max-width: 420px;
   line-height: 1.8;
 }
 
@@ -1434,9 +1434,9 @@
 .billingSwitch button {
   border: 0;
   background: none;
-  font-size: 11px;
+  font-size: 14px;
   padding: 9px 17px;
-  color: #7a8d7e;
+  color: #4f6650;
   border-radius: 5px;
 }
 
@@ -1447,9 +1447,9 @@
 }
 
 .billingSwitch span {
-  font-size: 8px;
+  font-size: 12px;
   margin-left: 5px;
-  color: #3e7956;
+  color: #2f6547;
 }
 
 .priceGrid {
@@ -1469,9 +1469,9 @@
 }
 
 .planLabel {
-  font-size: 7px;
+  font-size: 12px;
   letter-spacing: 1.4px;
-  color: #7c9483;
+  color: var(--text);
 }
 
 .page .priceCard h3 {
@@ -1482,7 +1482,7 @@
 }
 
 .priceCard > p {
-  font-size: 12px;
+  font-size: 15px;
   color: var(--text);
 }
 
@@ -1499,15 +1499,15 @@
 }
 
 .price > span {
-  font-size: 11px;
-  color: #8c9a91;
+  font-size: 14px;
+  color: var(--text);
   margin-left: 7px;
 }
 
 .priceCard .button {
   width: 100%;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .priceCard .checks {
@@ -1515,7 +1515,7 @@
   padding-top: 15px;
   margin-top: 25px;
   margin-bottom: 0;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .featured {
@@ -1532,22 +1532,22 @@
   border: 1px solid #b2d4a1;
   border-radius: 5px;
   padding: 4px 10px;
-  font-size: 7px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 1px;
 }
 
 .page .pricingNote {
-  font-size: 8px;
-  letter-spacing: 0.7px;
+  font-size: 13px;
+  letter-spacing: 0;
   text-align: center;
-  color: #8b998e;
+  color: var(--text);
   margin-top: 25px;
-  line-height: 2;
+  line-height: 1.8;
 }
 
 .pricingNote span {
-  font-size: 9px;
+  font-size: 13px;
   letter-spacing: 0;
 }
 
@@ -1567,7 +1567,7 @@
 
 .faqIntro > p {
   color: var(--text);
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .faqList details {
@@ -1585,7 +1585,7 @@
   justify-content: space-between;
   gap: 20px;
   font-weight: 500;
-  font-size: 13px;
+  font-size: 16px;
   cursor: pointer;
 }
 
@@ -1605,8 +1605,8 @@
 }
 
 .page .faqList details p {
-  font-size: 12px;
-  line-height: 1.85;
+  font-size: 15px;
+  line-height: 1.75;
   color: var(--text);
   margin: 12px 25px 0 0;
 }
@@ -1625,7 +1625,7 @@
 
 .finalCta .eyebrow {
   justify-content: center;
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .page .finalCta h2 {
@@ -1635,15 +1635,15 @@
 }
 
 .page .finalCta p {
-  font-size: 13px;
-  color: #6b826b;
+  font-size: 17px;
+  color: #4f6650;
   margin-bottom: 25px;
 }
 
 .finalCta small {
   display: block;
-  font-size: 9px;
-  color: #7d947d;
+  font-size: 14px;
+  color: #4f6650;
   margin-top: 12px;
 }
 
@@ -1678,12 +1678,12 @@
 
 .page .footerTop p {
   margin: 0 auto 0 0;
-  font-size: 11px;
-  color: #819287;
+  font-size: 14px;
+  color: var(--text);
 }
 
 .footerTop > a:not(.logo) {
-  font-size: 11px;
+  font-size: 14px;
   color: #637b6c;
 }
 
@@ -1692,8 +1692,8 @@
   justify-content: space-between;
   border-top: 1px solid #e8ede5;
   padding-top: 22px;
-  font-size: 8px;
-  color: #93a095;
+  font-size: 12px;
+  color: var(--text);
 }
 
 .desktop {
@@ -1797,7 +1797,7 @@
 
   .heroNote {
     gap: 10px;
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .ctaSpark {
@@ -1856,8 +1856,8 @@
   }
 
   .navCta {
-    font-size: 11px;
-    padding: 9px 12px;
+    font-size: 13px;
+    padding: 10px 14px;
   }
 
   .menu {
@@ -1894,7 +1894,7 @@
   }
 
   .heroCopy .eyebrow {
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .page h1 {
@@ -1904,7 +1904,7 @@
   }
 
   .heroCopy > p {
-    font-size: 14px;
+    font-size: 17px;
     max-width: 410px;
   }
 
@@ -1918,7 +1918,7 @@
   }
 
   .heroNote {
-    font-size: 9px;
+    font-size: 12px;
     gap: 17px;
   }
 
@@ -1973,9 +1973,10 @@
 
   .audienceList {
     justify-content: center;
-    gap: 13px;
+    flex-wrap: wrap;
+    gap: 6px 9px;
     margin-top: 16px;
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .audienceList svg {
@@ -1994,11 +1995,11 @@
   }
 
   .page .sectionHeading p {
-    font-size: 12px;
+    font-size: 16px;
   }
 
   .eyebrow {
-    font-size: 8px;
+    font-size: 12px;
     letter-spacing: 1.4px;
   }
 
@@ -2015,14 +2016,14 @@
   }
 
   .page .benefitGrid h3 {
-    font-size: 16px;
+    font-size: 18px;
     margin: 2px 0 6px;
   }
 
   .page .benefitGrid p {
     grid-column: 2;
     max-width: none;
-    font-size: 12px;
+    font-size: 15px;
   }
 
   .benefitGrid .featureIcon {
@@ -2059,7 +2060,7 @@
   }
 
   .featureCopy > p {
-    font-size: 13px;
+    font-size: 16px;
     max-width: none;
   }
 
@@ -2068,7 +2069,7 @@
   }
 
   .featureCopy .checks {
-    font-size: 11px;
+    font-size: 15px;
   }
 
   .invoiceSheet {
@@ -2096,13 +2097,13 @@
   }
 
   .page .steps h3 {
-    font-size: 16px;
+    font-size: 18px;
     margin: 0 0 6px;
   }
 
   .page .steps p {
     margin: 0;
-    font-size: 12px;
+    font-size: 15px;
     max-width: none;
   }
 
@@ -2127,7 +2128,7 @@
   }
 
   .kenyaCopy > p {
-    font-size: 13px;
+    font-size: 16px;
   }
 
   .localBig {
@@ -2150,11 +2151,11 @@
   }
 
   .page .pricingNote {
-    font-size: 7px;
+    font-size: 13px;
   }
 
   .pricingNote span {
-    font-size: 8px;
+    font-size: 13px;
   }
 
   .faq {
@@ -2171,7 +2172,7 @@
   }
 
   .faqList summary {
-    font-size: 12px;
+    font-size: 15px;
   }
 
   .finalCta {
@@ -2183,7 +2184,7 @@
   }
 
   .finalCta .eyebrow {
-    font-size: 7px;
+    font-size: 12px;
   }
 
   .ctaSpark {
@@ -2215,7 +2216,7 @@
     flex-direction: column;
     gap: 10px;
     text-align: center;
-    font-size: 8px;
+    font-size: 12px;
   }
 
   .footer {
