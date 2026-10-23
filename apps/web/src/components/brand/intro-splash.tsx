@@ -1,10 +1,10 @@
 "use client";
 
 import Image from "next/image";
+import { BRAND_BADGE_SRC } from "./badge";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 
 const STORAGE_KEY = "billsafi:intro";
-// The old animation spelled the previous name; the mark shows briefly until new assets exist (D053).
 const MAX_DURATION_MS = 1200;
 const FADE_MS = 300;
 
@@ -84,9 +84,9 @@ export function IntroSplash() {
       } ${phase === "leaving" ? "opacity-0" : "opacity-100"}`}
     >
       {visible && (
-        <div aria-hidden className="grid animate-pulse place-items-center gap-4 text-white">
-          <Image src="/brand/logo-mark.webp" alt="" width={112} height={112} priority />
-          <span className="text-3xl font-semibold tracking-tight">Billsafi</span>
+        <div aria-hidden className="animate-pulse motion-reduce:animate-none">
+          {/* The badge already carries the name, so no separate wordmark here. */}
+          <Image src={BRAND_BADGE_SRC} alt="" width={192} height={192} priority />
         </div>
       )}
       <button

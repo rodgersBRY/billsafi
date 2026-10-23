@@ -121,23 +121,11 @@
 }
 
 .brandIcon {
-  background: var(--navy);
-  color: white;
-  width: 32px;
+  width: 35px;
   height: 35px;
+  flex-shrink: 0;
   border-radius: 9px;
-  font-size: 29px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  letter-spacing: -5px;
-  padding-right: 5px;
   margin-right: 9px;
-  line-height: 1;
-}
-
-.brandIcon span {
-  color: var(--mint);
 }
 
 .brandDot {
@@ -1891,9 +1879,8 @@
   }
 
   .brandIcon {
-    width: 28px;
+    width: 31px;
     height: 31px;
-    font-size: 26px;
   }
 
   .hero {
