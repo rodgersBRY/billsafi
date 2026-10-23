@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable } from "@nestjs/common";
 import type { ImportGuestInvoice, ImportGuestInvoiceResult } from "@billsafi/contracts";
 import { and, asc, type DatabaseConnection, eq, isNull, schema } from "@billsafi/db";
 import { BusinessesService } from "../businesses/businesses.service.js";
@@ -6,7 +6,20 @@ import { ClientsService } from "../clients/clients.service.js";
 import { DATABASE } from "../database/database.module.js";
 import { InvoicesService } from "../invoices/invoices.service.js";
 
-const { users, businesses, clients } = schema;
+const { users, clients } = schema;
+
+type Issue = { path: string; message: string };
+
+/** Draft errors name draft fields; the import form nests them under `invoice`. */
+function underInvoice(error: unknown): unknown {
+  if (!(error instanceof BadRequestException)) return error;
+  const response = error.getResponse() as { message?: string; issues?: Issue[] };
+  if (!Array.isArray(response.issues)) return error;
+  return new BadRequestException({
+    ...response,
+    issues: response.issues.map((issue) => ({ ...issue, path: `invoice.${issue.path}` })),
+  });
+}
 
 /** Saves a draft built on the public generator into the signed-in account (D056). */
 @Injectable()
@@ -23,12 +36,7 @@ export class GuestInvoicesService {
       // Two imports at the same moment must not both create a first business.
       await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
 
-      const [existing] = await tx
-        .select()
-        .from(businesses)
-        .where(eq(businesses.ownerUserId, userId))
-        .orderBy(asc(businesses.createdAt))
-        .limit(1);
+      const [existing] = await this.businesses.listOwned(userId, tx);
       const business = existing ?? (await this.businesses.create(userId, input.business, tx));
 
       const [sameClient] = await tx
@@ -41,14 +49,15 @@ export class GuestInvoicesService {
             isNull(clients.archivedAt),
           ),
         )
+        .orderBy(asc(clients.createdAt))
         .limit(1);
       const client = sameClient ?? (await this.clients.create(business.id, input.client, tx));
 
-      const invoice = await this.invoices.createDraft(
-        business.id,
-        { ...input.invoice, clientId: client.id },
-        tx,
-      );
+      const invoice = await this.invoices
+        .createDraft(business.id, { ...input.invoice, clientId: client.id }, tx)
+        .catch((error: unknown) => {
+          throw underInvoice(error);
+        });
       return {
         businessId: business.id,
         invoiceId: invoice.id,

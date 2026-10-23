@@ -30,8 +30,8 @@ export class BusinessesService {
     return this.connection.db;
   }
 
-  listOwned(ownerUserId: string) {
-    return this.db
+  listOwned(ownerUserId: string, db: Executor = this.db) {
+    return db
       .select()
       .from(businesses)
       .where(eq(businesses.ownerUserId, ownerUserId))

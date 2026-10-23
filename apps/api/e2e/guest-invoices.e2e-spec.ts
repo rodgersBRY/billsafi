@@ -95,6 +95,40 @@ describe("guest invoice import", () => {
     expect(businesses.body).toHaveLength(0);
   });
 
+  it("rolls back everything when the draft fails inside the import", async () => {
+    const { cookie } = await signUp(app);
+
+    const response = await importDraft(cookie, {
+      ...draft,
+      invoice: { ...draft.invoice, discount: { type: "fixed", value: "30000" } },
+    }).expect(400);
+    expect(response.body.issues.map((issue: { path: string }) => issue.path)).toContain(
+      "invoice.discount.value",
+    );
+
+    // No business means the client insert was rolled back too.
+    const businesses = await api().get("/api/v1/businesses").set("Cookie", cookie).expect(200);
+    expect(businesses.body).toHaveLength(0);
+  });
+
+  it("does not reuse an archived client with the same phone", async () => {
+    const { cookie } = await signUp(app);
+    const businessId = await createBusiness(app, cookie);
+    const archivedId = await createClient(app, cookie, businessId, { phone: "0722 111 222" });
+    await api()
+      .post(`/api/v1/businesses/${businessId}/clients/${archivedId}/archive`)
+      .set("Cookie", cookie)
+      .expect(200);
+
+    const response = await importDraft(cookie).expect(201);
+    const invoice = await api()
+      .get(`/api/v1/businesses/${businessId}/invoices/${response.body.invoiceId}`)
+      .set("Cookie", cookie)
+      .expect(200);
+    expect(invoice.body.clientId).not.toBe(archivedId);
+    expect(invoice.body.client.name).toBe("Karibu Coffee");
+  });
+
   it("requires a session", async () => {
     await api().post("/api/v1/guest-invoices/import").send(draft).expect(401);
   });
