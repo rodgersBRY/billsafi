@@ -11,6 +11,7 @@ import { DATABASE, DatabaseModule } from "./database/database.module.js";
 import { BillingModule } from "./billing/billing.module.js";
 import { BusinessesModule } from "./businesses/businesses.module.js";
 import { ClientsModule } from "./clients/clients.module.js";
+import { GuestInvoicesModule } from "./guest-invoices/guest-invoices.module.js";
 import { HealthModule } from "./health/health.module.js";
 import { InvoicesModule } from "./invoices/invoices.module.js";
 import { MAILER, MailModule } from "./mail/mail.module.js";
@@ -38,6 +39,7 @@ import type { Mailer } from "./mail/mailer.js";
     BusinessesModule,
     ClientsModule,
     InvoicesModule,
+    GuestInvoicesModule,
     BillingModule,
   ],
   // Reports unexpected errors; HTTP errors such as 404 and 409 are not sent.
