@@ -42,6 +42,11 @@ export interface InvoiceEditorProps {
   usage: AllowanceUsage;
   /** Existing invoice; omit when creating. */
   invoice?: Invoice;
+  /**
+   * Set when the draft just came from the public generator (D056). "existing" means
+   * the account already had a business, so the typed business details were not used.
+   */
+  fromGenerator?: "new" | "existing";
 }
 
 type Errors = Record<string, string>;
@@ -258,6 +263,13 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         )}
       </div>
 
+      {props.fromGenerator && (
+        <p role="status" className="rounded-panel border border-line bg-panel p-4 text-sm">
+          Your invoice is saved as a draft. Check it, then press Mark as Ready to get your PDF.
+          {props.fromGenerator === "existing" &&
+            ` Added to ${props.business.displayName}. The business details you typed weren't used.`}
+        </p>
+      )}
       <div aria-live="polite">
         <FormMessage>{errors.form}</FormMessage>
         {errors.billing && (
