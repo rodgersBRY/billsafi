@@ -3,6 +3,7 @@
 import { importGuestInvoiceSchema } from "@billsafi/contracts";
 import { normalizeKenyanPhone } from "@billsafi/domain";
 import { Download } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { AdjustmentsFields } from "@/components/invoices/adjustments-fields";
 import { discountLabel, previewTotals } from "@/components/invoices/editor-items";
@@ -12,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { TextAreaField } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
 import { addDays, todayInNairobi } from "@/lib/format";
-import { GuestAuthDialog } from "./guest-auth-dialog";
+import { FINISH_PATH, GuestAuthDialog } from "./guest-auth-dialog";
 import { GuestBusinessFields } from "./guest-business-fields";
 import { GuestClientFields } from "./guest-client-fields";
 import { readGuestDraft, writeGuestDraft } from "./guest-draft";
@@ -35,14 +36,21 @@ export function GuestInvoiceForm({ google }: { google: ReactNode }) {
   const [restored, setRestored] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [authOpen, setAuthOpen] = useState(false);
+  // Set when the finish page sent a signed-in visitor back to fix the draft.
+  const [returning, setReturning] = useState(false);
   const checkOnRestore = useRef(false);
+  // Only the visitor's own edits are saved, so a first visit never stores a dates-only draft.
+  const edited = useRef(false);
+  const router = useRouter();
 
-  const set = (patch: Partial<GuestForm>) => setForm((current) => ({ ...current, ...patch }));
-  const discount = discountOf(form);
-  const taxRate = taxRateOf(form);
+  const set = (patch: Partial<GuestForm>) => {
+    edited.current = true;
+    setForm((current) => ({ ...current, ...patch }));
+  };
+  const discount = discountOf(form.adjustments);
+  const taxRate = taxRateOf(form.adjustments);
   const { totals, discountError } = useMemo(
-    () => previewTotals(form.items, discount, taxRate),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- discount and taxRate are derived from these
+    () => previewTotals(form.items, discountOf(form.adjustments), taxRateOf(form.adjustments)),
     [form.items, form.adjustments],
   );
 
@@ -57,8 +65,16 @@ export function GuestInvoiceForm({ google }: { google: ReactNode }) {
     if (!next.issueDate) next.issueDate = today;
     if (!next.dueDate) next.dueDate = addDays(next.issueDate, DEFAULT_TERMS_DAYS);
     // The finish page sends people back with ?check=1 when the API rejected the draft.
-    checkOnRestore.current = new URLSearchParams(window.location.search).get("check") === "1";
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads browser-only storage once on mount
+    // Drop it from the URL so a refresh doesn't validate again.
+    // Only ever set the flags: React's dev double-run sees the already cleaned URL.
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("check") === "1") {
+      url.searchParams.delete("check");
+      window.history.replaceState(window.history.state, "", url);
+      checkOnRestore.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reads browser-only storage and the URL once on mount
+      setReturning(true);
+    }
     setForm(next);
     setRestored(true);
   }, []);
@@ -69,6 +85,7 @@ export function GuestInvoiceForm({ google }: { google: ReactNode }) {
       checkOnRestore.current = false;
       validate();
     }
+    if (!edited.current) return;
     const timer = window.setTimeout(() => writeGuestDraft(toGuestDraft(form)), SAVE_DELAY_MS);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- validate reads the same form state
@@ -100,7 +117,9 @@ export function GuestInvoiceForm({ google }: { google: ReactNode }) {
   function onSave() {
     if (!validate()) return;
     writeGuestDraft(toGuestDraft(form));
-    setAuthOpen(true);
+    // A visitor sent back by the finish page is already signed in.
+    if (returning) router.push(FINISH_PATH);
+    else setAuthOpen(true);
   }
 
   const { business, client } = form;

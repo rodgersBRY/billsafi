@@ -59,13 +59,13 @@ export function emptyGuestForm(): GuestForm {
   };
 }
 
-export function discountOf({ adjustments }: GuestForm) {
+export function discountOf(adjustments: Adjustments) {
   return adjustments.discountOn
     ? { type: adjustments.discountType, value: adjustments.discountValue }
     : null;
 }
 
-export function taxRateOf({ adjustments }: GuestForm) {
+export function taxRateOf(adjustments: Adjustments) {
   return adjustments.taxOn ? adjustments.taxRate : null;
 }
 
@@ -82,8 +82,8 @@ export function toGuestDraft(form: GuestForm): GuestDraft {
         quantity,
         unitPrice,
       })),
-      discount: discountOf(form),
-      taxRate: taxRateOf(form),
+      discount: discountOf(form.adjustments),
+      taxRate: taxRateOf(form.adjustments),
       paymentInstructions: form.paymentInstructions,
       notes: form.notes,
     },

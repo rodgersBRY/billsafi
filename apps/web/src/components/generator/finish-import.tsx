@@ -14,15 +14,17 @@ import { clearGuestDraft, readGuestDraft } from "./guest-draft";
 export function FinishImport() {
   const router = useRouter();
   const [failed, setFailed] = useState(false);
-  const started = useRef(false);
+  const inFlight = useRef(false);
 
   const run = useCallback(async () => {
+    // React runs effects twice in development; one request at a time stops a double import.
+    if (inFlight.current) return;
     const draft = readGuestDraft();
     if (!draft) {
       router.replace("/");
       return;
     }
-    setFailed(false);
+    inFlight.current = true;
     try {
       const result = await apiPost<ImportGuestInvoiceResult>("/guest-invoices/import", draft);
       // Clear only after the server has it, so a failure never loses their work.
@@ -37,14 +39,23 @@ export function FinishImport() {
         router.replace("/free-invoice-generator?check=1");
         return;
       }
+      if (error instanceof ApiError && error.status === 401) {
+        // The session expired or was revoked. The draft is still stored, so the
+        // generator restores it and they can sign in again from the dialog.
+        router.replace("/free-invoice-generator");
+        return;
+      }
       setFailed(true);
+    } finally {
+      inFlight.current = false;
     }
   }, [router]);
 
+  // Not a run-once guard: Next keeps visited pages mounted and re-runs this effect
+  // when someone comes back (for example after signing in again), and that visit
+  // must import too.
   useEffect(() => {
-    // React runs effects twice in development; import only once.
-    if (started.current) return;
-    started.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- state is only set after the request settles
     void run();
   }, [run]);
 
@@ -54,7 +65,14 @@ export function FinishImport() {
         <FormMessage>
           We couldn&apos;t save your invoice. It&apos;s still in this browser.
         </FormMessage>
-        <Button type="button" className="mt-5" onClick={() => void run()}>
+        <Button
+          type="button"
+          className="mt-5"
+          onClick={() => {
+            setFailed(false);
+            void run();
+          }}
+        >
           Try again
         </Button>
       </div>
