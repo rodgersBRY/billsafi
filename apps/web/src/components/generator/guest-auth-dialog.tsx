@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { queueIntroSplash } from "@/components/brand/intro-splash";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { TextField } from "@/components/ui/field";
@@ -26,7 +27,23 @@ export function GuestAuthDialog({ open, onClose, google }: GuestAuthDialogProps)
   const [mode, setMode] = useState<Mode>("sign-up");
   const [errors, setErrors] = useState<{ name?: string; password?: string; form?: string }>({});
   const [pending, setPending] = useState(false);
+  const [email, setEmail] = useState("");
+  const formRef = useRef<HTMLFormElement>(null);
+  const focusPassword = useRef(false);
   const signUp = mode === "sign-up";
+
+  // The submit button unmounts on the auto-switch, so hand focus to the password field.
+  useEffect(() => {
+    if (!focusPassword.current) return;
+    focusPassword.current = false;
+    formRef.current?.querySelector<HTMLInputElement>('input[name="password"]')?.focus();
+  }, [mode]);
+
+  function close() {
+    setMode("sign-up");
+    setErrors({});
+    onClose();
+  }
 
   function switchMode(next: Mode, form = "") {
     setMode(next);
@@ -37,6 +54,7 @@ export function GuestAuthDialog({ open, onClose, google }: GuestAuthDialogProps)
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const email = String(data.get("email")).trim();
+    setEmail(email);
     const password = String(data.get("password"));
 
     if (signUp) {
@@ -51,6 +69,7 @@ export function GuestAuthDialog({ open, onClose, google }: GuestAuthDialogProps)
       if (error) {
         setPending(false);
         if (error.code === "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL") {
+          focusPassword.current = true;
           return switchMode(
             "sign-in",
             "You already have an account with this email. Sign in to save your invoice.",
@@ -72,6 +91,7 @@ export function GuestAuthDialog({ open, onClose, google }: GuestAuthDialogProps)
         });
       }
     }
+    queueIntroSplash();
     router.replace(FINISH_PATH);
     router.refresh();
   }
@@ -79,13 +99,23 @@ export function GuestAuthDialog({ open, onClose, google }: GuestAuthDialogProps)
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={close}
       title={signUp ? "Save your invoice" : "Sign in to save your invoice"}
       description="Your invoice is saved to your account as a draft. Check it, then mark it Ready to download the PDF."
     >
       {google}
       {/* Keyed so switching modes clears the typed values and field state. */}
-      <form key={mode} method="post" onSubmit={onSubmit} className={google ? "" : "mt-4"}>
+      <form
+        key={mode}
+        ref={formRef}
+        method="post"
+        onSubmit={onSubmit}
+        onChange={(event) => {
+          const field = event.nativeEvent.target as HTMLInputElement;
+          if (field.name === "email") setEmail(field.value);
+        }}
+        className={google ? "" : "mt-4"}
+      >
         {signUp && (
           <TextField
             label="Full name"
@@ -95,7 +125,14 @@ export function GuestAuthDialog({ open, onClose, google }: GuestAuthDialogProps)
             required
           />
         )}
-        <TextField label="Email address" name="email" type="email" autoComplete="email" required />
+        <TextField
+          label="Email address"
+          name="email"
+          type="email"
+          autoComplete="email"
+          defaultValue={email}
+          required
+        />
         <TextField
           label="Password"
           name="password"

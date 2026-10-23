@@ -6,6 +6,21 @@ export type GuestDraft = ImportGuestInvoiceInput;
 const KEY = "billsafi:guest-invoice:v1";
 const VERSION = 1;
 
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+// Structural check only: half-finished drafts must still load, so no schema parse here.
+function isDraftShape(draft: unknown): draft is GuestDraft {
+  return (
+    isObject(draft) &&
+    isObject(draft.business) &&
+    isObject(draft.client) &&
+    isObject(draft.invoice) &&
+    Array.isArray(draft.invoice.items)
+  );
+}
+
 // Storage throws in private mode or when blocked; the page must work without it.
 export function readGuestDraft(): GuestDraft | null {
   try {
@@ -20,7 +35,7 @@ export function readGuestDraft(): GuestDraft | null {
       return null;
     }
     const draft = (stored as { draft?: unknown }).draft;
-    return typeof draft === "object" && draft !== null ? (draft as GuestDraft) : null;
+    return isDraftShape(draft) ? draft : null;
   } catch {
     return null;
   }
