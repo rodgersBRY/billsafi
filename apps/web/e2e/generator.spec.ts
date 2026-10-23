@@ -19,7 +19,7 @@ async function openGenerator(page: Page) {
 
 test("the landing page links to the free generator", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: "Create an invoice free" }).click();
+  await page.getByRole("link", { name: "Create an invoice free" }).first().click();
   await expect(page).toHaveURL(/\/free-invoice-generator$/);
   await expect(page.getByRole("heading", { name: "Free invoice generator" })).toBeVisible();
 });
