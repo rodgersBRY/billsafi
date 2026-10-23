@@ -8,6 +8,7 @@ import {
   whatsappMessage,
 } from "@billsafi/contracts";
 import { Copy, Download, Link2, Link2Off, Mail, MessageCircle, RefreshCw } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -36,6 +37,7 @@ function rememberedToken(linkId: string): string | null {
 }
 
 export function ShareDialog({ open, onClose, businessId, invoice, link }: ShareDialogProps) {
+  const router = useRouter();
   const [current, setCurrent] = useState<InvoiceLinkStatus | null>(link);
   const [token, setToken] = useState<string | null>(() =>
     link && typeof window !== "undefined" ? rememberedToken(link.id) : null,
@@ -70,6 +72,7 @@ export function ShareDialog({ open, onClose, businessId, invoice, link }: ShareD
       }
       setCurrent(created);
       setToken(created.token);
+      router.refresh();
     } catch {
       setError("We couldn't create a link. Please try again.");
     } finally {

@@ -3,6 +3,7 @@ import {
   createFirstBusiness,
   signUp,
   skipIntro,
+  skipTour,
   uniqueEmail,
   waitUntilInteractive,
 } from "./support";
@@ -46,15 +47,16 @@ test("new account sets up a business, payment details and lands on the overview"
   await expect(page.getByRole("heading", { name: "You're ready to invoice." })).toBeVisible();
   await page.getByRole("button", { name: "Go to your overview" }).click();
 
-  // The post-login intro plays once and can be skipped.
-  await page.getByRole("button", { name: "Skip" }).click();
+  // The post-login intro plays once and can be skipped; it also closes by itself.
+  await skipIntro(page);
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
+  await skipTour(page);
   await expect(page.getByRole("main").getByText("Wanjiku Designs")).toBeVisible();
 
   // A refresh does not replay the intro.
   await page.reload();
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Skip" })).toBeHidden();
+  await expect(page.getByRole("button", { name: "Skip", exact: true })).toBeHidden();
 });
 
 test("an account can add and switch between businesses", async ({ page }) => {

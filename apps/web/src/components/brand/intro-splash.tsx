@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { BRAND_BADGE_SRC } from "./badge";
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 const STORAGE_KEY = "billsafi:intro";
 const MAX_DURATION_MS = 1200;
@@ -37,10 +37,17 @@ type Phase = "idle" | "playing" | "leaving";
 
 export function IntroSplash() {
   const [phase, setPhase] = useState<Phase>("idle");
+  // Strict Mode runs effects twice; a second run would find the queue empty and
+  // clear data-intro while the splash still plays, letting the tour start under it.
+  const claimed = useRef(false);
 
   // Layout effect so client-side navigation after login shows the splash before paint.
   useLayoutEffect(() => {
+    if (claimed.current) return;
+    claimed.current = true;
     if (takeQueuedIntro()) {
+      // Also marks client-side arrivals, so the product tour waits for the splash (D057).
+      document.documentElement.dataset.intro = "";
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reads browser-only storage once on mount
       setPhase("playing");
     } else {

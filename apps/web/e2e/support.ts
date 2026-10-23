@@ -40,10 +40,11 @@ export async function createFirstBusiness(page: Page, phone = "0712 345 678") {
   await page.getByRole("button", { name: "Go to your overview" }).click();
   await skipIntro(page);
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
+  await skipTour(page);
 }
 
 export async function skipIntro(page: Page) {
-  const skip = page.getByRole("button", { name: "Skip" });
+  const skip = page.getByRole("button", { name: "Skip", exact: true });
   if (await skip.isVisible().catch(() => false)) await skip.click();
 }
 
@@ -59,4 +60,12 @@ export async function latestEmailText(to: string): Promise<string> {
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   throw new Error(`No email arrived for ${to}`);
+}
+
+/** A new account's first Overview visit starts the product tour (D057); skip it. */
+export async function skipTour(page: Page) {
+  const tour = page.getByRole("dialog", { name: "Welcome to Billsafi" });
+  await expect(tour).toBeVisible();
+  await tour.getByRole("button", { name: "Skip tour" }).click();
+  await expect(tour).toBeHidden();
 }

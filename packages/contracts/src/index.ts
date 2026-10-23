@@ -6,4 +6,5 @@ export * from "./fields.js";
 export * from "./guest-invoices.js";
 export * from "./invoices.js";
 export * from "./payments.js";
+export * from "./product-tours.js";
 export * from "./sharing.js";

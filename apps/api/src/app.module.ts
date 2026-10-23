@@ -15,6 +15,7 @@ import { GuestInvoicesModule } from "./guest-invoices/guest-invoices.module.js";
 import { HealthModule } from "./health/health.module.js";
 import { InvoicesModule } from "./invoices/invoices.module.js";
 import { MAILER, MailModule } from "./mail/mail.module.js";
+import { ProductToursModule } from "./product-tours/product-tours.module.js";
 import type { Mailer } from "./mail/mailer.js";
 
 @Module({
@@ -41,6 +42,7 @@ import type { Mailer } from "./mail/mailer.js";
     InvoicesModule,
     GuestInvoicesModule,
     BillingModule,
+    ProductToursModule,
   ],
   // Reports unexpected errors; HTTP errors such as 404 and 409 are not sent.
   providers: [{ provide: APP_FILTER, useClass: SentryGlobalFilter }],
