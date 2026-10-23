@@ -9,6 +9,7 @@ import {
   paymentMethodLabels,
   paymentMethods,
 } from "@billsafi/contracts";
+import { FREE_PLAN } from "@billsafi/domain";
 import { ArrowLeft, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -305,7 +306,7 @@ export function OnboardingWizard({ user, isAdditionalBusiness }: Props) {
       >
         <div className="mt-5 rounded-panel border border-line bg-soft p-4">
           <p className="text-sm font-medium">Free plan</p>
-          <p className="mt-1 text-sm text-sub">10 invoices per month</p>
+          <p className="mt-1 text-sm text-sub">{FREE_PLAN.invoiceLimit} invoices per month</p>
           <p className="mt-1 text-xs text-sub">Allowance shared across your businesses.</p>
         </div>
         <Button type="button" onClick={enterApp} className="mt-6 w-full">
