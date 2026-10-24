@@ -27,13 +27,13 @@ export function LegalPage({
       </header>
 
       <main className="mt-6">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
-        <p className="mt-2 text-sm text-sub">Last updated {LEGAL.lastUpdated}</p>
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
+        <p className="mt-2 text-base text-sub">Last updated {LEGAL.lastUpdated}</p>
         <div className="legal-body mt-6">{intro}</div>
 
         <nav
           aria-label="Contents"
-          className="mt-8 rounded-panel border border-line bg-panel p-5 text-sm"
+          className="mt-8 rounded-panel border border-line bg-panel p-5 text-base"
         >
           <p className="font-semibold">Contents</p>
           <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sub">
@@ -49,7 +49,7 @@ export function LegalPage({
 
         {sections.map((section, index) => (
           <section key={section.id} id={section.id} className="mt-10 scroll-mt-6">
-            <h2 className="text-lg font-semibold tracking-tight">
+            <h2 className="text-xl font-semibold tracking-tight">
               {index + 1}. {section.heading}
             </h2>
             <div className="legal-body mt-3">{section.body}</div>
