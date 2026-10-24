@@ -144,21 +144,26 @@ const SECTIONS: LegalSection[] = [
         </p>
         <ul>
           <li>
-            <strong>DigitalOcean:</strong> hosts our servers, database and backups.
+            <strong>Hosting provider:</strong> stores our servers, database and backups.
           </li>
           <li>
-            <strong>Safaricom (M-Pesa):</strong> processes Pro and credit payments.
+            <strong>Payment provider (M-Pesa):</strong> processes Pro and credit payments.
           </li>
           <li>
-            <strong>Google:</strong> handles sign-in if you choose &quot;Continue with Google&quot;.
+            <strong>Sign-in provider (Google):</strong> handles sign-in if you choose
+            &quot;Continue with Google&quot;.
           </li>
           <li>
-            <strong>Resend:</strong> delivers our emails.
+            <strong>Email delivery provider:</strong> sends account and reminder emails.
           </li>
           <li>
-            <strong>Sentry:</strong> collects error reports so we can fix problems.
+            <strong>Error monitoring provider:</strong> collects error reports so we can fix
+            problems.
           </li>
         </ul>
+        <p>
+          You can ask us at <ContactEmail /> for the current list of providers.
+        </p>
         <p>
           We may also share information if the law requires it, to protect people from harm or
           fraud, or as part of a sale or merger of our business. In a sale, we would tell you before

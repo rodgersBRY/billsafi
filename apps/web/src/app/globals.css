@@ -226,11 +226,11 @@ html:has([data-landing]) {
 
 /* Body text on the Terms of Use and Privacy Policy pages. */
 .legal-body {
-  @apply space-y-3 text-sm/6 text-ink;
+  @apply space-y-4 text-base/7 text-ink;
 }
 .legal-body ul {
   @apply list-disc space-y-1.5 pl-5;
 }
 .legal-body h3 {
-  @apply pt-2 font-semibold;
+  @apply pt-2 text-lg font-semibold;
 }
