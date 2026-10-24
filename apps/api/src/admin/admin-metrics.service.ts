@@ -48,8 +48,8 @@ export class AdminMetricsService {
     const today = nairobiDayStart(now);
     // "Last 7 days" means today plus the six Nairobi days before it.
     const week = new Date(today.getTime() - 6 * DAY_MS);
+    // One "last 30 days" for the whole page: today plus the 29 Nairobi days before it.
     const month30 = new Date(today.getTime() - 29 * DAY_MS);
-    const last30 = new Date(now.getTime() - 30 * DAY_MS);
     const month = nairobiCalendarMonth(now);
 
     // Signups per window, split by whether the account has a Google login.
@@ -61,7 +61,7 @@ export class AdminMetricsService {
       with recent as (
         select ${fromUtc(sql`u.created_at`)} as signed_up_at, ${hasGoogle(sql`u.id`)} as google
         from users u
-        where u.created_at >= ${utcAt(month30)}
+        where u.created_at >= ${utcAt(month30)} and u.created_at < ${utcAt(now)}
       )
       select
         json_build_object('total', count(*) filter (where signed_up_at >= ${at(today)}),
@@ -85,7 +85,7 @@ export class AdminMetricsService {
       select
         -- Active business: at least one invoice made Ready in the last 30 days.
         (select count(distinct business_id) from invoice_issuances
-          where issued_at >= ${at(last30)})::int as "activeBusinesses",
+          where issued_at >= ${at(month30)} and issued_at < ${at(now)})::int as "activeBusinesses",
         (select count(*) from invoices
           where created_at >= ${at(month.start)} and created_at < ${at(month.end)})::int as "invoicesCreated",
         (select count(*) from invoice_issuances
@@ -99,9 +99,11 @@ export class AdminMetricsService {
             and confirmed_at >= ${at(month.start)} and confirmed_at < ${at(month.end)}) as "kesCollected",
         -- Success rate is by checkout time; pending payments are left out.
         (select count(*) from subscription_payments
-          where status = 'succeeded' and created_at >= ${at(last30)})::int as "succeeded30",
+          where status = 'succeeded'
+            and created_at >= ${at(month30)} and created_at < ${at(now)})::int as "succeeded30",
         (select count(*) from subscription_payments
-          where status = 'failed' and created_at >= ${at(last30)})::int as "failed30"
+          where status = 'failed'
+            and created_at >= ${at(month30)} and created_at < ${at(now)})::int as "failed30"
     `);
 
     const paying = await this.payingAccounts(now);
@@ -136,6 +138,9 @@ export class AdminMetricsService {
       select ${iso(sql`anchor_at`)} as "anchorAt", paid_months as "paidMonths"
       from subscriptions
       where anchor_at is not null and paid_months > 0
+        -- A loose prefilter (a month of slack for day clamping); proPeriodAt decides.
+        and anchor_at <= ${at(now)}
+        and anchor_at + make_interval(months => paid_months + 1) > ${at(now)}
     `);
     return subscriptions.filter(
       (row) => planAt(new Date(row.anchorAt), row.paidMonths, now).code === "pro",
@@ -158,24 +163,27 @@ export class AdminMetricsService {
       with cohort as (
         select u.id, ${fromUtc(sql`u.created_at`)} as signed_up_at
         from users u
-        where u.created_at >= ${utcAt(since)}
+        where u.created_at >= ${utcAt(since)} and u.created_at < ${utcAt(now)}
       ),
-      owned as (
-        select c.id as user_id, b.id as business_id
-        from cohort c join businesses b on b.owner_user_id = c.id
-      ),
+      -- Each step is the first such row on the user's own businesses, found
+      -- through the owner and business indexes rather than a scan per user.
       firsts as (
         select
           c.signed_up_at,
           c.signed_up_at as signed_up,
-          (select min(b.created_at) from businesses b where b.owner_user_id = c.id) as business_created,
-          (select min(cl.created_at) from clients cl
-            join owned o on o.business_id = cl.business_id where o.user_id = c.id) as client_added,
-          (select min(i.created_at) from invoices i
-            join owned o on o.business_id = i.business_id where o.user_id = c.id) as invoice_created,
-          (select min(ii.issued_at) from invoice_issuances ii where ii.user_id = c.id) as invoice_ready,
-          (select min(p.created_at) from invoice_payments p
-            join owned o on o.business_id = p.business_id where o.user_id = c.id) as payment_recorded
+          (select min(b.created_at) from businesses b
+            where b.owner_user_id = c.id) as business_created,
+          (select min(cl.created_at) from businesses b
+            join clients cl on cl.business_id = b.id
+            where b.owner_user_id = c.id) as client_added,
+          (select min(i.created_at) from businesses b
+            join invoices i on i.business_id = b.id
+            where b.owner_user_id = c.id) as invoice_created,
+          (select min(ii.issued_at) from invoice_issuances ii
+            where ii.user_id = c.id) as invoice_ready,
+          (select min(p.created_at) from businesses b
+            join invoice_payments p on p.business_id = b.id
+            where b.owner_user_id = c.id) as payment_recorded
         from cohort c
       )
       select
@@ -227,12 +235,12 @@ export class AdminMetricsService {
       with cohort as (
         select u.id, ${weekIndex(fromUtc(sql`u.created_at`))} as cohort
         from users u
-        where u.created_at >= ${utcAt(first)}
+        where u.created_at >= ${utcAt(first)} and u.created_at < ${utcAt(now)}
       ),
       active as (
         select distinct c.cohort, ii.user_id, ${weekIndex(sql`ii.issued_at`)} as week
         from invoice_issuances ii join cohort c on c.id = ii.user_id
-        where ii.issued_at >= ${at(first)}
+        where ii.issued_at >= ${at(first)} and ii.issued_at < ${at(now)}
       )
       -- Cohort sizes come back with week null; active counts per week follow.
       select cohort, null::int as week, count(*)::int as users from cohort group by cohort

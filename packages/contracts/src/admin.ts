@@ -46,13 +46,17 @@ export interface AdminSignupCounts {
   email: number;
 }
 
+/**
+ * Windows end at the moment of the request. "Last 7/30 days" are today plus
+ * the 6/29 Nairobi calendar days before it, the same for every tile.
+ */
 export interface AdminOverview {
   signups: {
     today: AdminSignupCounts;
     last7Days: AdminSignupCounts;
     last30Days: AdminSignupCounts;
   };
-  /** Businesses with at least one invoice made Ready in the last 30 days. */
+  /** Businesses with at least one invoice made Ready in the last 30 Nairobi days. */
   activeBusinesses: number;
   /** This Nairobi calendar month. */
   invoicesCreatedThisMonth: number;
@@ -65,7 +69,10 @@ export interface AdminOverview {
   /** Paying accounts times the Pro price in USD. */
   mrrUsd: string;
   kesCollectedThisMonth: string;
-  /** Succeeded / (succeeded + failed) over the last 30 days; null with no settled payments. */
+  /**
+   * Succeeded / (succeeded + failed) by checkout time over the last 30 Nairobi
+   * days; pending payments are left out. Null with no settled payments.
+   */
   mpesaSuccessRate30Days: number | null;
   generatedAt: string;
 }
@@ -205,7 +212,10 @@ export interface AdminBilling {
   recentPayments: AdminBillingPayment[];
   /** Pending for more than 10 minutes, oldest first. */
   stuckPayments: AdminBillingPayment[];
-  /** Free months that reached their limit and ended within the last 90 days or are still running. */
+  /**
+   * Free months whose limit was reached in the last 90 days while still on
+   * Free; months where the limit-th invoice went to a Pro period are left out.
+   */
   freeLimitHits: AdminFreeLimitHit[];
   generatedAt: string;
 }
