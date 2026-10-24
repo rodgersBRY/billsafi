@@ -73,25 +73,29 @@ export class AdminBillingService {
   }
 
   /**
-   * Free months (still running or ended in the last 90 days) in which the
-   * account made its limit of plan-funded invoices Ready, counted over the
-   * month's window as the allowance does. "Paid" means a succeeded plan
-   * payment from the moment of the hit until 30 days after the month ended,
-   * so paying right away to keep going counts too.
+   * Free months in which the account made its limit-th plan-funded invoice
+   * Ready within the last 90 days. Every plan-funded invoice in the month's
+   * window counts towards the limit, Pro ones included (D044), but the hit is
+   * only reported when that limit-th invoice was charged to the Free period:
+   * if it went to a Pro period, the account had already upgraded. "Paid" means
+   * a succeeded plan payment from the moment of the hit until 30 days after
+   * the month ended, so paying right away to keep going counts too.
    */
   private async freeLimitHits(now: Date): Promise<AdminFreeLimitHit[]> {
     const since = new Date(now.getTime() - LIMIT_HIT_WINDOW_DAYS * DAY_MS);
     const query: SQL = sql`
       with hits as (
-        select
-          up.user_id, up.starts_at, up.ends_at, up.invoice_limit,
-          -- The issuance that used up the allowance: the limit-th one in the month.
-          (select ii.issued_at from invoice_issuances ii
-            where ii.user_id = up.user_id and ii.source = 'plan'
-              and ii.issued_at >= up.starts_at and ii.issued_at < up.ends_at
-            order by ii.issued_at
-            offset up.invoice_limit - 1 limit 1) as hit_at
+        select up.id, up.user_id, up.starts_at, up.ends_at, up.invoice_limit,
+               nth.issued_at as hit_at, nth.usage_period_id as hit_period_id
         from usage_periods up
+        -- The issuance that used up the allowance: the limit-th one in the month.
+        cross join lateral (
+          select ii.issued_at, ii.usage_period_id from invoice_issuances ii
+          where ii.user_id = up.user_id and ii.source = 'plan'
+            and ii.issued_at >= up.starts_at and ii.issued_at < up.ends_at
+          order by ii.issued_at, ii.id
+          offset up.invoice_limit - 1 limit 1
+        ) nth
         where up.plan_code = ${FREE_PLAN.code} and up.ends_at > ${at(since)}
       )
       select
@@ -108,7 +112,8 @@ export class AdminBillingService {
         ) as "paidWithin30Days"
       from hits h
       join users u on u.id = h.user_id
-      where h.hit_at is not null
+      where h.hit_period_id = h.id
+        and h.hit_at >= ${at(since)} and h.hit_at < ${at(now)}
       order by h.hit_at desc
       limit ${MAX_LIMIT_HITS}
     `;

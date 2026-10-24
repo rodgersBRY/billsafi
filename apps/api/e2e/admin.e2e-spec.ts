@@ -1,7 +1,12 @@
 import type { INestApplication } from "@nestjs/common";
+import type { AdminFunnel, AdminOverview } from "@billsafi/contracts";
+import { type DatabaseConnection, eq, schema, sql } from "@billsafi/db";
 import { FREE_PLAN } from "@billsafi/domain";
 import request from "supertest";
+import { AdminBillingService } from "../src/admin/admin-billing.service.js";
+import { AdminMetricsService } from "../src/admin/admin-metrics.service.js";
 import type { FakeMpesaProvider } from "../src/billing/mpesa/fake.provider.js";
+import { DATABASE } from "../src/database/database.module.js";
 import { createBusiness, createClient, createTestApp, signUp, uniqueEmail } from "./support/app.js";
 
 const CALLBACK = "/api/v1/billing/mpesa/callback/e2e-callback-token-0123456789";
@@ -28,6 +33,12 @@ describe("admin", () => {
   let receipt: string;
   const api = () => request(app.getHttpServer());
   const admin = (path: string) => api().get(`/api/v1/admin/${path}`).set("Cookie", adminCookie);
+  const db = () => app.get<DatabaseConnection>(DATABASE).db;
+
+  async function userId(email: string): Promise<string> {
+    const [user] = await db().select().from(schema.users).where(eq(schema.users.email, email));
+    return user!.id;
+  }
 
   /** Signs up an account with one business and client, then makes `ready` invoices Ready. */
   async function seedAccount(label: string, ready: number) {
@@ -35,32 +46,33 @@ describe("admin", () => {
     const businessId = await createBusiness(app, cookie, { displayName: "Seeded Studio" });
     const clientId = await createClient(app, cookie, businessId);
     const path = `/api/v1/businesses/${businessId}/invoices`;
-    for (let index = 0; index < ready; index++) {
-      const draft = await api()
-        .post(path)
-        .set("Cookie", cookie)
-        .send({
-          clientId,
-          issueDate: "2026-10-16",
-          dueDate: "2026-10-30",
-          items: [{ description: "Design work", quantity: "1", unitPrice: "1000" }],
-        })
-        .expect(201);
-      await api().post(`${path}/${draft.body.id}/ready`).set("Cookie", cookie).expect(200);
-    }
-    return { cookie, email };
+    const issue = async (count: number) => {
+      for (let index = 0; index < count; index++) {
+        const draft = await api()
+          .post(path)
+          .set("Cookie", cookie)
+          .send({
+            clientId,
+            issueDate: "2026-10-16",
+            dueDate: "2026-10-30",
+            items: [{ description: "Design work", quantity: "1", unitPrice: "1000" }],
+          })
+          .expect(201);
+        await api().post(`${path}/${draft.body.id}/ready`).set("Cookie", cookie).expect(200);
+      }
+    };
+    await issue(ready);
+    return { cookie, email, issue };
   }
 
-  /** A customer with a business, a client, a Ready invoice and a paid Pro month. */
-  async function seedCustomer() {
-    const { cookie, email } = await seedAccount("admin-seed", 1);
-
+  /** Pays one Pro month through the fake M-Pesa callback and returns the receipt. */
+  async function payPro(cookie: string): Promise<string> {
     await api()
       .post("/api/v1/billing/checkout")
       .set("Cookie", cookie)
       .send({ purpose: "pro_month", phone: "0708 374 149" })
       .expect(201);
-    receipt = `TK${crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+    const code = `TK${crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
     await api()
       .post(CALLBACK)
       .send({
@@ -73,7 +85,7 @@ describe("admin", () => {
             CallbackMetadata: {
               Item: [
                 { Name: "Amount", Value: 500 },
-                { Name: "MpesaReceiptNumber", Value: receipt },
+                { Name: "MpesaReceiptNumber", Value: code },
                 { Name: "TransactionDate", Value: 20261017102115 },
                 { Name: "PhoneNumber", Value: 254708374149 },
               ],
@@ -82,6 +94,13 @@ describe("admin", () => {
         },
       })
       .expect(200);
+    return code;
+  }
+
+  /** A customer with a business, a client, a Ready invoice and a paid Pro month. */
+  async function seedCustomer() {
+    const { cookie, email } = await seedAccount("admin-seed", 1);
+    receipt = await payPro(cookie);
     return email;
   }
 
@@ -265,6 +284,134 @@ describe("admin", () => {
     it("answers 404 for an unknown or malformed user id", async () => {
       await admin(`users/${crypto.randomUUID()}`).expect(404);
       await admin("users/not-a-uuid").expect(404);
+    });
+  });
+  /*
+   * Exact numbers through the services with a fixed `now`. Other e2e files
+   * write to the same database at the same time, so the seeded rows are moved
+   * into a window nothing else writes to and the test compares before/after.
+   */
+  describe("exact numbers", () => {
+    const metrics = () => app.get(AdminMetricsService);
+    const billing = () => app.get(AdminBillingService);
+    /** Moves a Better Auth `timestamp` column, which stores UTC. */
+    const setSignup = (id: string, utc: string) =>
+      db().execute(sql`update users set created_at = ${utc}::timestamp where id = ${id}`);
+
+    it("adds exactly what was seeded to the overview and funnel", async () => {
+      // Tuesday 15 June 2021, 12:00 in Nairobi.
+      const now = new Date("2021-06-15T09:00:00Z");
+      const before = await metrics().overview(now);
+      const funnelBefore = await metrics().funnel(7, now);
+
+      const paying = await seedAccount("admin-exact", 2);
+      await payPro(paying.cookie);
+      const payingId = await userId(paying.email);
+      const { email: googleEmail } = await signUp(app, uniqueEmail("admin-exact-google"));
+      const googleId = await userId(googleEmail);
+      await db()
+        .insert(schema.accounts)
+        .values({
+          accountId: `google-${googleId}`,
+          providerId: "google",
+          userId: googleId,
+          updatedAt: new Date(),
+        });
+
+      // Move both accounts' history to the morning of `now`.
+      const t = (time: string) => `2021-06-15T${time}:00Z`;
+      await setSignup(payingId, "2021-06-15 05:00:00");
+      await setSignup(googleId, "2021-06-15 05:05:00");
+      await db().execute(sql`
+        update businesses set created_at = ${t("05:10")}::timestamptz where owner_user_id = ${payingId}`);
+      await db().execute(sql`
+        update clients set created_at = ${t("05:20")}::timestamptz
+        where business_id in (select id from businesses where owner_user_id = ${payingId})`);
+      await db().execute(sql`
+        update invoices set created_at = ${t("05:30")}::timestamptz
+        where business_id in (select id from businesses where owner_user_id = ${payingId})`);
+      await db().execute(sql`
+        update invoice_issuances set issued_at = ${t("05:40")}::timestamptz where user_id = ${payingId}`);
+      await db().execute(sql`
+        update subscription_payments
+        set created_at = ${t("05:50")}::timestamptz, confirmed_at = ${t("05:51")}::timestamptz
+        where user_id = ${payingId}`);
+      await db().execute(sql`
+        update subscriptions set anchor_at = ${t("05:51")}::timestamptz where user_id = ${payingId}`);
+
+      const after = await metrics().overview(now);
+      const signups = { total: 2, google: 1, email: 1 };
+      const delta = (a: AdminOverview["signups"]["today"], b: typeof a) => ({
+        total: a.total - b.total,
+        google: a.google - b.google,
+        email: a.email - b.email,
+      });
+      expect(delta(after.signups.today, before.signups.today)).toEqual(signups);
+      expect(delta(after.signups.last7Days, before.signups.last7Days)).toEqual(signups);
+      expect(delta(after.signups.last30Days, before.signups.last30Days)).toEqual(signups);
+      expect(after.payingAccounts - before.payingAccounts).toBe(1);
+      expect(Number(after.mrrUsd) - Number(before.mrrUsd)).toBeCloseTo(4, 2);
+      expect(after.activeBusinesses - before.activeBusinesses).toBe(1);
+      expect(after.invoicesCreatedThisMonth - before.invoicesCreatedThisMonth).toBe(2);
+      expect(after.invoicesReadyThisMonth - before.invoicesReadyThisMonth).toBe(2);
+      expect(Number(after.kesCollectedThisMonth) - Number(before.kesCollectedThisMonth)).toBe(500);
+
+      const funnelAfter = await metrics().funnel(7, now);
+      const stepDelta = (a: AdminFunnel, b: AdminFunnel) =>
+        Object.fromEntries(
+          a.steps.map((step, index) => [step.key, step.users - b.steps[index]!.users]),
+        );
+      expect(stepDelta(funnelAfter, funnelBefore)).toEqual({
+        signed_up: 2,
+        business_created: 1,
+        client_added: 1,
+        invoice_created: 1,
+        invoice_ready: 1,
+        payment_recorded: 0,
+      });
+    });
+
+    it("dates signups by the Nairobi day and Monday week", async () => {
+      // 12:00 on Saturday 24 October 2026 in Nairobi; that week began Monday 19 October.
+      const now = new Date("2026-10-24T09:00:00Z");
+      const ids = await Promise.all(
+        ["today", "yesterday", "last-week"].map(async (label) =>
+          userId((await signUp(app, uniqueEmail(`admin-edge-${label}`))).email),
+        ),
+      );
+      const overviewBefore = await metrics().overview(now);
+      const retentionBefore = await metrics().retention(4, now);
+
+      // 00:30 Saturday, 23:59:59 Friday, and 23:59:59 on the Sunday before, in Nairobi.
+      await setSignup(ids[0]!, "2026-10-23 21:30:00");
+      await setSignup(ids[1]!, "2026-10-23 20:59:59");
+      await setSignup(ids[2]!, "2026-10-18 20:59:59");
+
+      const overviewAfter = await metrics().overview(now);
+      expect(overviewAfter.signups.today.total - overviewBefore.signups.today.total).toBe(1);
+      expect(overviewAfter.signups.last7Days.total - overviewBefore.signups.last7Days.total).toBe(
+        3,
+      );
+
+      const retentionAfter = await metrics().retention(4, now);
+      const sizes = (retention: typeof retentionAfter) =>
+        Object.fromEntries(retention.cohorts.map((cohort) => [cohort.weekStart, cohort.users]));
+      const [beforeSizes, afterSizes] = [sizes(retentionBefore), sizes(retentionAfter)];
+      expect(afterSizes["2026-10-19"]! - beforeSizes["2026-10-19"]!).toBe(2);
+      expect(afterSizes["2026-10-12"]! - beforeSizes["2026-10-12"]!).toBe(1);
+    });
+
+    it("does not report a limit hit for an account that upgraded before reaching it", async () => {
+      const account = await seedAccount("admin-upgraded", 3);
+      await payPro(account.cookie);
+      // Seven more this month bring the month to the Free limit, but on Pro.
+      await account.issue(FREE_PLAN.invoiceLimit - 3);
+      const id = await userId(account.email);
+
+      const { freeLimitHits } = await billing().billing();
+      expect(freeLimitHits.some((hit) => hit.userId === id)).toBe(false);
+      // The plain Free account seeded earlier is still reported.
+      expect(freeLimitHits.some((hit) => hit.userEmail === limitedEmail)).toBe(true);
     });
   });
 });
