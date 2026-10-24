@@ -36,7 +36,9 @@ async function Sidebar({ params }: { params: Promise<{ businessId: string }> }) 
           tourHref={`/${businessId}/overview?tour=1`}
           isPro={usage.plan === "pro"}
         />
-        <p className="px-1 text-xs text-sub">BillSafi v{process.env.NEXT_PUBLIC_APP_VERSION}</p>
+        <p className="px-1 text-xs text-sub text-center">
+          BillSafi v{process.env.NEXT_PUBLIC_APP_VERSION}
+        </p>
       </div>
     </>
   );
@@ -51,6 +53,7 @@ async function SetupChecklist({ params }: { params: Promise<{ businessId: string
   ]);
   const allDone = Object.values(progress).every(Boolean);
   if (allDone || !shouldShowTour(tours, "getting-started-checklist")) return null;
+
   return <GettingStartedPanel businessId={businessId} progress={progress} />;
 }
 
