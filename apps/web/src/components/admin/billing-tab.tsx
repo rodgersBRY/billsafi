@@ -1,0 +1,140 @@
+import type { AdminBilling, AdminBillingPayment } from "@billsafi/contracts";
+import { formatAmount } from "@/lib/format";
+import { formatInstant, formatMonth, purposeLabels } from "./admin-format";
+import {
+  EmptyRow,
+  Panel,
+  PaymentStatusPill,
+  UpdatedAt,
+  tdClass,
+  thClass,
+  theadClass,
+} from "./admin-ui";
+
+function PaymentsTable({ payments }: { payments: AdminBillingPayment[] }) {
+  return (
+    <table className="w-full text-sm">
+      <thead className={theadClass}>
+        <tr>
+          <th scope="col" className={thClass}>
+            Started
+          </th>
+          <th scope="col" className={thClass}>
+            User
+          </th>
+          <th scope="col" className={thClass}>
+            For
+          </th>
+          <th scope="col" className={`${thClass} text-right`}>
+            KES
+          </th>
+          <th scope="col" className={`${thClass} text-right`}>
+            USD
+          </th>
+          <th scope="col" className={thClass}>
+            Status
+          </th>
+          <th scope="col" className={thClass}>
+            Phone
+          </th>
+          <th scope="col" className={thClass}>
+            Receipt or reason
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {payments.map((payment) => (
+          <tr key={payment.id} className="border-t border-line">
+            <td className={`${tdClass} text-sub`}>{formatInstant(payment.createdAt)}</td>
+            <td className={tdClass}>{payment.userEmail}</td>
+            <td className={tdClass}>{purposeLabels[payment.purpose]}</td>
+            <td className={`${tdClass} text-right tabular-nums`}>
+              {formatAmount(payment.amountKes)}
+            </td>
+            <td className={`${tdClass} text-right tabular-nums`}>
+              {payment.priceUsd === null ? (
+                <span className="text-sub">No data</span>
+              ) : (
+                formatAmount(payment.priceUsd)
+              )}
+            </td>
+            <td className={tdClass}>
+              <PaymentStatusPill status={payment.status} />
+            </td>
+            <td className={`${tdClass} text-sub tabular-nums`}>{payment.phone}</td>
+            <td className={`${tdClass} text-sub`}>
+              {payment.status === "failed" ? payment.resultDescription : payment.receipt}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+export function BillingTab({ data }: { data: AdminBilling }) {
+  return (
+    <div className="space-y-4">
+      <Panel title="Recent payments" description="The 50 latest plan payments, newest first.">
+        {data.recentPayments.length === 0 ? (
+          <EmptyRow text="No plan payments yet." />
+        ) : (
+          <PaymentsTable payments={data.recentPayments} />
+        )}
+      </Panel>
+
+      <Panel
+        title="Stuck payments"
+        description="Checkouts still pending more than 10 minutes after they started, oldest first."
+      >
+        {data.stuckPayments.length === 0 ? (
+          <EmptyRow text="No stuck payments." />
+        ) : (
+          <PaymentsTable payments={data.stuckPayments} />
+        )}
+      </Panel>
+
+      <Panel
+        title="Free limit hits"
+        description="Free months where the user reached the invoice limit in the last 90 days. Paid means a plan payment between the hit and 30 days after that month ended."
+      >
+        {data.freeLimitHits.length === 0 ? (
+          <EmptyRow text="No one has reached the Free limit in the last 90 days." />
+        ) : (
+          <table className="w-full text-sm">
+            <thead className={theadClass}>
+              <tr>
+                <th scope="col" className={thClass}>
+                  User
+                </th>
+                <th scope="col" className={thClass}>
+                  Month
+                </th>
+                <th scope="col" className={thClass}>
+                  Reached limit
+                </th>
+                <th scope="col" className={thClass}>
+                  Paid within 30 days
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.freeLimitHits.map((hit) => (
+                <tr key={`${hit.userId}:${hit.month}`} className="border-t border-line">
+                  <td className={tdClass}>{hit.userEmail}</td>
+                  <td className={tdClass}>{formatMonth(hit.month)}</td>
+                  <td className={`${tdClass} text-sub`}>
+                    {formatInstant(hit.hitAt)}
+                    <span className="block text-xs">Limit of {hit.limit} invoices</span>
+                  </td>
+                  <td className={tdClass}>{hit.paidWithin30Days ? "Yes" : "No"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Panel>
+      <UpdatedAt iso={data.generatedAt} />
+    </div>
+  );
+}
