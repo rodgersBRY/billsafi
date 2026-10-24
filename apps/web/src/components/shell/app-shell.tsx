@@ -9,7 +9,7 @@ interface AppShellProps {
   children: React.ReactNode;
 }
 
-/** Left navigation on desktop; a top-left menu on smaller screens (D039, D040). */
+/** Left navigation on desktop; a top-left menu on smaller screens. */
 export function AppShell({ sidebar, children }: AppShellProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
