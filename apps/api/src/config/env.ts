@@ -36,6 +36,21 @@ const envSchema = z
     USD_KES_RATE: z.coerce.number().positive().optional(),
     /** Sentry project DSN for API errors; reporting is off when unset (D052). */
     SENTRY_DSN: z.url().optional(),
+    /**
+     * Emails allowed to open the read-only admin dashboard (D057), comma
+     * separated. Empty or unset turns admin off for everyone.
+     */
+    ADMIN_EMAILS: z
+      .string()
+      .optional()
+      .transform((value) => [
+        ...new Set(
+          (value ?? "")
+            .split(",")
+            .map((email) => email.trim().toLowerCase())
+            .filter(Boolean),
+        ),
+      ]),
     /** Runs the renewal reminder job inside the API process. */
     BILLING_JOBS: z
       .enum(["on", "off"])

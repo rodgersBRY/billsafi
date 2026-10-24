@@ -15,6 +15,13 @@ describe("loadEnv", () => {
     });
   });
 
+  it("reads the admin emails as a clean lowercase list", () => {
+    expect(loadEnv(required).ADMIN_EMAILS).toEqual([]);
+    expect(
+      loadEnv({ ...required, ADMIN_EMAILS: " Brian@Example.com , ,admin@x.test " }).ADMIN_EMAILS,
+    ).toEqual(["brian@example.com", "admin@x.test"]);
+  });
+
   it("requires a Postgres database URL", () => {
     expect(() => loadEnv({ ...required, DATABASE_URL: undefined })).toThrow(/DATABASE_URL/);
     expect(() => loadEnv({ ...required, DATABASE_URL: "mysql://localhost/db" })).toThrow(
