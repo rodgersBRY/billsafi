@@ -20,6 +20,8 @@ process.env.USD_KES_RATE = "125";
 // Turns Google sign-in on; the Google spec stubs Google's token endpoint.
 process.env.GOOGLE_CLIENT_ID = "e2e-client.apps.googleusercontent.com";
 process.env.GOOGLE_CLIENT_SECRET = "e2e-google-client-secret";
+// The one email the admin spec treats as an admin.
+process.env.ADMIN_EMAILS = "admin@billsafi.test";
 
 export const WEB_ORIGIN = "http://localhost:3000";
 

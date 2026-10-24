@@ -8,6 +8,7 @@ import { AuthProvidersModule } from "./auth/auth-providers.module.js";
 import { ConfigModule, ENV } from "./config/config.module.js";
 import type { Env } from "./config/env.js";
 import { DATABASE, DatabaseModule } from "./database/database.module.js";
+import { AdminModule } from "./admin/admin.module.js";
 import { BillingModule } from "./billing/billing.module.js";
 import { BusinessesModule } from "./businesses/businesses.module.js";
 import { ClientsModule } from "./clients/clients.module.js";
@@ -43,6 +44,7 @@ import type { Mailer } from "./mail/mailer.js";
     GuestInvoicesModule,
     BillingModule,
     ProductToursModule,
+    AdminModule,
   ],
   // Reports unexpected errors; HTTP errors such as 404 and 409 are not sent.
   providers: [{ provide: APP_FILTER, useClass: SentryGlobalFilter }],
