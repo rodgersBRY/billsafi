@@ -6,6 +6,7 @@ import { useState } from "react";
 import { StepPanel } from "@/components/onboarding/step-panel";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/field";
+import { PasswordField } from "@/components/ui/password-field";
 import { FormMessage } from "@/components/ui/form-message";
 import { authClient } from "@/lib/auth-client";
 
@@ -56,10 +57,9 @@ export function SignUpForm({ google }: { google?: React.ReactNode }) {
       <form method="post" onSubmit={onSubmit}>
         <TextField label="Full name" name="name" autoComplete="name" error={errors.name} required />
         <TextField label="Email address" name="email" type="email" autoComplete="email" required />
-        <TextField
+        <PasswordField
           label="Password"
           name="password"
-          type="password"
           autoComplete="new-password"
           hint={`At least ${MIN_PASSWORD_LENGTH} characters.`}
           error={errors.password}

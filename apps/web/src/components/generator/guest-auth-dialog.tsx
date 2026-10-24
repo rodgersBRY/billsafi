@@ -6,6 +6,7 @@ import { queueIntroSplash } from "@/components/brand/intro-splash";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { TextField } from "@/components/ui/field";
+import { PasswordField } from "@/components/ui/password-field";
 import { FormMessage } from "@/components/ui/form-message";
 import { authClient } from "@/lib/auth-client";
 
@@ -133,10 +134,9 @@ export function GuestAuthDialog({ open, onClose, google }: GuestAuthDialogProps)
           defaultValue={email}
           required
         />
-        <TextField
+        <PasswordField
           label="Password"
           name="password"
-          type="password"
           autoComplete={signUp ? "new-password" : "current-password"}
           hint={signUp ? `At least ${MIN_PASSWORD_LENGTH} characters.` : undefined}
           error={signUp ? errors.password : undefined}

@@ -7,6 +7,7 @@ import { AuthHeading } from "@/components/auth/auth-heading";
 import { queueIntroSplash } from "@/components/brand/intro-splash";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/field";
+import { PasswordField } from "@/components/ui/password-field";
 import { FormMessage } from "@/components/ui/form-message";
 import { authClient } from "@/lib/auth-client";
 
@@ -42,13 +43,7 @@ export function SignInForm({ google }: { google?: React.ReactNode }) {
       <AuthHeading title="Welcome back" description="Sign in to manage your invoices." />
       {google}
       <TextField label="Email address" name="email" type="email" autoComplete="email" required />
-      <TextField
-        label="Password"
-        name="password"
-        type="password"
-        autoComplete="current-password"
-        required
-      />
+      <PasswordField label="Password" name="password" autoComplete="current-password" required />
       <div className="mt-2 text-right">
         <Link href="/forgot-password" className="text-xs text-accent hover:underline">
           Forgot password?
