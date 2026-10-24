@@ -8,7 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/",
     display: "standalone",
     // Matches the logo animation backdrop so the installed-app splash blends into it.
-    background_color: "#0a363e",
+    background_color: "#142421",
     theme_color: "#0f766e",
     icons: [
       { src: "/favicon.ico", sizes: "16x16 32x32", type: "image/x-icon" },
