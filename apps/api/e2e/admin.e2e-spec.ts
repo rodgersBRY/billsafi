@@ -1,25 +1,35 @@
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
-import { WEB_ORIGIN, createTestApp, sessionCookie, signUp } from "./support/app.js";
+import { createTestApp, signUp } from "./support/app.js";
 
-const ADMIN_EMAIL = "admin@billsafi.test";
-const PASSWORD = "correct-horse-battery";
-
-/** Signs up the admin account, or signs in when an earlier run already made it. */
-async function adminCookie(app: INestApplication): Promise<string> {
-  const response = await request(app.getHttpServer())
-    .post("/api/v1/auth/sign-in/email")
-    .set("Origin", WEB_ORIGIN)
-    .send({ email: ADMIN_EMAIL, password: PASSWORD });
-  if (response.status === 200) return sessionCookie(response.headers["set-cookie"]);
-  return (await signUp(app, ADMIN_EMAIL)).cookie;
+/** Builds an app whose admin list is fixed at start-up, so it must be set first. */
+async function appWithAdmins(ids: string): Promise<INestApplication> {
+  const previous = process.env.ADMIN_USER_IDS;
+  process.env.ADMIN_USER_IDS = ids;
+  try {
+    return (await createTestApp()).app;
+  } finally {
+    if (previous === undefined) delete process.env.ADMIN_USER_IDS;
+    else process.env.ADMIN_USER_IDS = previous;
+  }
 }
 
 describe("GET /api/v1/admin/ping", () => {
   let app: INestApplication;
+  let adminCookie: string;
 
   beforeAll(async () => {
-    ({ app } = await createTestApp());
+    // A user's ID is only known after sign-up, so make the admin first.
+    const setup = (await createTestApp()).app;
+    const { cookie } = await signUp(setup);
+    adminCookie = cookie;
+    const session = await request(setup.getHttpServer())
+      .get("/api/v1/auth/get-session")
+      .set("Cookie", cookie)
+      .expect(200);
+    const adminId: string = session.body.user.id;
+    await setup.close();
+    app = await appWithAdmins(adminId);
   });
 
   afterAll(async () => {
@@ -43,27 +53,18 @@ describe("GET /api/v1/admin/ping", () => {
   });
 
   it("lets a listed admin in", async () => {
-    const cookie = await adminCookie(app);
     await request(app.getHttpServer())
       .get("/api/v1/admin/ping")
-      .set("Cookie", cookie)
+      .set("Cookie", adminCookie)
       .expect(200, { ok: true });
   });
 
   it("turns admin off for everyone when the list is empty", async () => {
-    const cookie = await adminCookie(app);
-    const previous = process.env.ADMIN_EMAILS;
-    process.env.ADMIN_EMAILS = "";
-    let closed: INestApplication | undefined;
-    try {
-      ({ app: closed } = await createTestApp());
-    } finally {
-      process.env.ADMIN_EMAILS = previous;
-    }
+    const closed = await appWithAdmins("");
     try {
       await request(closed.getHttpServer())
         .get("/api/v1/admin/ping")
-        .set("Cookie", cookie)
+        .set("Cookie", adminCookie)
         .expect(404);
     } finally {
       await closed.close();

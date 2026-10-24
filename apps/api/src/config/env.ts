@@ -37,20 +37,22 @@ const envSchema = z
     /** Sentry project DSN for API errors; reporting is off when unset (D052). */
     SENTRY_DSN: z.url().optional(),
     /**
-     * Emails allowed to open the read-only admin dashboard (D057), comma
-     * separated. Empty or unset turns admin off for everyone.
+     * User IDs allowed to open the read-only admin dashboard (D057), comma
+     * separated. IDs, not emails: emails are not verified, so an unregistered
+     * email could be claimed by someone else. Empty or unset turns admin off.
      */
-    ADMIN_EMAILS: z
+    ADMIN_USER_IDS: z
       .string()
       .optional()
       .transform((value) => [
         ...new Set(
           (value ?? "")
             .split(",")
-            .map((email) => email.trim().toLowerCase())
+            .map((id) => id.trim().toLowerCase())
             .filter(Boolean),
         ),
-      ]),
+      ])
+      .pipe(z.array(z.uuid("ADMIN_USER_IDS must be a comma-separated list of user IDs (UUIDs)"))),
     /** Runs the renewal reminder job inside the API process. */
     BILLING_JOBS: z
       .enum(["on", "off"])
