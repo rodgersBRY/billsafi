@@ -45,3 +45,15 @@ export function editablePhone(stored: string): string {
   const local = `0${stored.slice(4)}`;
   return `${local.slice(0, 4)} ${local.slice(4, 7)} ${local.slice(7)}`;
 }
+
+/**
+ * Hides the middle digits of a stored E.164 number for admin views, keeping
+ * the country code plus first digit and the last three: +2547•••••678.
+ */
+export function maskPhone(stored: string): string {
+  const digits = stored.replace(/\D/g, "");
+  const kept = digits.length > 7 ? 4 : 0;
+  const hidden = Math.max(digits.length - kept - 3, 0);
+  const prefix = stored.startsWith("+") ? "+" : "";
+  return `${prefix}${digits.slice(0, kept)}${"•".repeat(hidden)}${digits.slice(kept + hidden)}`;
+}

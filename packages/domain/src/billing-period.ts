@@ -20,6 +20,23 @@ export function nairobiCalendarMonth(at: Date): Period {
   };
 }
 
+/** Midnight in Nairobi at the start of the day containing `at`, as a UTC instant. */
+export function nairobiDayStart(at: Date): Date {
+  const local = new Date(at.getTime() + NAIROBI_OFFSET_MS);
+  return new Date(
+    Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()) - NAIROBI_OFFSET_MS,
+  );
+}
+
+/** Monday 00:00 in Nairobi of the week containing `at`, as a UTC instant. */
+export function nairobiWeekStart(at: Date): Date {
+  const day = nairobiDayStart(at);
+  // getUTCDay of the shifted instant is the Nairobi weekday; Sunday (0) belongs to the week before.
+  const weekday = new Date(day.getTime() + NAIROBI_OFFSET_MS).getUTCDay();
+  const daysSinceMonday = (weekday + 6) % 7;
+  return new Date(day.getTime() - daysSinceMonday * 24 * 60 * 60 * 1000);
+}
+
 function daysInMonth(year: number, month: number): number {
   return new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
 }

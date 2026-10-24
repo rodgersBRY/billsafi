@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { addNairobiMonths, nairobiCalendarMonth, proPeriodAt } from "./billing-period.js";
+import {
+  addNairobiMonths,
+  nairobiCalendarMonth,
+  nairobiDayStart,
+  nairobiWeekStart,
+  proPeriodAt,
+} from "./billing-period.js";
 
 describe("nairobiCalendarMonth", () => {
   it("returns the month boundaries at Nairobi midnight", () => {
@@ -65,5 +71,49 @@ describe("proPeriodAt", () => {
     expect(proPeriodAt(anchor, 1, new Date("2026-10-15T07:29:59Z"))).toBeNull();
     expect(proPeriodAt(anchor, 1, new Date("2026-11-15T07:30:00Z"))).toBeNull();
     expect(proPeriodAt(anchor, 0, new Date("2026-10-20T00:00:00Z"))).toBeNull();
+  });
+});
+
+describe("nairobiDayStart", () => {
+  it("returns Nairobi midnight as UTC", () => {
+    expect(nairobiDayStart(new Date("2026-10-24T10:00:00Z")).toISOString()).toBe(
+      "2026-10-23T21:00:00.000Z",
+    );
+  });
+
+  it("moves late UTC evenings to the next Nairobi day", () => {
+    // 22:00 UTC on 23 October is 01:00 on 24 October in Nairobi.
+    expect(nairobiDayStart(new Date("2026-10-23T22:00:00Z")).toISOString()).toBe(
+      "2026-10-23T21:00:00.000Z",
+    );
+  });
+});
+
+describe("nairobiWeekStart", () => {
+  it("starts the week on Monday in Nairobi", () => {
+    // Saturday 24 October 2026; the week began Monday 19 October.
+    expect(nairobiWeekStart(new Date("2026-10-24T10:00:00Z")).toISOString()).toBe(
+      "2026-10-18T21:00:00.000Z",
+    );
+  });
+
+  it("keeps Monday itself in its own week", () => {
+    expect(nairobiWeekStart(new Date("2026-10-18T21:00:00Z")).toISOString()).toBe(
+      "2026-10-18T21:00:00.000Z",
+    );
+  });
+
+  it("puts Sunday in the week that began the Monday before", () => {
+    // 20:59 UTC Sunday 18 October is still Sunday 23:59 in Nairobi.
+    expect(nairobiWeekStart(new Date("2026-10-18T20:59:00Z")).toISOString()).toBe(
+      "2026-10-11T21:00:00.000Z",
+    );
+  });
+
+  it("uses the Nairobi weekday, not the UTC one", () => {
+    // 22:00 UTC Sunday is 01:00 Monday in Nairobi.
+    expect(nairobiWeekStart(new Date("2026-10-25T22:00:00Z")).toISOString()).toBe(
+      "2026-10-25T21:00:00.000Z",
+    );
   });
 });
