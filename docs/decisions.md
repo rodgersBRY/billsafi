@@ -577,3 +577,14 @@ User: "After successfully logging in, before navigating to overview, show a moda
 - It covers every way to create an account: the email sign-up form, a first Google sign-in, and "Create account and save" in the free invoice generator. Each one carries on to where it went before (business setup or the saved invoice).
 - Returning users who sign in go straight to the app.
 - The agreement is not stored yet. Proving who accepted which terms and when needs a database record, which is a separate decision.
+
+## D060 - Let users pick light or dark mode
+
+Status: confirmed on 2026-10-24.
+
+User: "Now for the portal, include a light and dark mode and a toggle for this. a switch on the bottom menu".
+
+- A "Dark mode" switch sits in the account menu at the bottom of the sidebar.
+- Until someone uses it, the app follows the device setting as D052 describes. Once they flip it, their choice wins on that browser and survives reloads. It is saved in the browser, not on the account, so another device starts from its own setting.
+- The saved choice is applied before the first paint, so a reload never flashes the other theme.
+- The marketing landing page stays light. The post-login splash uses the portal's dark green `#142421` in both themes.

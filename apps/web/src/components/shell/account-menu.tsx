@@ -7,6 +7,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { START_TOUR_EVENT } from "@/components/tour/product-tour";
 import { authClient } from "@/lib/auth-client";
 import { useNavigationPending } from "@/lib/use-navigation-pending";
+import { ThemeSwitch } from "./theme-switch";
 
 function initials(name: string) {
   return name
@@ -128,6 +129,7 @@ export function AccountMenu({
           Take the tour
           <Compass aria-hidden className="size-4 text-sub" />
         </Link>
+        <ThemeSwitch />
         <button
           type="button"
           onClick={signOut}
