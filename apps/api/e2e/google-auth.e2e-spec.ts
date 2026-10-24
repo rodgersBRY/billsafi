@@ -1,6 +1,7 @@
 import type { INestApplication } from "@nestjs/common";
 import { type DatabaseConnection, and, eq, schema } from "@billsafi/db";
 import request from "supertest";
+import { AccountAccessService } from "../src/admin/account-access.service.js";
 import { DATABASE } from "../src/database/database.module.js";
 import { createTestApp, signUp, uniqueEmail, WEB_ORIGIN } from "./support/app.js";
 
@@ -158,6 +159,23 @@ describe("Google sign-in", () => {
     const { location, session } = await finishGoogleSignIn(profile);
     expect(location.pathname).toBe("/");
     expect(session).toBeDefined();
+  });
+
+  it("refuses a suspended Google user and ends their session", async () => {
+    const email = uniqueEmail("google-suspended");
+    const profile = googleUser(email);
+    const first = await finishGoogleSignIn(profile);
+    const cookie = first.session!.split(";")[0]!;
+    const [user] = await db().select().from(schema.users).where(eq(schema.users.email, email));
+
+    await app.get(AccountAccessService).suspend(user!.id, "Suspended in an e2e test");
+
+    const me = await api().get("/api/v1/auth/get-session").set("Cookie", cookie).expect(200);
+    expect(me.body).toBeNull();
+    const { location, session } = await finishGoogleSignIn(profile);
+    expect(location.pathname).toBe("/sign-in");
+    expect(location.searchParams.get("error")).toBe("BANNED_USER");
+    expect(session).toBeUndefined();
   });
 
   it("never merges Google into an existing password account with the same email", async () => {

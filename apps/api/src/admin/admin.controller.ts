@@ -23,7 +23,7 @@ import { AdminGuard } from "./admin.guard.js";
 import { ADMIN_CACHE, type TtlCache } from "./ttl-cache.js";
 
 /**
- * Read-only admin dashboard data. Everything except user detail is cached for
+ * Admin read routes (GET only; actions live in AdminActionsController). Everything except user detail is cached for
  * 60 seconds per route and validated query, so page refreshes stay cheap.
  */
 // OptionalAuth lets signed-out requests reach AdminGuard, so they get 404 not 401.

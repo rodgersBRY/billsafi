@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  adminActionBodySchema,
   adminFunnelQuerySchema,
   adminRetentionQuerySchema,
   adminUsersQuerySchema,
+  reasonSchema,
 } from "./admin.js";
 
 describe("adminFunnelQuerySchema", () => {
@@ -38,5 +40,25 @@ describe("adminUsersQuerySchema", () => {
   it("rejects page 0 and long searches", () => {
     expect(adminUsersQuerySchema.safeParse({ page: "0" }).success).toBe(false);
     expect(adminUsersQuerySchema.safeParse({ search: "x".repeat(101) }).success).toBe(false);
+  });
+});
+
+describe("reasonSchema", () => {
+  it("trims and accepts 5 to 500 characters", () => {
+    expect(reasonSchema.parse("  Fraud report  ")).toBe("Fraud report");
+    expect(reasonSchema.parse("x".repeat(500))).toHaveLength(500);
+  });
+
+  it("rejects missing, short and long reasons", () => {
+    expect(reasonSchema.safeParse(undefined).success).toBe(false);
+    expect(reasonSchema.safeParse("   abc   ").success).toBe(false);
+    expect(reasonSchema.safeParse("x".repeat(501)).success).toBe(false);
+  });
+
+  it("is required in an action body", () => {
+    expect(adminActionBodySchema.safeParse({}).success).toBe(false);
+    expect(adminActionBodySchema.parse({ reason: "Owner asked" })).toEqual({
+      reason: "Owner asked",
+    });
   });
 });

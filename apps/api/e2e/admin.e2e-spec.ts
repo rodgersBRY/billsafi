@@ -1,33 +1,72 @@
 import type { INestApplication } from "@nestjs/common";
 import type { AdminFunnel, AdminOverview } from "@billsafi/contracts";
-import { type DatabaseConnection, eq, schema, sql } from "@billsafi/db";
+import { and, asc, type DatabaseConnection, eq, schema, sql } from "@billsafi/db";
 import { FREE_PLAN } from "@billsafi/domain";
 import request from "supertest";
+import { AccountAccessService } from "../src/admin/account-access.service.js";
 import { AdminBillingService } from "../src/admin/admin-billing.service.js";
 import { AdminMetricsService } from "../src/admin/admin-metrics.service.js";
+import { AdminRoleSyncService } from "../src/admin/admin-role-sync.service.js";
+import { AuditService } from "../src/audit/audit.service.js";
+import { DISABLED_ADMIN_PATHS } from "../src/auth/auth.js";
 import type { FakeMpesaProvider } from "../src/billing/mpesa/fake.provider.js";
 import { DATABASE } from "../src/database/database.module.js";
-import { createBusiness, createClient, createTestApp, signUp, uniqueEmail } from "./support/app.js";
+import {
+  createBusiness,
+  createClient,
+  createTestApp,
+  sessionCookie,
+  signUp,
+  uniqueEmail,
+  WEB_ORIGIN,
+} from "./support/app.js";
 
 const CALLBACK = "/api/v1/billing/mpesa/callback/e2e-callback-token-0123456789";
 const ROUTES = ["access", "overview", "funnel", "retention", "users", "billing"];
 
-/** Builds an app whose admin list is fixed at start-up, so it must be set first. */
-async function appWithAdmins(ids: string) {
+/** IDs from the developer's .env stay listed, so tests never demote a real local admin. */
+const ENV_ADMIN_IDS = (process.env.ADMIN_USER_IDS ?? "").split(",").filter(Boolean);
+
+/**
+ * Builds an app whose start-up sync gives exactly these users (plus the .env admins) the
+ * admin role and takes it from everyone else, so every app in this file must list the
+ * main admin unless a test means to demote them.
+ */
+async function appWithAdmins(ids: string[]) {
   const previous = process.env.ADMIN_USER_IDS;
-  process.env.ADMIN_USER_IDS = ids;
+  process.env.ADMIN_USER_IDS = [...ENV_ADMIN_IDS, ...ids].join(",");
   try {
-    return await createTestApp();
+    return await createTestApp({ adminRoleSync: true });
   } finally {
     if (previous === undefined) delete process.env.ADMIN_USER_IDS;
     else process.env.ADMIN_USER_IDS = previous;
   }
 }
 
+/** The 15 HTTP endpoints Better Auth 1.7's admin plugin registers; all must be off. */
+const PLUGIN_ENDPOINTS = [
+  ["post", "/admin/set-role"],
+  ["get", "/admin/get-user"],
+  ["post", "/admin/create-user"],
+  ["post", "/admin/update-user"],
+  ["get", "/admin/list-users"],
+  ["post", "/admin/list-user-sessions"],
+  ["post", "/admin/unban-user"],
+  ["post", "/admin/ban-user"],
+  ["post", "/admin/impersonate-user"],
+  ["post", "/admin/stop-impersonating"],
+  ["post", "/admin/revoke-user-session"],
+  ["post", "/admin/revoke-user-sessions"],
+  ["post", "/admin/remove-user"],
+  ["post", "/admin/set-user-password"],
+  ["post", "/admin/has-permission"],
+] as const;
+
 describe("admin", () => {
   let app: INestApplication;
   let mpesa: FakeMpesaProvider;
   let adminCookie: string;
+  let adminId: string;
   let customerEmail: string;
   let limitedEmail: string;
   let receipt: string;
@@ -113,9 +152,9 @@ describe("admin", () => {
       .get("/api/v1/auth/get-session")
       .set("Cookie", cookie)
       .expect(200);
-    const adminId: string = session.body.user.id;
+    adminId = session.body.user.id;
     await setup.close();
-    ({ app, mpesa } = await appWithAdmins(adminId));
+    ({ app, mpesa } = await appWithAdmins([adminId]));
     // Seed before any admin request so the 60-second cache cannot hide it.
     customerEmail = await seedCustomer();
     // A Free account that uses its whole monthly allowance and does not pay.
@@ -151,16 +190,221 @@ describe("admin", () => {
       await admin("access").expect(204);
     });
 
-    it("turns admin off for everyone when the list is empty", async () => {
-      const closed = (await appWithAdmins("")).app;
-      try {
-        await request(closed.getHttpServer())
-          .get("/api/v1/admin/overview")
-          .set("Cookie", adminCookie)
-          .expect(404);
-      } finally {
-        await closed.close();
+    it("echoes a request ID on every response", async () => {
+      const response = await api()
+        .get("/api/v1/admin/overview")
+        .set("x-request-id", "e2e-trace-1")
+        .expect(404);
+      expect(response.headers["x-request-id"]).toBe("e2e-trace-1");
+      const generated = await api().get("/api/v1/health");
+      expect(generated.headers["x-request-id"]).toMatch(/^[0-9a-f-]{36}$/);
+    });
+  });
+
+  describe("roles", () => {
+    const roleOf = async (id: string) =>
+      (await db().select().from(schema.users).where(eq(schema.users.id, id)))[0]!.role;
+    const roleAudit = (id: string) =>
+      db()
+        .select()
+        .from(schema.auditLogs)
+        .where(
+          and(
+            eq(schema.auditLogs.targetType, "user"),
+            eq(schema.auditLogs.targetId, id),
+            eq(schema.auditLogs.action, "user.role_change"),
+          ),
+        )
+        .orderBy(asc(schema.auditLogs.occurredAt));
+
+    it("gives new accounts the user role", async () => {
+      const { email } = await signUp(app);
+      expect(await roleOf(await userId(email))).toBe("user");
+    });
+
+    it("syncs ADMIN_USER_IDS on start, auditing each change, and a demotion applies at once", async () => {
+      const listed = await signUp(app, uniqueEmail("promoted"));
+      const listedId = await userId(listed.email);
+      const stray = await signUp(app, uniqueEmail("stray-admin"));
+      const strayId = await userId(stray.email);
+      // An admin role nobody listed, as if an ID was removed from the env.
+      await db().update(schema.users).set({ role: "admin" }).where(eq(schema.users.id, strayId));
+      await api().get("/api/v1/admin/access").set("Cookie", stray.cookie).expect(204);
+
+      // An ID with no user (say, a typo) is logged and skipped; start-up goes on.
+      const synced = await appWithAdmins([adminId, listedId, crypto.randomUUID()]);
+      await synced.app.close();
+
+      expect(await roleOf(listedId)).toBe("admin");
+      expect(await roleOf(strayId)).toBe("user");
+      expect(await roleOf(adminId)).toBe("admin");
+      // The guard reads the role on every request, so the running app agrees right away.
+      await api().get("/api/v1/admin/access").set("Cookie", listed.cookie).expect(204);
+      await api().get("/api/v1/admin/access").set("Cookie", stray.cookie).expect(404);
+
+      expect(await roleAudit(listedId)).toEqual([
+        expect.objectContaining({
+          actorUserId: null,
+          actorRole: "system",
+          outcome: "success",
+          changes: { role: { from: "user", to: "admin" } },
+        }),
+      ]);
+      expect(await roleAudit(strayId)).toEqual([
+        expect.objectContaining({
+          actorUserId: null,
+          actorRole: "system",
+          changes: { role: { from: "admin", to: "user" } },
+        }),
+      ]);
+
+      // Taking the ID off the list and restarting demotes them.
+      const relisted = await appWithAdmins([adminId]);
+      await relisted.app.close();
+      expect(await roleOf(listedId)).toBe("user");
+      await api().get("/api/v1/admin/access").set("Cookie", listed.cookie).expect(404);
+      expect(await roleAudit(listedId)).toHaveLength(2);
+    });
+
+    it("is idempotent: a second start with the same list changes and audits nothing", async () => {
+      const before = await db().select({ id: schema.auditLogs.id }).from(schema.auditLogs);
+      const again = await appWithAdmins([adminId]);
+      const result = await again.app.get(AdminRoleSyncService).sync();
+      await again.app.close();
+      expect(result).toMatchObject({ promoted: [], demoted: [] });
+      const after = await db().select({ id: schema.auditLogs.id }).from(schema.auditLogs);
+      expect(after.length).toBe(before.length);
+    });
+  });
+
+  describe("Better Auth admin plugin", () => {
+    it.each(PLUGIN_ENDPOINTS)("answers 404 on %s %s, even to an admin", async (method, path) => {
+      for (const url of [`/api/v1/auth${path}`, `/api/v1/auth${path}/`]) {
+        const call = api()[method](url);
+        await call.set("Origin", WEB_ORIGIN).set("Cookie", adminCookie).send({}).expect(404);
       }
+    });
+
+    it("lists every endpoint the plugin registers", () => {
+      expect([...DISABLED_ADMIN_PATHS].sort()).toEqual(
+        PLUGIN_ENDPOINTS.map(([, path]) => path).sort(),
+      );
+    });
+
+    it("never lets a stranger promote themselves", async () => {
+      const { cookie, email } = await signUp(app);
+      await api()
+        .post("/api/v1/auth/admin/set-role")
+        .set("Origin", WEB_ORIGIN)
+        .set("Cookie", cookie)
+        .send({ userId: await userId(email), role: "admin" })
+        .expect(404);
+      await api()
+        .post("/api/v1/auth/update-user")
+        .set("Origin", WEB_ORIGIN)
+        .set("Cookie", cookie)
+        .send({ role: "admin", banned: false });
+      expect(
+        (await db().select().from(schema.users).where(eq(schema.users.email, email)))[0]!.role,
+      ).toBe("user");
+    });
+  });
+
+  describe("suspension", () => {
+    const signIn = (email: string) =>
+      api()
+        .post("/api/v1/auth/sign-in/email")
+        .set("Origin", WEB_ORIGIN)
+        .send({ email, password: "correct-horse-battery" });
+
+    it("blocks sign-in and ends existing sessions, until reactivated", async () => {
+      const { cookie, email } = await signUp(app, uniqueEmail("suspended"));
+      const id = await userId(email);
+      await api().get("/api/v1/businesses").set("Cookie", cookie).expect(200);
+
+      await app.get(AccountAccessService).suspend(id, "Chargeback fraud report");
+
+      await api().get("/api/v1/businesses").set("Cookie", cookie).expect(401);
+      const refused = await signIn(email).expect(403);
+      expect(refused.body.code).toBe("BANNED_USER");
+      expect(refused.headers["set-cookie"]?.toString() ?? "").not.toContain(
+        "better-auth.session_token=",
+      );
+      const [user] = await db().select().from(schema.users).where(eq(schema.users.id, id));
+      expect(user).toMatchObject({ banned: true, banReason: "Chargeback fraud report" });
+
+      await app.get(AccountAccessService).reactivate(id);
+      const back = await signIn(email).expect(200);
+      await api()
+        .get("/api/v1/businesses")
+        .set("Cookie", sessionCookie(back.headers["set-cookie"]))
+        .expect(200);
+    });
+
+    it("revokes every session without suspending", async () => {
+      const { cookie, email } = await signUp(app, uniqueEmail("revoked"));
+      await app.get(AccountAccessService).revokeSessions(await userId(email));
+      await api().get("/api/v1/businesses").set("Cookie", cookie).expect(401);
+      await signIn(email).expect(200);
+    });
+  });
+
+  describe("audit log", () => {
+    it("stores redacted rows and refuses UPDATE and DELETE", async () => {
+      const action = `e2e.audit_check.${crypto.randomUUID()}`;
+      const rollback = new Error("roll back the test row");
+      // Inside a transaction that is always rolled back, so the shared database keeps no test row.
+      await expect(
+        db().transaction(async (tx) => {
+          await app.get(AuditService).record(
+            {
+              actor: { userId: adminId, role: "admin" },
+              action,
+              target: { type: "user", id: adminId },
+              outcome: "failure",
+              reason: "Checking redaction",
+              changes: { phone: "+254712345678", sessionToken: "secret-value", plan: "pro" },
+              request: { requestId: "e2e-request", ip: "127.0.0.1" },
+            },
+            tx,
+          );
+          const [row] = await tx
+            .select()
+            .from(schema.auditLogs)
+            .where(eq(schema.auditLogs.action, action));
+          expect(row).toMatchObject({
+            actorUserId: adminId,
+            actorRole: "admin",
+            outcome: "failure",
+            changes: { phone: "+2547•••••678", plan: "pro" },
+            requestId: "e2e-request",
+            ipAddress: "127.0.0.1",
+          });
+          throw rollback;
+        }),
+      ).rejects.toBe(rollback);
+
+      // Any committed row will do; the role sync above has written some.
+      const [existing] = await db().select().from(schema.auditLogs).limit(1);
+      expect(existing).toBeDefined();
+      const failure = (query: Promise<unknown>) =>
+        query.then(
+          () => new Error("query succeeded"),
+          (error: Error & { cause?: Error }) => error.cause ?? error,
+        );
+      const where = eq(schema.auditLogs.id, existing!.id);
+      expect(
+        (await failure(db().update(schema.auditLogs).set({ reason: "rewritten" }).where(where)))
+          .message,
+      ).toMatch(/append-only: UPDATE/);
+      expect((await failure(db().delete(schema.auditLogs).where(where))).message).toMatch(
+        /append-only: DELETE/,
+      );
+      const [still] = await db()
+        .select()
+        .from(schema.auditLogs)
+        .where(eq(schema.auditLogs.id, existing!.id));
+      expect(still).toEqual(existing);
     });
   });
 

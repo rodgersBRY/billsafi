@@ -15,6 +15,17 @@ export type AdminRetentionWeeks = (typeof adminRetentionWeeks)[number];
 
 export const ADMIN_USERS_PAGE_SIZE = 25;
 
+/** Why an admin is acting; required on every admin action and kept in the audit log. */
+export const reasonSchema = z
+  .string({ error: "Give a reason" })
+  .trim()
+  .min(5, "Give a reason of at least 5 characters")
+  .max(500, "Keep the reason under 500 characters");
+
+/** Request body shared by admin actions that need nothing but a reason. */
+export const adminActionBodySchema = z.object({ reason: reasonSchema });
+export type AdminActionBody = z.output<typeof adminActionBodySchema>;
+
 export const adminFunnelQuerySchema = z.object({
   days: z.coerce.number().pipe(z.literal(adminFunnelDays)).default(30),
 });
