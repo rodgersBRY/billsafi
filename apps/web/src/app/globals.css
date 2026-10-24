@@ -223,3 +223,14 @@ html:has([data-landing]) {
 .driver-popover.billsafi-tour .driver-popover-arrow-side-bottom {
   border-bottom-color: var(--panel);
 }
+
+/* Body text on the Terms of Use and Privacy Policy pages. */
+.legal-body {
+  @apply space-y-3 text-sm/6 text-ink;
+}
+.legal-body ul {
+  @apply list-disc space-y-1.5 pl-5;
+}
+.legal-body h3 {
+  @apply pt-2 font-semibold;
+}
