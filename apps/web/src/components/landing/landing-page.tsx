@@ -565,6 +565,10 @@ function Footer() {
       </div>
       <div className={s.footerBottom}>
         <span>© 2026 BillSafi · Invoicing for independent professionals.</span>
+        <nav className={s.footerLegal} aria-label="Legal">
+          <Link href="/terms">Terms of Use</Link>
+          <Link href="/privacy">Privacy Policy</Link>
+        </nav>
         <a href="#">
           Back to top <ArrowUp className={s.inlineIcon} aria-hidden />
         </a>

@@ -1474,6 +1474,12 @@
   color: var(--text);
 }
 
+.footerLegal {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+}
+
 @media (min-width: 1450px) {
   .wrap {
     max-width: 1240px;

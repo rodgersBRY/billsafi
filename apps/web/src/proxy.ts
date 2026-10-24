@@ -8,6 +8,8 @@ const PUBLIC_PATHS = [
   "/forgot-password",
   "/reset-password",
   "/free-invoice-generator",
+  "/terms",
+  "/privacy",
 ];
 
 /**
