@@ -2,6 +2,8 @@ import type { Database } from "@billsafi/db";
 import { schema } from "@billsafi/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { admin } from "better-auth/plugins";
+import { defaultAc } from "better-auth/plugins/admin/access";
 import type { Env } from "../config/env.js";
 import type { Mailer } from "../mail/mailer.js";
 import { passwordResetEmail } from "../mail/templates.js";
@@ -40,6 +42,33 @@ async function dropProviderTokens<T extends Record<string, unknown>>(account: T)
   return { data: { ...account, ...cleared } };
 }
 
+/**
+ * Platform roles and suspension (bans) come from Better Auth's admin plugin. Its ban check
+ * runs whenever a session is created, so it covers email and Google sign-in alike.
+ * The admin role is granted only by the ADMIN_USER_IDS sync, never over HTTP.
+ */
+const createAdminPlugin = () =>
+  admin({
+    defaultRole: "user",
+    adminRoles: ["admin"],
+    // Narrower than the plugin default: no impersonation, role changes, deletes or passwords,
+    // so even a direct server call to those functions is refused.
+    roles: {
+      admin: defaultAc.newRole({ user: ["list", "get", "ban"], session: ["list", "revoke"] }),
+      user: defaultAc.newRole({ user: [], session: [] }),
+    },
+    bannedUserMessage: "This account is suspended. Contact support if you think this is a mistake.",
+  });
+
+/**
+ * Every admin plugin endpoint is switched off over HTTP; the Nest admin module does these
+ * jobs behind its own guard and audit log. Derived from the plugin so an upgrade that adds
+ * an endpoint is covered too (the e2e suite also checks the known list).
+ */
+export const DISABLED_ADMIN_PATHS = Object.values(createAdminPlugin().endpoints).map(
+  (endpoint) => endpoint.path,
+);
+
 /** Sign-in methods the web app should offer besides email and password. */
 export function enabledSocialProviders(env: AuthDependencies["env"]) {
   return { google: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) };
@@ -62,6 +91,8 @@ export function createAuth({ db, env, mailer }: AuthDependencies) {
     basePath: AUTH_BASE_PATH,
     secret: env.BETTER_AUTH_SECRET,
     trustedOrigins: [env.WEB_ORIGIN],
+    plugins: [createAdminPlugin()],
+    disabledPaths: DISABLED_ADMIN_PATHS,
     database: drizzleAdapter(db, { provider: "pg", schema, usePlural: true }),
     emailAndPassword: {
       enabled: true,

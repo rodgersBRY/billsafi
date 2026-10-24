@@ -37,9 +37,10 @@ const envSchema = z
     /** Sentry project DSN for API errors; reporting is off when unset (D052). */
     SENTRY_DSN: z.url().optional(),
     /**
-     * User IDs allowed to open the read-only admin dashboard (D057), comma
-     * separated. IDs, not emails: emails are not verified, so an unregistered
-     * email could be claimed by someone else. Empty or unset turns admin off.
+     * User IDs given the platform admin role on every API start (D057), comma
+     * separated; anyone else holding it is demoted. IDs, not emails: emails are
+     * not verified, so an unregistered email could be claimed by someone else.
+     * Empty or unset leaves nobody as admin.
      */
     ADMIN_USER_IDS: z
       .string()
