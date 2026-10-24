@@ -3,6 +3,18 @@
 /* Set on <html> before hydration while the post-login intro splash is queued. */
 @custom-variant intro (html[data-intro] &);
 
+/* `dark:` utilities follow the same rule as the dark tokens below. */
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    &:not([data-theme="light"] *) {
+      @slot;
+    }
+  }
+  &:where([data-theme="dark"] *) {
+    @slot;
+  }
+}
+
 /* Palette taken from the approved BillSafi dashboard design (docs/designs). */
 :root {
   --teal: #0f766e;
@@ -20,9 +32,13 @@
   --app-night: #142421;
 }
 
-/* The marketing page has no dark design, so it keeps the light tokens. */
+/* Dark theme: follows the device until the user picks one with the switch in the
+   account menu, which sets data-theme on <html> (see lib/theme.ts). The token list
+   is repeated because a media query and an attribute can't share one rule.
+   The marketing page has no dark design, so it keeps the light tokens. */
 @media (prefers-color-scheme: dark) {
-  :root:not(:has([data-landing])) {
+  :root:not([data-theme="light"]):not(:has([data-landing])) {
+    color-scheme: dark;
     --accent: #5fd4c4;
     --background: var(--app-night);
     --panel: #1d302c;
@@ -31,6 +47,17 @@
     --line: #344b43;
     --soft: #24483e;
   }
+}
+
+:root[data-theme="dark"]:not(:has([data-landing])) {
+  color-scheme: dark;
+  --accent: #5fd4c4;
+  --background: var(--app-night);
+  --panel: #1d302c;
+  --ink: #ecf4f1;
+  --sub: #a8beb6;
+  --line: #344b43;
+  --soft: #24483e;
 }
 
 @theme inline {
