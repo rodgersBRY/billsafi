@@ -20,12 +20,15 @@ const PUBLIC_PATHS = [
  */
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  // The admin dashboard answers a real 404 to everyone the API doesn't list as
-  // an admin, signed out included, so it looks like any other missing page.
-  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
-    return (await isAdmin(request))
-      ? NextResponse.next()
-      : NextResponse.rewrite(new URL("/_not-found", request.url));
+  // Signed in, anyone the API doesn't list as an admin gets a real 404, the same as
+  // an unknown page. Signed out, there is no check: /admin falls through to the
+  // sign-in redirect below, the same as any private page, so it can't be told apart.
+  if (
+    (pathname === "/admin" || pathname.startsWith("/admin/")) &&
+    getSessionCookie(request) &&
+    !(await isAdmin(request))
+  ) {
+    return NextResponse.rewrite(new URL("/_not-found", request.url));
   }
   // The API rejected the session (expired, revoked, or from a reset database). Drop
   // the cookie before anything else, or the sign-in redirect below bounces back to /.
