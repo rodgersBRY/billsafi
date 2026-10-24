@@ -40,19 +40,25 @@ export function parseAdminState(raw: RawParams): AdminState {
   const tab = adminTabs.find((value) => value === tabParam) ?? "overview";
   const funnel = adminFunnelQuerySchema.safeParse({ days: first(raw.days) });
   const retention = adminRetentionQuerySchema.safeParse({ weeks: first(raw.weeks) });
-  const users = adminUsersQuerySchema.safeParse({
-    page: first(raw.page),
-    search: first(raw.search),
-  });
+  // Parsed apart, so a bad value in one doesn't reset the other.
+  const page = adminUsersQuerySchema.pick({ page: true }).safeParse({ page: first(raw.page) });
+  const search = adminUsersQuerySchema
+    .pick({ search: true })
+    .safeParse({ search: first(raw.search)?.slice(0, 100) });
   const user = first(raw.user);
   return {
     tab,
     days: funnel.success ? funnel.data.days : 30,
     weeks: retention.success ? retention.data.weeks : 8,
-    search: users.success ? users.data.search : undefined,
-    page: users.success ? users.data.page : 1,
+    search: search.success ? search.data.search : undefined,
+    page: page.success ? page.data.page : 1,
     user: user && UUID.test(user) ? user : undefined,
   };
+}
+
+/** Link to one user's details on the Users tab. */
+export function adminUserHref(userId: string): string {
+  return adminHref({ tab: "users", days: 30, weeks: 8, page: 1, user: userId });
 }
 
 /**

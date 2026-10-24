@@ -10,7 +10,7 @@ import { BrandLoader } from "@/components/brand/brand-loader";
  */
 export async function generateMetadata({ searchParams }: PageProps<"/admin">): Promise<Metadata> {
   await fetchActiveTab(parseAdminState(await searchParams));
-  return { title: "Admin · Billsafi", robots: { index: false, follow: false } };
+  return { title: "Admin · BillSafi", robots: { index: false, follow: false } };
 }
 
 async function Dashboard({ searchParams }: PageProps<"/admin">) {

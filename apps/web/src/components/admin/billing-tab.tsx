@@ -1,6 +1,8 @@
 import type { AdminBilling, AdminBillingPayment } from "@billsafi/contracts";
 import { formatAmount } from "@/lib/format";
 import { formatInstant, formatMonth, purposeLabels } from "./admin-format";
+import { AdminLink } from "./admin-link";
+import { adminUserHref } from "./admin-params";
 import {
   EmptyRow,
   Panel,
@@ -10,6 +12,14 @@ import {
   thClass,
   theadClass,
 } from "./admin-ui";
+
+function UserLink({ id, email }: { id: string; email: string }) {
+  return (
+    <AdminLink href={adminUserHref(id)} className="hover:text-accent hover:underline">
+      {email}
+    </AdminLink>
+  );
+}
 
 function PaymentsTable({ payments }: { payments: AdminBillingPayment[] }) {
   return (
@@ -46,7 +56,9 @@ function PaymentsTable({ payments }: { payments: AdminBillingPayment[] }) {
         {payments.map((payment) => (
           <tr key={payment.id} className="border-t border-line">
             <td className={`${tdClass} text-sub`}>{formatInstant(payment.createdAt)}</td>
-            <td className={tdClass}>{payment.userEmail}</td>
+            <td className={tdClass}>
+              <UserLink id={payment.userId} email={payment.userEmail} />
+            </td>
             <td className={tdClass}>{purposeLabels[payment.purpose]}</td>
             <td className={`${tdClass} text-right tabular-nums`}>
               {formatAmount(payment.amountKes)}
@@ -63,7 +75,8 @@ function PaymentsTable({ payments }: { payments: AdminBillingPayment[] }) {
             </td>
             <td className={`${tdClass} text-sub tabular-nums`}>{payment.phone}</td>
             <td className={`${tdClass} text-sub`}>
-              {payment.status === "failed" ? payment.resultDescription : payment.receipt}
+              {(payment.status === "failed" ? payment.resultDescription : payment.receipt) ??
+                "No data"}
             </td>
           </tr>
         ))}
@@ -121,7 +134,9 @@ export function BillingTab({ data }: { data: AdminBilling }) {
             <tbody>
               {data.freeLimitHits.map((hit) => (
                 <tr key={`${hit.userId}:${hit.month}`} className="border-t border-line">
-                  <td className={tdClass}>{hit.userEmail}</td>
+                  <td className={tdClass}>
+                    <UserLink id={hit.userId} email={hit.userEmail} />
+                  </td>
                   <td className={tdClass}>{formatMonth(hit.month)}</td>
                   <td className={`${tdClass} text-sub`}>
                     {formatInstant(hit.hitAt)}

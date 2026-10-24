@@ -22,12 +22,8 @@ export function lastActiveText(lastActiveAt: string | null): string {
 
 function UserSearch({ search }: { search?: string }) {
   return (
-    <Form action="/admin" role="search" className="relative max-w-md">
+    <Form action="/admin" role="search" className="flex max-w-md gap-2">
       <input type="hidden" name="tab" value="users" />
-      <Search
-        aria-hidden
-        className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-sub"
-      />
       <input
         name="search"
         type="search"
@@ -35,8 +31,15 @@ function UserSearch({ search }: { search?: string }) {
         maxLength={100}
         aria-label="Search users"
         placeholder="Search name or email"
-        className="w-full rounded-panel border border-line bg-panel py-2.5 pr-2.5 pl-8.5 text-sm"
+        className="min-w-0 flex-1 rounded-panel border border-line bg-panel px-3 py-2.5 text-sm"
       />
+      <button
+        type="submit"
+        className="inline-flex items-center rounded-panel border border-teal bg-teal px-3 text-white hover:bg-teal/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      >
+        <Search aria-hidden className="size-4" />
+        <span className="sr-only">Search</span>
+      </button>
     </Form>
   );
 }
@@ -53,8 +56,9 @@ const headings = [
 
 export function UsersTab({ data, state }: { data: AdminUsersPage; state: AdminState }) {
   const pages = Math.max(1, Math.ceil(data.total / data.pageSize));
-  const from = data.total === 0 ? 0 : (data.page - 1) * data.pageSize + 1;
-  const to = Math.min(data.page * data.pageSize, data.total);
+  // Counted from the rows returned, so a page past the end never shows a bogus range.
+  const from = data.users.length === 0 ? 0 : (data.page - 1) * data.pageSize + 1;
+  const to = from === 0 ? 0 : from + data.users.length - 1;
 
   return (
     <div className="space-y-4">
@@ -67,7 +71,17 @@ export function UsersTab({ data, state }: { data: AdminUsersPage; state: AdminSt
             : `${formatCount(data.total)} in total, newest first. Open a row for details.`
         }
       >
-        {data.users.length === 0 ? (
+        {data.users.length === 0 && data.total > 0 ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 p-5 text-sm text-sub">
+            <p>No users on this page.</p>
+            <AdminLink
+              href={adminHref(state, { page: 1 })}
+              className="font-medium text-accent hover:underline"
+            >
+              Go to page 1
+            </AdminLink>
+          </div>
+        ) : data.users.length === 0 ? (
           <EmptyRow text={state.search ? "No users match this search." : "No users yet."} />
         ) : (
           <table className="w-full text-sm">
@@ -104,7 +118,7 @@ export function UsersTab({ data, state }: { data: AdminUsersPage; state: AdminSt
           </table>
         )}
       </Panel>
-      {data.total > 0 && (
+      {to > 0 && (
         <nav aria-label="Pages" className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-sub">
             {formatCount(from)} to {formatCount(to)} of {formatCount(data.total)}
@@ -119,7 +133,7 @@ export function UsersTab({ data, state }: { data: AdminUsersPage; state: AdminSt
                 Previous
               </AdminLink>
             )}
-            {data.page < pages && (
+            {data.page < pages && to > 0 && (
               <AdminLink
                 href={adminHref(state, { page: data.page + 1 })}
                 className="rounded-panel border border-line bg-panel px-3 py-2 text-sm hover:bg-soft"

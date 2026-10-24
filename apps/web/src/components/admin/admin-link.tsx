@@ -43,6 +43,10 @@ export function ClickableRow({ href, children }: { href: string; children: React
     <tr
       onClick={(event) => {
         if ((event.target as HTMLElement).closest("a")) return;
+        // Leave modified clicks and text selection to the browser.
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+          return;
+        if (window.getSelection()?.toString()) return;
         router.push(href);
       }}
       className="cursor-pointer border-t border-line hover:bg-background/60"

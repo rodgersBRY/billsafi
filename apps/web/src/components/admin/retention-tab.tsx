@@ -4,12 +4,19 @@ import { formatCount, formatShare } from "./admin-format";
 import { type AdminState, adminHref } from "./admin-params";
 import { EmptyRow, Panel, PeriodSwitch, UpdatedAt, tdClass, thClass, theadClass } from "./admin-ui";
 
-/** The accent colour at an opacity that follows the share, readable in both themes. */
-function shade(share: number): React.CSSProperties {
+/*
+ * The accent colour at a strength that follows the share. A 10% floor keeps
+ * small shares visible, and the top stops where the cell text would drop below
+ * 4.5:1 contrast: 60% in light mode, 40% in dark mode, where the accent is pale.
+ */
+const shadeClass = "[--shade-span:50%] dark:[--shade-span:30%]";
+
+function shade(share: number): React.CSSProperties | undefined {
   const clamped = Math.min(Math.max(share, 0), 1);
-  // A faint floor keeps small shares visible; zero stays unshaded.
-  const strength = clamped === 0 ? 0 : Math.round(10 + clamped * 50);
-  return { backgroundColor: `color-mix(in srgb, var(--accent) ${strength}%, transparent)` };
+  if (clamped === 0) return undefined;
+  return {
+    backgroundColor: `color-mix(in srgb, var(--accent) calc(10% + var(--shade-span) * ${clamped}), transparent)`,
+  };
 }
 
 export function RetentionTab({ data, state }: { data: AdminRetention; state: AdminState }) {
@@ -69,7 +76,7 @@ export function RetentionTab({ data, state }: { data: AdminRetention; state: Adm
                     ) : (
                       <td
                         key={week}
-                        className={`${tdClass} text-center tabular-nums`}
+                        className={`${tdClass} ${shadeClass} text-center tabular-nums`}
                         style={shade(share)}
                       >
                         {formatShare(share)}

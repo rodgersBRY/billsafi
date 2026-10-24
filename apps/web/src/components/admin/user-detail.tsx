@@ -117,7 +117,7 @@ export function UserDetail({ data, state }: { data: AdminUserDetail; state: Admi
                   <td className={tdClass}>
                     <PaymentStatusPill status={payment.status} />
                   </td>
-                  <td className={`${tdClass} text-sub`}>{payment.receipt}</td>
+                  <td className={`${tdClass} text-sub`}>{payment.receipt ?? "No data"}</td>
                 </tr>
               ))}
             </tbody>

@@ -10,11 +10,18 @@ export function formatCount(value: number): string {
   return countFormat.format(value);
 }
 
-/** A 0-1 fraction as a whole percentage, or one decimal below 10%. */
+/**
+ * A 0-1 fraction as a percentage: whole numbers, one decimal near 0% and 100%.
+ * Only exactly 1 shows as 100%, and a tiny non-zero share shows as "<0.1%".
+ */
 export function formatShare(value: number | null): string {
   if (value === null) return NO_DATA;
   const percent = value * 100;
-  const digits = Math.abs(percent) < 10 && percent !== 0 ? 1 : 0;
+  const size = Math.abs(percent);
+  const sign = percent < 0 ? "-" : "";
+  if (size > 0 && size < 0.1) return `${sign}<0.1%`;
+  if (size > 99.9 && size < 100) return `${sign}>99.9%`;
+  const digits = size > 0 && (size < 10 || (size > 90 && size < 100)) ? 1 : 0;
   return `${percent.toFixed(digits).replace(/\.0$/, "")}%`;
 }
 
