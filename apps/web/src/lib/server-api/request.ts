@@ -1,12 +1,13 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
+import { apiInternalUrl } from "../api-url";
 import { ApiError, parseApiResponse } from "../api-error";
 
 /** Sign-in URL that tells the proxy the session cookie is no longer valid. */
 export const EXPIRED_SESSION_PATH = "/sign-in?session=expired";
 
-export const apiInternalUrl = process.env.API_INTERNAL_URL ?? "http://localhost:4000";
+export { apiInternalUrl };
 
 /**
  * Server-side GET to the API with the visitor's cookies. Reads runtime data,

@@ -1,5 +1,6 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
+import { apiInternalUrl } from "@/lib/api-url";
 
 // Exact matches only, so /free-invoice-generator/finish still needs a session.
 const PUBLIC_PATHS = [
@@ -17,8 +18,15 @@ const PUBLIC_PATHS = [
  * validates the session on every request; this just avoids rendering a page
  * that would immediately bounce.
  */
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  // The admin dashboard answers a real 404 to everyone the API doesn't list as
+  // an admin, signed out included, so it looks like any other missing page.
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+    return (await isAdmin(request))
+      ? NextResponse.next()
+      : NextResponse.rewrite(new URL("/_not-found", request.url));
+  }
   // The API rejected the session (expired, revoked, or from a reset database). Drop
   // the cookie before anything else, or the sign-in redirect below bounces back to /.
   if (pathname === "/sign-in" && request.nextUrl.searchParams.get("session") === "expired") {
@@ -46,6 +54,21 @@ export function proxy(request: NextRequest) {
   }
 
   return NextResponse.next();
+}
+
+/** Asks the API; any failure, network errors included, counts as no. */
+async function isAdmin(request: NextRequest): Promise<boolean> {
+  const cookie = request.headers.get("cookie");
+  if (!cookie) return false;
+  try {
+    const response = await fetch(`${apiInternalUrl}/api/v1/admin/access`, {
+      headers: { Cookie: cookie },
+      cache: "no-store",
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 /** Expires every Better Auth session cookie, including the __Secure- variants used over HTTPS. */

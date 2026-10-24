@@ -1,4 +1,4 @@
-import { Controller, Get, Inject, Param, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, HttpCode, Inject, Param, Query, UseGuards } from "@nestjs/common";
 import {
   type AdminBilling,
   type AdminFunnel,
@@ -37,6 +37,13 @@ export class AdminController {
     private readonly billingMetrics: AdminBillingService,
     @Inject(ADMIN_CACHE) private readonly cache: TtlCache,
   ) {}
+
+  // Lets the web proxy answer a real 404 for /admin before rendering anything.
+  @Get("access")
+  @HttpCode(204)
+  access(): void {
+    // AdminGuard has already decided; there is nothing to send.
+  }
 
   @Get("overview")
   overview(): Promise<AdminOverview> {

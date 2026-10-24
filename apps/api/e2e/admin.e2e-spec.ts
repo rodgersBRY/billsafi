@@ -10,7 +10,7 @@ import { DATABASE } from "../src/database/database.module.js";
 import { createBusiness, createClient, createTestApp, signUp, uniqueEmail } from "./support/app.js";
 
 const CALLBACK = "/api/v1/billing/mpesa/callback/e2e-callback-token-0123456789";
-const ROUTES = ["overview", "funnel", "retention", "users", "billing"];
+const ROUTES = ["access", "overview", "funnel", "retention", "users", "billing"];
 
 /** Builds an app whose admin list is fixed at start-up, so it must be set first. */
 async function appWithAdmins(ids: string) {
@@ -145,6 +145,10 @@ describe("admin", () => {
 
     it("lets a listed admin in", async () => {
       await admin("overview").expect(200);
+    });
+
+    it("answers 204 on access to a listed admin", async () => {
+      await admin("access").expect(204);
     });
 
     it("turns admin off for everyone when the list is empty", async () => {
