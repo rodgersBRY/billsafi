@@ -565,3 +565,15 @@ User: "remove the word kenya or kenyan from the ladnign page. Everyone should be
 - User-facing text no longer names Kenya. The business "KRA PIN" field is labelled "Tax ID"; the `kra_pin` column keeps its name.
 - Invoices are still in KES only, and Pro is still paid through M-Pesa. Other currencies and payment routes need their own decisions.
 - The landing page uses the app's colour tokens instead of its own palette, so teal `#0F766E` from the brand document is the one primary colour.
+
+## D059 - Welcome new accounts and ask them to accept the terms
+
+Status: confirmed on 2026-10-24.
+
+User: "After successfully logging in, before navigating to overview, show a modal that welcomes user to the app", then "it shouldn't have a close button" and "the welcome screen should only be for new users. That is signing up/registration".
+
+- A new account sees a welcome screen at `/welcome` before entering the app. It takes the place of the sign-up form, with a short animation, a line about joining other small businesses, and a note that continuing means agreeing to the Terms of Use and confirming the Privacy Policy was read.
+- "Agree and continue" is the only way forward. There is no close button.
+- It covers every way to create an account: the email sign-up form, a first Google sign-in, and "Create account and save" in the free invoice generator. Each one carries on to where it went before (business setup or the saved invoice).
+- Returning users who sign in go straight to the app.
+- The agreement is not stored yet. Proving who accepted which terms and when needs a database record, which is a separate decision.
