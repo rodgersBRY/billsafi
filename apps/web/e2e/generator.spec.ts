@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import {
+  acceptWelcome,
   createFirstBusiness,
   PASSWORD,
   signUp,
@@ -65,6 +66,7 @@ test("build an invoice, sign up, mark it Ready and download the PDF", async ({ p
   await dialog.getByLabel("Email address").fill(uniqueEmail("generator"));
   await dialog.getByLabel("Password").fill(PASSWORD);
   await dialog.getByRole("button", { name: "Create account and save" }).click();
+  await acceptWelcome(page);
 
   await expect(page).toHaveURL(/\/invoices\/[^/]+\/edit\?from=generator$/);
   await skipIntro(page);

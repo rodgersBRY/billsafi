@@ -3,9 +3,10 @@
 import { Compass, CreditCard, Ellipsis, LogOut, Settings, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { START_TOUR_EVENT } from "@/components/tour/product-tour";
 import { authClient } from "@/lib/auth-client";
+import { useNavigationPending } from "@/lib/use-navigation-pending";
 
 function initials(name: string) {
   return name
@@ -35,7 +36,7 @@ export function AccountMenu({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [signingOut, setSigningOut] = useState(false);
+  const [signingOut, setSigningOut] = useNavigationPending();
   const menuRef = useRef<HTMLDetailsElement>(null);
   const item =
     "flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-sm";

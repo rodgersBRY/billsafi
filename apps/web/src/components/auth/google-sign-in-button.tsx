@@ -7,6 +7,7 @@ import { queueIntroSplash } from "@/components/brand/intro-splash";
 import { Button } from "@/components/ui/button";
 import { FormMessage } from "@/components/ui/form-message";
 import { authClient } from "@/lib/auth-client";
+import { welcomePath } from "@/lib/welcome";
 
 /** Error codes Better Auth adds to /sign-in when the Google round trip fails. */
 function googleErrorMessage(code: string | null): string {
@@ -25,7 +26,7 @@ function googleErrorMessage(code: string | null): string {
 interface GoogleSignInButtonProps {
   /** Where returning users land after Google. */
   callbackURL?: string;
-  /** Where first-time users land after Google. */
+  /** Where first-time users land after Google, by way of the welcome screen. */
   newUserCallbackURL?: string;
 }
 
@@ -46,7 +47,7 @@ export function GoogleSignInButton({
       provider: "google",
       // Relative paths only; the API refuses redirects to other origins.
       callbackURL,
-      newUserCallbackURL,
+      newUserCallbackURL: welcomePath(newUserCallbackURL),
       errorCallbackURL: "/sign-in",
     });
     // On success the browser is already leaving for Google.

@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import {
   createFirstBusiness,
   latestEmailText,
+  PASSWORD,
   signIn,
   signUp,
   skipIntro,
@@ -58,6 +59,25 @@ test("sign out and sign back in", async ({ page }) => {
   await signIn(page, email);
   await skipIntro(page);
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
+});
+
+test("signing in again after signing out does not leave the button spinning", async ({ page }) => {
+  const email = uniqueEmail("again");
+  await signUp(page, "Achieng Odhiambo", email);
+  await createFirstBusiness(page);
+
+  // Visited pages stay alive in the background; reuse the same sign-in page twice.
+  for (let round = 0; round < 2; round++) {
+    await page.getByLabel("Account menu for Achieng Odhiambo").filter({ visible: true }).click();
+    await page.getByRole("button", { name: "Sign out" }).click();
+    await expect(page).toHaveURL(/\/sign-in$/);
+    await waitUntilInteractive(page, "Sign in");
+    await page.getByLabel("Email address").filter({ visible: true }).fill(email);
+    await page.getByLabel("Password").filter({ visible: true }).fill(PASSWORD);
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await skipIntro(page);
+    await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
+  }
 });
 
 test("reset a forgotten password through the emailed link", async ({ page }) => {

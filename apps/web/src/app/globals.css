@@ -16,13 +16,15 @@
   --soft: #e8f3ef;
   /* Backdrop of the logo animation in public/brand. */
   --brand-night: #0a363e;
+  /* The app's dark-mode page colour; also the post-login splash backdrop in both modes. */
+  --app-night: #142421;
 }
 
 /* The marketing page has no dark design, so it keeps the light tokens. */
 @media (prefers-color-scheme: dark) {
   :root:not(:has([data-landing])) {
     --accent: #5fd4c4;
-    --background: #142421;
+    --background: var(--app-night);
     --panel: #1d302c;
     --ink: #ecf4f1;
     --sub: #a8beb6;
@@ -41,6 +43,7 @@
   --color-line: var(--line);
   --color-soft: var(--soft);
   --color-brand-night: var(--brand-night);
+  --color-app-night: var(--app-night);
   --font-sans: var(--font-inter);
   --radius-panel: 6px;
 }

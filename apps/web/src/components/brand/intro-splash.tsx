@@ -86,7 +86,7 @@ export function IntroSplash() {
     <div
       aria-label="Welcome to BillSafi"
       onClick={finish}
-      className={`fixed inset-0 z-50 place-items-center bg-brand-night transition-opacity duration-300 intro:grid ${
+      className={`fixed inset-0 z-50 place-items-center bg-app-night transition-opacity duration-300 intro:grid ${
         visible ? "grid" : "hidden"
       } ${phase === "leaving" ? "opacity-0" : "opacity-100"}`}
     >

@@ -9,6 +9,8 @@ import { TextField } from "@/components/ui/field";
 import { PasswordField } from "@/components/ui/password-field";
 import { FormMessage } from "@/components/ui/form-message";
 import { authClient } from "@/lib/auth-client";
+import { useNavigationPending } from "@/lib/use-navigation-pending";
+import { welcomePath } from "@/lib/welcome";
 
 export const FINISH_PATH = "/free-invoice-generator/finish";
 
@@ -27,7 +29,7 @@ export function GuestAuthDialog({ open, onClose, google }: GuestAuthDialogProps)
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("sign-up");
   const [errors, setErrors] = useState<{ name?: string; password?: string; form?: string }>({});
-  const [pending, setPending] = useState(false);
+  const [pending, setPending] = useNavigationPending();
   const [email, setEmail] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
   const focusPassword = useRef(false);
@@ -53,7 +55,8 @@ export function GuestAuthDialog({ open, onClose, google }: GuestAuthDialogProps)
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const data = new FormData(formElement);
     const email = String(data.get("email")).trim();
     setEmail(email);
     const password = String(data.get("password"));
@@ -92,8 +95,12 @@ export function GuestAuthDialog({ open, onClose, google }: GuestAuthDialogProps)
         });
       }
     }
+    // Next.js keeps this page alive; don't leave the password sitting in it.
+    setEmail("");
+    formElement.reset();
     queueIntroSplash();
-    router.replace(FINISH_PATH);
+    // Only new accounts see the welcome screen.
+    router.replace(signUp ? welcomePath(FINISH_PATH) : FINISH_PATH);
     router.refresh();
   }
 
