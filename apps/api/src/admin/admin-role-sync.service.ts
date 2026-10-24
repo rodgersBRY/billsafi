@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger, type OnApplicationBootstrap } from "@nestjs/common";
 import { and, type DatabaseConnection, eq, inArray, notInArray, schema } from "@billsafi/db";
+import { AuditService } from "../audit/audit.service.js";
 import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
 import { DATABASE } from "../database/database.module.js";
@@ -22,6 +23,7 @@ export class AdminRoleSyncService implements OnApplicationBootstrap {
   constructor(
     @Inject(DATABASE) private readonly connection: DatabaseConnection,
     @Inject(ENV) private readonly env: Env,
+    private readonly audit: AuditService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -53,6 +55,26 @@ export class AdminRoleSyncService implements OnApplicationBootstrap {
           )
           .returning({ id: users.id })
       ).map((user) => user.id);
+      // Same transaction: a role change and its audit row land together or not at all.
+      const changes = [
+        ...found
+          .filter((user) => promoted.includes(user.id))
+          .map((user) => ({ id: user.id, from: user.role, to: "admin" })),
+        ...demoted.map((id) => ({ id, from: "admin", to: "user" })),
+      ];
+      for (const { id, from, to } of changes) {
+        await this.audit.record(
+          {
+            actor: "system",
+            action: "user.role_change",
+            target: { type: "user", id },
+            outcome: "success",
+            reason: "ADMIN_USER_IDS sync on API start",
+            changes: { role: { from, to } },
+          },
+          tx,
+        );
+      }
       const known = new Set(found.map((user) => user.id));
       return { promoted, demoted, unknown: listed.filter((id) => !known.has(id)) };
     });

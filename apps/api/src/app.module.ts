@@ -9,6 +9,7 @@ import { ConfigModule, ENV } from "./config/config.module.js";
 import type { Env } from "./config/env.js";
 import { DATABASE, DatabaseModule } from "./database/database.module.js";
 import { AdminModule } from "./admin/admin.module.js";
+import { AuditModule } from "./audit/audit.module.js";
 import { BillingModule } from "./billing/billing.module.js";
 import { BusinessesModule } from "./businesses/businesses.module.js";
 import { ClientsModule } from "./clients/clients.module.js";
@@ -26,6 +27,7 @@ import type { Mailer } from "./mail/mailer.js";
     ConfigModule,
     DatabaseModule,
     MailModule,
+    AuditModule,
     // Registers Better Auth routes under /api/v1/auth and a global guard:
     // every route requires a session unless marked @AllowAnonymous().
     AuthModule.forRootAsync({
