@@ -178,6 +178,42 @@ export const accountGrants = pgTable(
   ],
 );
 
+/**
+ * A time-limited raise of the account's invoice allowance, set by an admin. While active
+ * (starts_at <= now < expires_at, not revoked) its extra invoices are added to the plan
+ * limit of whatever allowance window applies. Expiry is required so nothing stays raised
+ * by accident; revoking keeps the row for history.
+ */
+export const allowanceOverrides = pgTable(
+  "allowance_overrides",
+  {
+    id: id(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    extraInvoices: integer("extra_invoices").notNull(),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    reason: text("reason").notNull(),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    revokedBy: uuid("revoked_by").references(() => users.id, { onDelete: "restrict" }),
+    revokeReason: text("revoke_reason"),
+  },
+  (table) => [
+    index("allowance_overrides_user_idx").on(table.userId, table.expiresAt),
+    check("allowance_overrides_extra", sql`${table.extraInvoices} between 1 and 1000`),
+    check("allowance_overrides_window", sql`${table.expiresAt} > ${table.startsAt}`),
+    check(
+      "allowance_overrides_revoked",
+      sql`(${table.revokedAt} is null) = (${table.revokedBy} is null)`,
+    ),
+  ],
+);
+
 export const subscriptionEventKind = pgEnum("subscription_event_kind", [
   "activated",
   "renewed",

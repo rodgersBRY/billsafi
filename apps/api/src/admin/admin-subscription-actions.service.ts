@@ -1,8 +1,17 @@
 import { createHash } from "node:crypto";
-import { BadRequestException, ConflictException, Inject, Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import type {
   AdminGrant,
   AdminGrantRecorded,
+  AdminOverride,
+  AdminOverrideResult,
+  AdminOverrideRow,
   AdminPaymentRecorded,
   AdminProEnded,
   AdminRecordPayment,
@@ -27,6 +36,7 @@ import {
   AdminActionsService,
   conflict,
 } from "./admin-actions.service.js";
+import { selectOverrides } from "./admin-overrides.js";
 import { planAt } from "./admin-sql.js";
 
 const {
@@ -35,6 +45,7 @@ const {
   accountGrants,
   subscriptionEvents,
   subscriptions,
+  allowanceOverrides,
 } = schema;
 
 const MANUAL = schema.MANUAL_PROVIDER;
@@ -324,6 +335,117 @@ export class AdminSubscriptionActionsService {
         return { changes: this.stateDiff(before, after), result: { subscription: after } };
       },
     );
+  }
+
+  /** Raises the account's invoice limit for a while; it is counted only while active. */
+  async addOverride(
+    context: AdminActionContext,
+    id: string,
+    body: AdminOverride,
+  ): Promise<AdminOverrideResult> {
+    return this.actions.performWith(
+      context,
+      { action: "tenant.add_override", target: { type: "account", id } },
+      async (tx) => {
+        await this.actions.lockUser(tx, id);
+        this.refuseSelf(context, id);
+        const subscription = await this.allowance.lockAccount(tx, id);
+        const now = new Date();
+        const startsAt = body.startsAt ? new Date(body.startsAt) : now;
+        const before = await this.allowance.usageFor(tx, id, subscription, now);
+        const [created] = await tx
+          .insert(allowanceOverrides)
+          .values({
+            userId: id,
+            extraInvoices: body.extraInvoices,
+            startsAt,
+            expiresAt: new Date(body.expiresAt),
+            reason: body.reason,
+            createdBy: context.adminId,
+            createdAt: now,
+          })
+          .returning({ id: allowanceOverrides.id });
+        const result = await this.overrideResult(tx, created!.id, id, subscription, now);
+        return {
+          changes: {
+            override: {
+              id: created!.id,
+              extraInvoices: body.extraInvoices,
+              startsAt: startsAt.toISOString(),
+              expiresAt: result.override.expiresAt,
+            },
+            limit: diff(before.limit, result.allowance.limit),
+          },
+          result,
+        };
+      },
+    );
+  }
+
+  /** Ends an override early. The row stays, marked revoked, so the history is kept. */
+  async revokeOverride(
+    context: AdminActionContext,
+    overrideId: string,
+  ): Promise<AdminOverrideResult> {
+    const [found] = await this.connection.db
+      .select({ userId: allowanceOverrides.userId })
+      .from(allowanceOverrides)
+      .where(eq(allowanceOverrides.id, overrideId));
+    // Audited against the account, so it shows in the tenant's history; unknown ids by id.
+    const target: ActionTarget = found
+      ? { action: "tenant.revoke_override", target: { type: "account", id: found.userId } }
+      : { action: "tenant.revoke_override", target: { type: "override", id: overrideId } };
+    return this.actions.performWith(context, target, async (tx) => {
+      if (!found) throw new NotFoundException("Override not found");
+      await this.actions.lockUser(tx, found.userId);
+      const subscription = await this.allowance.lockAccount(tx, found.userId);
+      const [override] = await tx
+        .select()
+        .from(allowanceOverrides)
+        .where(eq(allowanceOverrides.id, overrideId))
+        .for("update");
+      const now = new Date();
+      if (override!.revokedAt) {
+        throw conflict("ALREADY_REVOKED", "This override has already been revoked.");
+      }
+      if (override!.expiresAt <= now) {
+        throw conflict("OVERRIDE_EXPIRED", "This override has already expired.");
+      }
+      const before = await this.allowance.usageFor(tx, found.userId, subscription, now);
+      await tx
+        .update(allowanceOverrides)
+        .set({ revokedAt: now, revokedBy: context.adminId, revokeReason: context.reason })
+        .where(eq(allowanceOverrides.id, overrideId));
+      const result = await this.overrideResult(tx, overrideId, found.userId, subscription, now);
+      return {
+        changes: {
+          override: { id: overrideId, extraInvoices: override!.extraInvoices },
+          revokedAt: diff(null, now.toISOString()),
+          limit: diff(before.limit, result.allowance.limit),
+        },
+        result,
+      };
+    });
+  }
+
+  private async overrideResult(
+    tx: Transaction,
+    overrideId: string,
+    userId: string,
+    subscription: SubscriptionRow,
+    now: Date,
+  ): Promise<AdminOverrideResult> {
+    const [override] = await selectOverrides(tx, now, sql`o.id = ${overrideId}`);
+    const usage = await this.allowance.usageFor(tx, userId, subscription, now);
+    return {
+      override: override as AdminOverrideRow,
+      allowance: {
+        plan: usage.plan,
+        used: usage.used,
+        limit: usage.limit,
+        periodEnd: usage.periodEnd,
+      },
+    };
   }
 
   /** Recording money or gifts for your own account is refused, so no admin can self-deal. */

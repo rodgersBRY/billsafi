@@ -192,3 +192,81 @@ export interface AdminProEnded {
   /** Pro runs until `subscription.paidUntil`, the end of the current Pro month. */
   subscription: AdminSubscriptionState;
 }
+
+export const ADMIN_OVERRIDE_MAX_EXTRA = 1000;
+/** An override can run until at most this many days from now (a year, leap day included). */
+export const ADMIN_OVERRIDE_MAX_DAYS = 366;
+/** How far in the past a start time may be, for clocks that disagree a little. */
+const START_SKEW_MS = 5 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const instant = (message: string) => z.iso.datetime({ offset: true, error: message });
+
+/**
+ * Raises the account's invoice limit by `extraInvoices` from `startsAt` (default now)
+ * until `expiresAt`, on top of whatever plan applies. An expiry is required.
+ */
+export const adminOverrideSchema = z
+  .object({
+    extraInvoices: z.int().min(1).max(ADMIN_OVERRIDE_MAX_EXTRA),
+    startsAt: z.preprocess(
+      blankToUndefined,
+      instant("Enter the start as an ISO date and time").optional(),
+    ),
+    expiresAt: instant("Enter the expiry as an ISO date and time"),
+    reason: reasonSchema,
+  })
+  .superRefine((value, context) => {
+    const now = Date.now();
+    const starts = value.startsAt ? Date.parse(value.startsAt) : now;
+    const expires = Date.parse(value.expiresAt);
+    if (value.startsAt && starts < now - START_SKEW_MS) {
+      context.addIssue({
+        code: "custom",
+        path: ["startsAt"],
+        message: "The start can't be in the past",
+      });
+    }
+    if (expires <= starts) {
+      context.addIssue({
+        code: "custom",
+        path: ["expiresAt"],
+        message: "The expiry must be after the start",
+      });
+    }
+    if (expires > now + ADMIN_OVERRIDE_MAX_DAYS * DAY_MS) {
+      context.addIssue({
+        code: "custom",
+        path: ["expiresAt"],
+        message: "An override can last at most a year from now",
+      });
+    }
+  });
+export type AdminOverrideInput = z.input<typeof adminOverrideSchema>;
+export type AdminOverride = z.output<typeof adminOverrideSchema>;
+
+/** scheduled: starts later. active: raising the limit now. expired, revoked: no longer. */
+export const adminOverrideStates = ["scheduled", "active", "expired", "revoked"] as const;
+export type AdminOverrideState = (typeof adminOverrideStates)[number];
+
+export interface AdminOverrideRow {
+  id: string;
+  userId: string;
+  userEmail: string;
+  extraInvoices: number;
+  startsAt: string;
+  expiresAt: string;
+  state: AdminOverrideState;
+  reason: string;
+  createdAt: string;
+  createdBy: { id: string; email: string | null };
+  revokedAt: string | null;
+  revokedBy: { id: string; email: string | null } | null;
+  revokeReason: string | null;
+}
+
+export interface AdminOverrideResult {
+  override: AdminOverrideRow;
+  /** The account's allowance window right after the change. */
+  allowance: { plan: "free" | "pro"; used: number; limit: number; periodEnd: string };
+}

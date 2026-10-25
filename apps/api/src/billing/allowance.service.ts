@@ -1,11 +1,17 @@
 import { ConflictException, Inject, Injectable } from "@nestjs/common";
 import type { AllowanceUsage } from "@billsafi/contracts";
-import { and, type Database, type DatabaseConnection, eq, schema, sql } from "@billsafi/db";
+import { and, type Database, type DatabaseConnection, eq, isNull, schema, sql } from "@billsafi/db";
 import { FREE_PLAN, nairobiCalendarMonth, PRO_PLAN, proPeriodAt } from "@billsafi/domain";
 import { DATABASE } from "../database/database.module.js";
 
-const { usagePeriods, invoiceIssuances, subscriptions, subscriptionPayments, accountGrants } =
-  schema;
+const {
+  usagePeriods,
+  invoiceIssuances,
+  subscriptions,
+  subscriptionPayments,
+  accountGrants,
+  allowanceOverrides,
+} = schema;
 
 export type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 type Db = Database | Transaction;
@@ -15,7 +21,12 @@ interface AllowanceWindow {
   plan: "free" | "pro";
   start: Date;
   end: Date;
+  /** The plan limit plus any admin overrides active at the moment asked about. */
   limit: number;
+  /** The plan's own limit, which usage_periods keeps. */
+  planLimit: number;
+  /** Extra invoices from active overrides. */
+  extra: number;
   carriedOver: number;
 }
 
@@ -106,9 +117,10 @@ export class AllowanceService {
 
     const planName = window.plan === "pro" ? "Pro" : "Free";
     const span = window.plan === "pro" ? "this Pro month" : "this month";
+    const limitName = window.extra > 0 ? "your current limit" : `the ${planName} plan limit`;
     throw new ConflictException({
       code: "ALLOWANCE_REACHED",
-      message: `You've made ${window.limit} invoices Ready ${span}, the ${planName} plan limit.`,
+      message: `You've made ${window.limit} invoices Ready ${span}, ${limitName}.`,
       usage: { plan: window.plan, used, limit: window.limit, periodEnd: window.end.toISOString() },
     });
   }
@@ -119,6 +131,7 @@ export class AllowanceService {
     subscription: SubscriptionRow | null,
     at: Date,
   ): Promise<AllowanceWindow> {
+    const extra = await this.extraInvoices(db, userId, at);
     const pro =
       subscription?.anchorAt && proPeriodAt(subscription.anchorAt, subscription.paidMonths, at);
     if (pro) {
@@ -126,7 +139,9 @@ export class AllowanceService {
         plan: "pro",
         start: pro.start,
         end: pro.end,
-        limit: PRO_PLAN.invoiceLimit,
+        limit: PRO_PLAN.invoiceLimit + extra,
+        planLimit: PRO_PLAN.invoiceLimit,
+        extra,
         // Only the first period after (re)activation carries Free usage (D044, D051).
         carriedOver:
           pro.index === 0
@@ -136,7 +151,34 @@ export class AllowanceService {
     }
     // On Free, every plan-funded invoice this month counts, including ones issued on Pro (D044).
     const month = nairobiCalendarMonth(at);
-    return { plan: "free", ...month, limit: FREE_PLAN.invoiceLimit, carriedOver: 0 };
+    return {
+      plan: "free",
+      ...month,
+      limit: FREE_PLAN.invoiceLimit + extra,
+      planLimit: FREE_PLAN.invoiceLimit,
+      extra,
+      carriedOver: 0,
+    };
+  }
+
+  /**
+   * Extra invoices from admin overrides active at `at`: started (starts_at <= at), not yet
+   * expired (at < expires_at) and not revoked. Both reserve() and usage() read it, so the
+   * limit shown is the limit enforced.
+   */
+  async extraInvoices(db: Db, userId: string, at: Date): Promise<number> {
+    const [row] = await db
+      .select({ total: sql<number>`coalesce(sum(${allowanceOverrides.extraInvoices}), 0)::int` })
+      .from(allowanceOverrides)
+      .where(
+        and(
+          eq(allowanceOverrides.userId, userId),
+          isNull(allowanceOverrides.revokedAt),
+          sql`${allowanceOverrides.startsAt} <= ${at.toISOString()}`,
+          sql`${allowanceOverrides.expiresAt} > ${at.toISOString()}`,
+        ),
+      );
+    return row!.total;
   }
 
   private async ensurePeriod(tx: Transaction, userId: string, window: AllowanceWindow) {
@@ -147,7 +189,8 @@ export class AllowanceService {
         planCode: window.plan,
         startsAt: window.start,
         endsAt: window.end,
-        invoiceLimit: window.limit,
+        // The plan's limit: overrides come and go within a period, so they're read live.
+        invoiceLimit: window.planLimit,
         carriedOver: window.carriedOver,
       })
       .onConflictDoNothing({

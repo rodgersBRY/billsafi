@@ -8,6 +8,16 @@ import {
 } from "@billsafi/domain";
 import { z } from "zod";
 import type { AdminPlanPayment } from "./admin-subscriptions.js";
+import {
+  blankToUndefined,
+  optionalDate,
+  optionalDays,
+  optionalEnum,
+  optionalText,
+  pageParam,
+  searchParam,
+  sortDirParam,
+} from "./query-params.js";
 import type { InvoiceStatus } from "./invoices.js";
 
 /*
@@ -183,22 +193,6 @@ export type AdminSubscriptionStatus = SubscriptionStatus;
 export const adminLifecycleStages = lifecycleStages;
 export type AdminLifecycleStage = LifecycleStage;
 
-/** Query strings arrive as text; an empty value (a cleared filter) means "not set". */
-const blankToUndefined = (value: unknown) => (value === "" ? undefined : value);
-
-const searchParam = z
-  .string()
-  .trim()
-  .max(100)
-  .transform((value) => value || undefined)
-  .optional();
-const pageParam = z.coerce.number().int().min(1).max(10_000).default(1);
-const sortDirParam = z.preprocess(blankToUndefined, z.enum(["asc", "desc"]).default("desc"));
-const optionalEnum = <const T extends readonly [string, ...string[]]>(values: T) =>
-  z.preprocess(blankToUndefined, z.enum(values).optional());
-const optionalDays = <const T extends readonly [number, ...number[]]>(values: T) =>
-  z.preprocess(blankToUndefined, z.coerce.number().pipe(z.literal(values)).optional());
-
 export const adminSortDirections = ["asc", "desc"] as const;
 export type AdminSortDirection = (typeof adminSortDirections)[number];
 
@@ -255,11 +249,6 @@ export type AdminUsersQuery = z.output<typeof adminUsersQuerySchema>;
 
 export const adminAuditOutcomes = ["success", "failure"] as const;
 export type AdminAuditOutcome = (typeof adminAuditOutcomes)[number];
-
-const optionalText = (max: number) =>
-  z.preprocess(blankToUndefined, z.string().trim().min(1).max(max).optional());
-/** A Nairobi calendar date, YYYY-MM-DD. */
-const optionalDate = z.preprocess(blankToUndefined, z.iso.date().optional());
 
 export const adminAuditLogsQuerySchema = z
   .object({

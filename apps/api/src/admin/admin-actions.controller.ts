@@ -16,6 +16,9 @@ import {
   type AdminGrant,
   type AdminGrantRecorded,
   adminGrantSchema,
+  type AdminOverride,
+  type AdminOverrideResult,
+  adminOverrideSchema,
   type AdminPaymentRecorded,
   type AdminProEnded,
   type AdminRecordPayment,
@@ -145,5 +148,25 @@ export class AdminActionsController {
     @Req() request: AdminActionRequest,
   ): Promise<AdminProEnded> {
     return this.subscriptions.endPro(actionContext(request, body), id);
+  }
+
+  /** Raises the account's invoice limit until an expiry at most a year away. */
+  @Post("tenants/:id/overrides")
+  addOverride(
+    @Param("id", new UuidParamPipe("Tenant")) id: string,
+    @Body(new ZodValidationPipe(adminOverrideSchema)) body: AdminOverride,
+    @Req() request: AdminActionRequest,
+  ): Promise<AdminOverrideResult> {
+    return this.subscriptions.addOverride(actionContext(request, body), id, body);
+  }
+
+  @Post("overrides/:id/revoke")
+  @HttpCode(200)
+  revokeOverride(
+    @Param("id", new UuidParamPipe("Override")) id: string,
+    @Body(new ZodValidationPipe(adminActionBodySchema)) body: AdminActionBody,
+    @Req() request: AdminActionRequest,
+  ): Promise<AdminOverrideResult> {
+    return this.subscriptions.revokeOverride(actionContext(request, body), id);
   }
 }

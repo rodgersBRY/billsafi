@@ -3,6 +3,7 @@ import { asc, type DatabaseConnection, eq, schema } from "@billsafi/db";
 import { addNairobiMonths, CREDIT_PACK, nairobiDate } from "@billsafi/domain";
 import request from "supertest";
 import { AuditService } from "../src/audit/audit.service.js";
+import { AllowanceService } from "../src/billing/allowance.service.js";
 import { DATABASE } from "../src/database/database.module.js";
 import { signUp, uniqueEmail } from "./support/app.js";
 
@@ -19,7 +20,12 @@ export interface SubscriptionSuiteContext {
   seedAccount: (
     label: string,
     ready: number,
-  ) => Promise<{ cookie: string; email: string; issue: (count: number) => Promise<void> }>;
+  ) => Promise<{
+    cookie: string;
+    email: string;
+    businessId: string;
+    issue: (count: number) => Promise<void>;
+  }>;
   payPro: (cookie: string) => Promise<string>;
   userId: (email: string) => Promise<string>;
 }
@@ -648,6 +654,233 @@ export function subscriptionSuite(ctx: SubscriptionSuiteContext) {
       }
       expect((await subscriptionOf(account.id))!.paidMonths).toBe(3);
       expect(await eventsOf(account.id)).toEqual([]);
+    });
+  });
+
+  /** Makes one more invoice Ready and returns the response, whatever its status. */
+  async function tryIssue(account: { cookie: string; businessId: string }) {
+    const [client] = await db()
+      .select()
+      .from(schema.clients)
+      .where(eq(schema.clients.businessId, account.businessId));
+    const path = `/api/v1/businesses/${account.businessId}/invoices`;
+    const draft = await api()
+      .post(path)
+      .set("Cookie", account.cookie)
+      .send({
+        clientId: client!.id,
+        issueDate: "2026-10-16",
+        dueDate: "2026-10-30",
+        items: [{ description: "Design work", quantity: "1", unitPrice: "1000" }],
+      })
+      .expect(201);
+    return api().post(`${path}/${draft.body.id}/ready`).set("Cookie", account.cookie);
+  }
+
+  describe("subscriptions: limit overrides", () => {
+    const inDays = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString();
+    const overridesOf = (userId: string) =>
+      db()
+        .select()
+        .from(schema.allowanceOverrides)
+        .where(eq(schema.allowanceOverrides.userId, userId))
+        .orderBy(asc(schema.allowanceOverrides.createdAt));
+    const insertOverride = async (
+      userId: string,
+      startsAt: Date,
+      expiresAt: Date,
+      extra: Partial<typeof schema.allowanceOverrides.$inferInsert> = {},
+    ) =>
+      (
+        await db()
+          .insert(schema.allowanceOverrides)
+          .values({
+            userId,
+            extraInvoices: 5,
+            startsAt,
+            expiresAt,
+            reason: "Seeded in a test",
+            createdBy: ctx.adminId(),
+            ...extra,
+          })
+          .returning()
+      )[0]!;
+
+    it("raises the Free limit while active, then refuses past plan limit plus extra", async () => {
+      const account = await ctx.seedAccount("admin-sub-override", 10);
+      const id = await ctx.userId(account.email);
+      const response = await post(`tenants/${id}/overrides`, {
+        extraInvoices: 2,
+        expiresAt: inDays(30),
+        reason: "Month-end rush for a client",
+      }).expect(201);
+      expect(response.body).toMatchObject({
+        override: {
+          userId: id,
+          userEmail: account.email,
+          extraInvoices: 2,
+          state: "active",
+          createdBy: { id: ctx.adminId() },
+          revokedAt: null,
+        },
+        allowance: { plan: "free", used: 10, limit: 12 },
+      });
+      expect((await billingOf(account.cookie)).usage).toMatchObject({ limit: 12, used: 10 });
+      await account.issue(2);
+      const ready = await tryIssue(account);
+      expect(ready.status).toBe(409);
+      expect(ready.body).toMatchObject({
+        code: "ALLOWANCE_REACHED",
+        usage: { plan: "free", used: 12, limit: 12 },
+      });
+      expect((await auditFor(id)).at(-1)).toMatchObject({
+        action: "tenant.add_override",
+        outcome: "success",
+        changes: {
+          override: expect.objectContaining({ extraInvoices: 2 }),
+          limit: { from: 10, to: 12 },
+        },
+      });
+
+      // Revoked: the limit drops back at once and the row stays.
+      const revoked = await post(`overrides/${response.body.override.id}/revoke`, {
+        reason: "Rush is over now",
+      }).expect(200);
+      expect(revoked.body).toMatchObject({
+        override: { state: "revoked", revokeReason: "Rush is over now" },
+        allowance: { limit: 10, used: 12 },
+      });
+      expect((await auditFor(id)).at(-1)).toMatchObject({
+        action: "tenant.revoke_override",
+        targetType: "account",
+        targetId: id,
+        outcome: "success",
+        changes: expect.objectContaining({ limit: { from: 12, to: 10 } }),
+      });
+      const [row] = await overridesOf(id);
+      expect(row).toMatchObject({ revokedBy: ctx.adminId() });
+      const again = await post(`overrides/${row!.id}/revoke`, { reason: "Rush is over now" });
+      expect(again.status).toBe(409);
+      expect(again.body.code).toBe("ALREADY_REVOKED");
+    });
+
+    it("adds to the Pro limit too", async () => {
+      const account = await newAccount();
+      await setRun(account.id, new Date(Date.now() - 60_000), 1);
+      const response = await post(`tenants/${account.id}/overrides`, {
+        extraInvoices: 50,
+        expiresAt: inDays(10),
+        reason: "Big launch month",
+      }).expect(201);
+      expect(response.body.allowance).toMatchObject({ plan: "pro", limit: 150 });
+    });
+
+    it("counts an override only from its start until just before its expiry", async () => {
+      const account = await newAccount();
+      const allowance = ctx.app().get(AllowanceService);
+      const start = new Date(Date.now() + 5 * 86_400_000);
+      const end = new Date(start.getTime() + 3_600_000);
+      await insertOverride(account.id, start, end, { extraInvoices: 5 });
+      const at = (ms: number) => allowance.usage(account.id, new Date(ms));
+      expect((await at(start.getTime() - 1)).limit).toBe(10);
+      expect((await at(start.getTime())).limit).toBe(15);
+      expect((await at(end.getTime() - 1)).limit).toBe(15);
+      expect((await at(end.getTime())).limit).toBe(10);
+      // Two at once add up; a revoked one never counts.
+      await insertOverride(account.id, start, end, { extraInvoices: 7 });
+      await insertOverride(account.id, start, end, {
+        extraInvoices: 100,
+        revokedAt: new Date(),
+        revokedBy: ctx.adminId(),
+      });
+      expect((await at(start.getTime())).limit).toBe(22);
+      // Scheduled ones don't raise today's limit.
+      expect((await allowance.usage(account.id)).limit).toBe(10);
+    });
+
+    it("lists a scheduled override and refuses to revoke an expired one", async () => {
+      const account = await newAccount();
+      const scheduled = await post(`tenants/${account.id}/overrides`, {
+        extraInvoices: 3,
+        startsAt: inDays(2),
+        expiresAt: inDays(5),
+        reason: "Next week's campaign",
+      }).expect(201);
+      expect(scheduled.body).toMatchObject({
+        override: { state: "scheduled" },
+        allowance: { limit: 10 },
+      });
+      const expired = await insertOverride(
+        account.id,
+        new Date(Date.now() - 2 * 86_400_000),
+        new Date(Date.now() - 86_400_000),
+      );
+      const response = await post(`overrides/${expired.id}/revoke`, {
+        reason: "Clean up the list",
+      }).expect(409);
+      expect(response.body.code).toBe("OVERRIDE_EXPIRED");
+    });
+
+    it.each([
+      ["no extra invoices", { extraInvoices: 0 }, "extraInvoices"],
+      ["too many extra invoices", { extraInvoices: 1001 }, "extraInvoices"],
+      ["no expiry", { expiresAt: undefined }, "expiresAt"],
+      ["an expiry over a year away", { expiresAt: inDays(367) }, "expiresAt"],
+      ["an expiry before the start", { startsAt: inDays(3), expiresAt: inDays(2) }, "expiresAt"],
+      ["an expiry in the past", { expiresAt: inDays(-1) }, "expiresAt"],
+      ["a start in the past", { startsAt: inDays(-1) }, "startsAt"],
+      ["a date without a time", { expiresAt: "2026-12-01" }, "expiresAt"],
+    ])("answers 400 for %s", async (_label, change, path) => {
+      const account = await newAccount();
+      const response = await post(`tenants/${account.id}/overrides`, {
+        extraInvoices: 5,
+        expiresAt: inDays(30),
+        reason: "Month-end rush",
+        ...change,
+      }).expect(400);
+      expect(response.body.issues).toEqual(
+        expect.arrayContaining([expect.objectContaining({ path })]),
+      );
+      expect(await overridesOf(account.id)).toEqual([]);
+      expect(await auditFor(account.id)).toEqual([]);
+    });
+
+    it("refuses your own account, and answers 404 for unknown accounts, overrides and non-admins", async () => {
+      const body = { extraInvoices: 5, expiresAt: inDays(30), reason: "Month-end rush" };
+      expect((await post(`tenants/${ctx.adminId()}/overrides`, body).expect(409)).body.code).toBe(
+        "CANNOT_GRANT_SELF",
+      );
+      await post(`tenants/${crypto.randomUUID()}/overrides`, body).expect(404);
+      const unknown = crypto.randomUUID();
+      await post(`overrides/${unknown}/revoke`, { reason: "Clean up the list" }).expect(404);
+      expect(await auditFor(unknown)).toEqual([
+        expect.objectContaining({ targetType: "override", outcome: "failure" }),
+      ]);
+      const account = await newAccount();
+      const { cookie } = await signUp(ctx.app(), uniqueEmail("admin-sub-stranger"));
+      await post(`tenants/${account.id}/overrides`, body, cookie).expect(404);
+      expect(await overridesOf(account.id)).toEqual([]);
+    });
+
+    it("rolls back when the audit row can't be written", async () => {
+      const account = await newAccount();
+      const audit = ctx.app().get(AuditService);
+      const original = audit.record.bind(audit);
+      const spy = vi
+        .spyOn(audit, "record")
+        .mockImplementation((entry, executor) =>
+          executor ? Promise.reject(new Error("audit insert failed")) : original(entry),
+        );
+      try {
+        await post(`tenants/${account.id}/overrides`, {
+          extraInvoices: 5,
+          expiresAt: inDays(30),
+          reason: "Month-end rush",
+        }).expect(500);
+      } finally {
+        spy.mockRestore();
+      }
+      expect(await overridesOf(account.id)).toEqual([]);
     });
   });
 }

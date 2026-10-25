@@ -2,6 +2,7 @@ import { nairobiDate } from "@billsafi/domain";
 import { describe, expect, it } from "vitest";
 import {
   adminGrantSchema,
+  adminOverrideSchema,
   adminRecordPaymentSchema,
   idempotencyKeySchema,
 } from "./admin-subscriptions.js";
@@ -114,5 +115,42 @@ describe("adminGrantSchema", () => {
 
   it("needs a reason", () => {
     expect(adminGrantSchema.safeParse({ kind: "pro_months", quantity: 1 }).success).toBe(false);
+  });
+});
+
+describe("adminOverrideSchema", () => {
+  const inDays = (days: number) => new Date(Date.now() + days * DAY_MS).toISOString();
+  const base = { extraInvoices: 20, expiresAt: inDays(30), reason };
+
+  it("starts now by default and accepts an expiry up to 366 days away", () => {
+    expect(adminOverrideSchema.parse(base)).toEqual(base);
+    expect(adminOverrideSchema.parse({ ...base, startsAt: "" }).startsAt).toBeUndefined();
+    expect(adminOverrideSchema.safeParse({ ...base, expiresAt: inDays(365.9) }).success).toBe(true);
+    expect(
+      adminOverrideSchema.safeParse({ ...base, startsAt: inDays(1), expiresAt: inDays(2) }).success,
+    ).toBe(true);
+    // A start a moment ago is fine: clocks differ a little.
+    expect(
+      adminOverrideSchema.safeParse({
+        ...base,
+        startsAt: new Date(Date.now() - 60_000).toISOString(),
+      }).success,
+    ).toBe(true);
+  });
+
+  it.each([
+    [{ extraInvoices: 0 }, "extraInvoices"],
+    [{ extraInvoices: 1001 }, "extraInvoices"],
+    [{ extraInvoices: 1.5 }, "extraInvoices"],
+    [{ expiresAt: undefined }, "expiresAt"],
+    [{ expiresAt: "2026-12-01" }, "expiresAt"],
+    [{ expiresAt: inDays(367) }, "expiresAt"],
+    [{ expiresAt: inDays(-1) }, "expiresAt"],
+    [{ startsAt: inDays(3), expiresAt: inDays(2) }, "expiresAt"],
+    [{ startsAt: inDays(-1) }, "startsAt"],
+  ])("rejects %o at %s", (change, path) => {
+    const result = adminOverrideSchema.safeParse({ ...base, ...change });
+    expect(result.success).toBe(false);
+    expect(result.error!.issues.map((issue) => issue.path.join("."))).toContain(path);
   });
 });
