@@ -4,11 +4,18 @@ import type {
   AdminGrant,
   AdminGrantRecorded,
   AdminPaymentRecorded,
+  AdminProEnded,
   AdminRecordPayment,
   AdminSubscriptionState,
 } from "@billsafi/contracts";
 import { and, type DatabaseConnection, eq, schema, sql } from "@billsafi/db";
-import { CREDIT_PACK, nairobiDate, subscriptionStatus } from "@billsafi/domain";
+import {
+  addNairobiMonths,
+  CREDIT_PACK,
+  nairobiDate,
+  proPeriodAt,
+  subscriptionStatus,
+} from "@billsafi/domain";
 import { AllowanceService, type SubscriptionRow } from "../billing/allowance.service.js";
 import { BillingService, type ProExtension } from "../billing/billing.service.js";
 import { DATABASE } from "../database/database.module.js";
@@ -22,7 +29,13 @@ import {
 } from "./admin-actions.service.js";
 import { planAt } from "./admin-sql.js";
 
-const { subscriptionPayments, adminIdempotencyKeys, accountGrants, subscriptionEvents } = schema;
+const {
+  subscriptionPayments,
+  adminIdempotencyKeys,
+  accountGrants,
+  subscriptionEvents,
+  subscriptions,
+} = schema;
 
 const MANUAL = schema.MANUAL_PROVIDER;
 
@@ -268,6 +281,48 @@ export class AdminSubscriptionActionsService {
           result,
         };
       }),
+    );
+  }
+
+  /**
+   * Ends Pro at the end of the current Pro month by dropping the months after it. Pro is
+   * counted in whole months and the allowance follows them, so it never ends mid-month.
+   * Dropped months are not refunded here; support handles refunds by hand (D051).
+   */
+  async endPro(context: AdminActionContext, id: string): Promise<AdminProEnded> {
+    return this.actions.performWith(
+      context,
+      { action: "tenant.end_pro", target: { type: "account", id } },
+      async (tx) => {
+        await this.actions.lockUser(tx, id);
+        const subscription = await this.allowance.lockAccount(tx, id);
+        const now = new Date();
+        const period = subscription.anchorAt
+          ? proPeriodAt(subscription.anchorAt, subscription.paidMonths, now)
+          : null;
+        if (!period) throw conflict("NOT_PRO", "This account isn't on Pro.");
+        const paidMonths = period.index + 1;
+        if (paidMonths === subscription.paidMonths) {
+          throw conflict("ALREADY_ENDING", "Pro already ends at the end of the current Pro month.");
+        }
+        const before = await this.state(tx, subscription, now);
+        const paidUntil = addNairobiMonths(subscription.anchorAt!, paidMonths);
+        const [updated] = await tx
+          .update(subscriptions)
+          .set({ paidMonths, paidUntil })
+          .where(eq(subscriptions.id, subscription.id))
+          .returning();
+        await tx.insert(subscriptionEvents).values({
+          subscriptionId: subscription.id,
+          kind: "ended_by_admin",
+          details: {
+            paidMonths: { from: subscription.paidMonths, to: paidMonths },
+            paidUntil: { from: before.paidUntil, to: paidUntil.toISOString() },
+          },
+        });
+        const after = await this.state(tx, updated!, now);
+        return { changes: this.stateDiff(before, after), result: { subscription: after } };
+      },
     );
   }
 

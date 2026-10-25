@@ -186,3 +186,9 @@ export interface AdminGrantRecorded {
   replayed: boolean;
   subscription: AdminSubscriptionState;
 }
+
+/** `POST /admin/tenants/:id/end-pro` takes just a reason (adminActionBodySchema). */
+export interface AdminProEnded {
+  /** Pro runs until `subscription.paidUntil`, the end of the current Pro month. */
+  subscription: AdminSubscriptionState;
+}

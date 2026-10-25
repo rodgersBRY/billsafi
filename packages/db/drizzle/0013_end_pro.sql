@@ -1,0 +1,1 @@
+ALTER TYPE "public"."subscription_event_kind" ADD VALUE 'ended_by_admin';

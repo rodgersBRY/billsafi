@@ -186,6 +186,8 @@ export const subscriptionEventKind = pgEnum("subscription_event_kind", [
   "cancellation_undone",
   /** An admin gave Pro months or invoice credits at no charge. */
   "granted",
+  /** An admin cut prepaid months so Pro ends at the end of the current Pro month. */
+  "ended_by_admin",
 ]);
 
 /** Plan history; cancellations and undos are recorded, never deleted (D044). */

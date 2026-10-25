@@ -17,6 +17,7 @@ import {
   type AdminGrantRecorded,
   adminGrantSchema,
   type AdminPaymentRecorded,
+  type AdminProEnded,
   type AdminRecordPayment,
   adminRecordPaymentSchema,
   type AdminTenantRow,
@@ -133,5 +134,16 @@ export class AdminActionsController {
     @Req() request: AdminActionRequest,
   ): Promise<AdminGrantRecorded> {
     return this.subscriptions.grant(actionContext(request, body), id, body, idempotencyKey(key));
+  }
+
+  /** Ends Pro at the end of the current Pro month; the months after it are dropped. */
+  @Post("tenants/:id/end-pro")
+  @HttpCode(200)
+  endPro(
+    @Param("id", new UuidParamPipe("Tenant")) id: string,
+    @Body(new ZodValidationPipe(adminActionBodySchema)) body: AdminActionBody,
+    @Req() request: AdminActionRequest,
+  ): Promise<AdminProEnded> {
+    return this.subscriptions.endPro(actionContext(request, body), id);
   }
 }

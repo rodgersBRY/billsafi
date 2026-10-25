@@ -530,4 +530,124 @@ export function subscriptionSuite(ctx: SubscriptionSuiteContext) {
       ]);
     });
   });
+
+  /** Puts the account on a run of `paidMonths` that started at `anchorAt`, as billing would. */
+  const setRun = (userId: string, anchorAt: Date, paidMonths: number) =>
+    db()
+      .insert(schema.subscriptions)
+      .values({ userId, anchorAt, paidMonths, paidUntil: addNairobiMonths(anchorAt, paidMonths) })
+      .onConflictDoUpdate({
+        target: schema.subscriptions.userId,
+        set: { anchorAt, paidMonths, paidUntil: addNairobiMonths(anchorAt, paidMonths) },
+      });
+
+  describe("subscriptions: end Pro", () => {
+    const endPro = (id: string) => post(`tenants/${id}/end-pro`, { reason: "Asked to stop" });
+
+    it("drops the prepaid months so Pro ends with the current Pro month", async () => {
+      const account = await newAccount();
+      // In the second of three months.
+      const anchorAt = addNairobiMonths(new Date(Date.now() - 60_000), -1);
+      await setRun(account.id, anchorAt, 3);
+      const response = await endPro(account.id).expect(200);
+      const currentEnd = addNairobiMonths(anchorAt, 2);
+      expect(response.body.subscription).toMatchObject({
+        plan: { code: "pro", proUntil: currentEnd.toISOString() },
+        paidMonths: 2,
+        paidUntil: currentEnd.toISOString(),
+      });
+      const row = await expectPaidUntilParity(account.id);
+      expect(row!.anchorAt).toEqual(anchorAt);
+      expect((await eventsOf(account.id)).at(-1)).toMatchObject({
+        kind: "ended_by_admin",
+        details: { paidMonths: { from: 3, to: 2 } },
+      });
+      expect((await auditFor(account.id)).at(-1)).toMatchObject({
+        action: "tenant.end_pro",
+        outcome: "success",
+        changes: {
+          paidMonths: { from: 3, to: 2 },
+          paidUntil: {
+            from: addNairobiMonths(anchorAt, 3).toISOString(),
+            to: currentEnd.toISOString(),
+          },
+        },
+      });
+      // The account keeps Pro, and its allowance window, until then.
+      const billing = await billingOf(account.cookie);
+      expect(billing.subscription).toMatchObject({
+        status: "active",
+        paidUntil: currentEnd.toISOString(),
+      });
+      expect(billing.usage).toMatchObject({ plan: "pro", periodEnd: currentEnd.toISOString() });
+
+      const again = await endPro(account.id).expect(409);
+      expect(again.body.code).toBe("ALREADY_ENDING");
+    });
+
+    it("works from the first month of a run bought through M-Pesa and manual payments", async () => {
+      const account = await newAccount();
+      await ctx.payPro(account.cookie);
+      await post(`tenants/${account.id}/payments`, proPayment({ months: 2 })).expect(201);
+      const before = await subscriptionOf(account.id);
+      await endPro(account.id).expect(200);
+      const after = await expectPaidUntilParity(account.id);
+      expect(after!.paidMonths).toBe(1);
+      expect(after!.paidUntil).toEqual(addNairobiMonths(before!.anchorAt!, 1));
+    });
+
+    it("treats the month boundary as the start of the next month", async () => {
+      const account = await newAccount();
+      // The second month started a moment ago: Pro now ends at the end of month two.
+      const anchorAt = addNairobiMonths(new Date(Date.now() - 2_000), -1);
+      await setRun(account.id, anchorAt, 2);
+      const refused = await endPro(account.id).expect(409);
+      expect(refused.body.code).toBe("ALREADY_ENDING");
+      await setRun(account.id, anchorAt, 4);
+      await endPro(account.id).expect(200);
+      expect((await subscriptionOf(account.id))!.paidMonths).toBe(2);
+    });
+
+    it("refuses an account that is not on Pro, Free or lapsed, and records the refusal", async () => {
+      const free = await newAccount();
+      expect((await endPro(free.id).expect(409)).body.code).toBe("NOT_PRO");
+      const lapsed = await newAccount();
+      await setRun(lapsed.id, addNairobiMonths(new Date(Date.now() - 60_000), -2), 2);
+      expect((await endPro(lapsed.id).expect(409)).body.code).toBe("NOT_PRO");
+      expect((await auditFor(lapsed.id)).at(-1)).toMatchObject({
+        action: "tenant.end_pro",
+        outcome: "failure",
+        changes: { error: expect.objectContaining({ code: "NOT_PRO" }) },
+      });
+    });
+
+    it("needs a reason, and answers 404 for unknown accounts and non-admins", async () => {
+      const account = await newAccount();
+      await setRun(account.id, new Date(Date.now() - 60_000), 3);
+      await post(`tenants/${account.id}/end-pro`, {}).expect(400);
+      await endPro(crypto.randomUUID()).expect(404);
+      const { cookie } = await signUp(ctx.app(), uniqueEmail("admin-sub-stranger"));
+      await post(`tenants/${account.id}/end-pro`, { reason: "Asked to stop" }, cookie).expect(404);
+      expect((await subscriptionOf(account.id))!.paidMonths).toBe(3);
+    });
+
+    it("rolls back when the audit row can't be written", async () => {
+      const account = await newAccount();
+      await setRun(account.id, new Date(Date.now() - 60_000), 3);
+      const audit = ctx.app().get(AuditService);
+      const original = audit.record.bind(audit);
+      const spy = vi
+        .spyOn(audit, "record")
+        .mockImplementation((entry, executor) =>
+          executor ? Promise.reject(new Error("audit insert failed")) : original(entry),
+        );
+      try {
+        await endPro(account.id).expect(500);
+      } finally {
+        spy.mockRestore();
+      }
+      expect((await subscriptionOf(account.id))!.paidMonths).toBe(3);
+      expect(await eventsOf(account.id)).toEqual([]);
+    });
+  });
 }
