@@ -8,11 +8,11 @@ import {
   tenantsDefaults,
   toQuery,
 } from "@/components/admin/admin-params";
-import { EmptyState, UpdatedAt } from "@/components/admin/admin-ui";
+import { EmptyState, PastEndState, UpdatedAt } from "@/components/admin/admin-ui";
 import { Pagination } from "@/components/admin/data-table";
 import { FilterBar } from "@/components/admin/filter-bar";
 import { PageHeader } from "@/components/admin/page-header";
-import { PageSkeleton } from "@/components/admin/page-skeleton";
+import { TableSkeleton } from "@/components/admin/page-skeleton";
 import { tenantFilters } from "@/components/admin/tenants/tenant-filters";
 import { TenantTable } from "@/components/admin/tenants/tenant-table";
 import { getAdminSelf, getAdminTenants } from "@/lib/server-api/admin";
@@ -43,7 +43,9 @@ async function Tenants({ searchParams }: PageProps<"/admin/tenants">) {
       <div className="space-y-3">
         <section className="min-w-0 rounded-panel border border-line bg-panel">
           <FilterBar label="Filter tenants" fields={tenantFilters} />
-          {data.tenants.length === 0 ? (
+          {data.tenants.length === 0 && data.total > 0 ? (
+            <PastEndState firstPageHref={href({ page: 1 })} />
+          ) : data.tenants.length === 0 ? (
             filtered ? (
               <EmptyState
                 icon={SearchX}
@@ -84,7 +86,7 @@ async function Tenants({ searchParams }: PageProps<"/admin/tenants">) {
 
 export default function TenantsPage(props: PageProps<"/admin/tenants">) {
   return (
-    <Suspense fallback={<PageSkeleton label="Loading tenants" />}>
+    <Suspense fallback={<TableSkeleton label="Loading tenants" />}>
       <Tenants {...props} />
     </Suspense>
   );

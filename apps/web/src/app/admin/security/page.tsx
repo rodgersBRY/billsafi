@@ -1,6 +1,7 @@
 import { History, SearchX } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
+import { formatInstant, formatRelative } from "@/components/admin/admin-format";
 import { adminMetadata } from "@/components/admin/admin-metadata";
 import {
   auditDefaults,
@@ -8,13 +9,13 @@ import {
   parseAuditParams,
   toQuery,
 } from "@/components/admin/admin-params";
-import { EmptyState, UpdatedAt } from "@/components/admin/admin-ui";
+import { EmptyState, PastEndState, UpdatedAt } from "@/components/admin/admin-ui";
 import { auditFilters } from "@/components/admin/audit/audit-filters";
 import { AuditTable } from "@/components/admin/audit/audit-table";
 import { Pagination } from "@/components/admin/data-table";
 import { FilterBar } from "@/components/admin/filter-bar";
 import { PageHeader } from "@/components/admin/page-header";
-import { PageSkeleton } from "@/components/admin/page-skeleton";
+import { TableSkeleton } from "@/components/admin/page-skeleton";
 import { getAdminAuditLogs } from "@/lib/server-api/admin";
 
 export const generateMetadata = () => adminMetadata("Security & Audit");
@@ -38,7 +39,11 @@ async function AuditLog({ searchParams }: PageProps<"/admin/security">) {
       <div className="space-y-3">
         <section className="min-w-0 rounded-panel border border-line bg-panel">
           <FilterBar label="Filter audit events" fields={auditFilters} />
-          {data.entries.length === 0 ? (
+          {data.entries.length === 0 && data.total > 0 ? (
+            <PastEndState
+              firstPageHref={hrefWith("/admin/security", state, { page: 1 }, auditDefaults)}
+            />
+          ) : data.entries.length === 0 ? (
             filtered ? (
               <EmptyState
                 icon={SearchX}
@@ -57,7 +62,13 @@ async function AuditLog({ searchParams }: PageProps<"/admin/security">) {
               />
             )
           ) : (
-            <AuditTable entries={data.entries} now={data.generatedAt} />
+            <AuditTable
+              entries={data.entries.map((entry) => ({
+                ...entry,
+                when: formatInstant(entry.occurredAt),
+                ago: formatRelative(entry.occurredAt, Date.parse(data.generatedAt)),
+              }))}
+            />
           )}
           <Pagination
             page={data.page}
@@ -74,7 +85,7 @@ async function AuditLog({ searchParams }: PageProps<"/admin/security">) {
 
 export default function SecurityPage(props: PageProps<"/admin/security">) {
   return (
-    <Suspense fallback={<PageSkeleton label="Loading audit events" />}>
+    <Suspense fallback={<TableSkeleton label="Loading audit events" />}>
       <AuditLog {...props} />
     </Suspense>
   );

@@ -1,15 +1,8 @@
 import { type AdminRetention, adminRetentionWeeks } from "@billsafi/contracts";
 import { formatDate } from "@/lib/format";
 import { formatCount, formatShare } from "../admin-format";
-import {
-  EmptyRow,
-  Panel,
-  PeriodSwitch,
-  UpdatedAt,
-  tdClass,
-  thClass,
-  theadClass,
-} from "../admin-ui";
+import { EmptyRow, Panel, PeriodSwitch, UpdatedAt } from "../admin-ui";
+import { tdNowrapClass, thClass, theadClass } from "../table-classes";
 
 /*
  * The accent colour at a strength that follows the share. A 10% floor keeps
@@ -81,20 +74,20 @@ export function RetentionPanel({ data, hrefFor }: RetentionPanelProps) {
             <tbody>
               {data.cohorts.map((cohort) => (
                 <tr key={cohort.weekStart} className="border-t border-line">
-                  <th scope="row" className={`${tdClass} text-left font-normal`}>
+                  <th scope="row" className={`${tdNowrapClass} text-left font-normal`}>
                     {formatDate(cohort.weekStart)}
                   </th>
-                  <td className={`${tdClass} text-right tabular-nums`}>
+                  <td className={`${tdNowrapClass} text-right tabular-nums`}>
                     {formatCount(cohort.users)}
                   </td>
                   {Array.from({ length: columns }, (_, week) => {
                     const share = cohort.activeShare[week];
                     return share === undefined || share === null ? (
-                      <td key={week} className={tdClass} />
+                      <td key={week} className={tdNowrapClass} />
                     ) : (
                       <td
                         key={week}
-                        className={`${tdClass} ${shadeClass} text-center tabular-nums`}
+                        className={`${tdNowrapClass} ${shadeClass} text-center tabular-nums`}
                         style={shade(share)}
                       >
                         {formatShare(share)}

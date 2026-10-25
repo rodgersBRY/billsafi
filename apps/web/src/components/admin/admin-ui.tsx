@@ -1,10 +1,7 @@
 import type { SubscriptionPaymentStatus } from "@billsafi/contracts";
-import { CircleCheck, CircleX, Clock, Inbox, type LucideIcon } from "lucide-react";
+import { CircleCheck, CircleX, Clock, Inbox, type LucideIcon, SkipBack } from "lucide-react";
+import Link from "next/link";
 import { AdminLink } from "./admin-link";
-
-export const thClass = "px-4 py-3 font-normal whitespace-nowrap";
-export const tdClass = "px-4 py-3.5 whitespace-nowrap";
-export const theadClass = "bg-background text-left text-xs text-sub";
 
 interface PanelProps {
   title: string;
@@ -53,6 +50,22 @@ export function EmptyRow({ text }: { text: string }) {
   return <p className="p-5 text-sm text-sub">{text}</p>;
 }
 
+/** A page number beyond the last page, from an old link or rows that went away. */
+export function PastEndState({ firstPageHref }: { firstPageHref: string }) {
+  return (
+    <EmptyState
+      icon={SkipBack}
+      title="This page is past the end"
+      description="There are fewer results than this page needs."
+      action={
+        <Link href={firstPageHref} className="text-sm text-accent hover:underline">
+          Go to page 1
+        </Link>
+      }
+    />
+  );
+}
+
 interface SwitchOption {
   label: string;
   href: string;
@@ -69,7 +82,7 @@ export function PeriodSwitch({ label, options }: { label: string; options: Switc
           href={option.href}
           current={option.current}
           replace
-          className="rounded-sm px-3 py-1.5 text-sm text-sub hover:text-ink aria-[current=page]:bg-soft aria-[current=page]:font-medium aria-[current=page]:text-accent"
+          className="inline-flex min-h-11 items-center rounded-sm px-3 py-1.5 text-sm text-sub md:min-h-0 hover:text-ink aria-[current=page]:bg-soft aria-[current=page]:font-medium aria-[current=page]:text-accent"
         >
           {option.label}
         </AdminLink>
@@ -109,8 +122,9 @@ export function PaymentStatusPill({ status }: { status: SubscriptionPaymentStatu
 }
 
 const timeFormat = new Intl.DateTimeFormat("en-KE", {
-  hour: "numeric",
+  hour: "2-digit",
   minute: "2-digit",
+  hourCycle: "h23",
   timeZone: "Africa/Nairobi",
 });
 

@@ -8,11 +8,11 @@ import {
   toQuery,
   usersDefaults,
 } from "@/components/admin/admin-params";
-import { EmptyState, UpdatedAt } from "@/components/admin/admin-ui";
+import { EmptyState, PastEndState, UpdatedAt } from "@/components/admin/admin-ui";
 import { Pagination } from "@/components/admin/data-table";
 import { FilterBar } from "@/components/admin/filter-bar";
 import { PageHeader } from "@/components/admin/page-header";
-import { PageSkeleton } from "@/components/admin/page-skeleton";
+import { TableSkeleton } from "@/components/admin/page-skeleton";
 import { userFilters } from "@/components/admin/users/user-filters";
 import { UserTable } from "@/components/admin/users/user-table";
 import { getAdminUsers } from "@/lib/server-api/admin";
@@ -40,7 +40,9 @@ async function Users({ searchParams }: PageProps<"/admin/users">) {
       <div className="space-y-3">
         <section className="min-w-0 rounded-panel border border-line bg-panel">
           <FilterBar label="Filter users" fields={userFilters} />
-          {data.users.length === 0 ? (
+          {data.users.length === 0 && data.total > 0 ? (
+            <PastEndState firstPageHref={href({ page: 1 })} />
+          ) : data.users.length === 0 ? (
             filtered ? (
               <EmptyState
                 icon={SearchX}
@@ -77,7 +79,7 @@ async function Users({ searchParams }: PageProps<"/admin/users">) {
 
 export default function UsersPage(props: PageProps<"/admin/users">) {
   return (
-    <Suspense fallback={<PageSkeleton label="Loading users" />}>
+    <Suspense fallback={<TableSkeleton label="Loading users" />}>
       <Users {...props} />
     </Suspense>
   );

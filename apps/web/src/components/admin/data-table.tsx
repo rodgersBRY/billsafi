@@ -3,8 +3,9 @@ import Link from "next/link";
 import { formatCount } from "./admin-format";
 import { ScrollArea } from "./scroll-area";
 
-export const thClass = "px-4 py-3 font-medium whitespace-nowrap";
-export const tdClass = "px-4 py-3 align-top";
+import { thClass, theadClass } from "./table-classes";
+
+export { tdClass, tdNowrapClass, thClass } from "./table-classes";
 
 export interface Column {
   label: string;
@@ -59,7 +60,7 @@ export function DataTable(props: DataTableProps) {
     <ScrollArea label={caption}>
       <table className="w-full text-sm">
         <caption className="sr-only">{caption}</caption>
-        <thead className="bg-background text-left text-xs text-sub">
+        <thead className={theadClass}>
           <tr>
             {columns.map((column) => {
               const sorted = column.sort && sort?.sort === column.sort;
@@ -115,10 +116,14 @@ const pagerLink =
 
 /** "Showing 1-25 of 248" with Previous and Next. */
 export function Pagination({ page, pageSize, total, href }: PaginationProps) {
-  const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
-  const end = Math.min(page * pageSize, total);
+  const lastPage = Math.max(1, Math.ceil(total / pageSize));
+  const pastEnd = page > lastPage;
+  const start = total === 0 || pastEnd ? 0 : (page - 1) * pageSize + 1;
+  const end = pastEnd ? 0 : Math.min(page * pageSize, total);
   const hasPrev = page > 1;
-  const hasNext = end < total;
+  const hasNext = !pastEnd && end < total;
+  // Past the end, Previous goes to the last page that has rows.
+  const prevPage = pastEnd ? lastPage : page - 1;
   return (
     <nav
       aria-label="Pages"
@@ -127,11 +132,13 @@ export function Pagination({ page, pageSize, total, href }: PaginationProps) {
       <p className="text-sm text-sub">
         {total === 0
           ? "No results"
-          : `Showing ${formatCount(start)}-${formatCount(end)} of ${formatCount(total)}`}
+          : pastEnd
+            ? `Page ${formatCount(page)} is past the end. ${formatCount(total)} in all`
+            : `Showing ${formatCount(start)}-${formatCount(end)} of ${formatCount(total)}`}
       </p>
       <div className="flex gap-2">
         {hasPrev ? (
-          <Link href={href(page - 1)} className={`${pagerLink} hover:bg-soft`}>
+          <Link href={href(prevPage)} className={`${pagerLink} hover:bg-soft`}>
             <ChevronLeft aria-hidden className="size-4" />
             Previous
           </Link>

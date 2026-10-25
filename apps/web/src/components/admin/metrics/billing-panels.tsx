@@ -3,15 +3,8 @@ import { formatAmount } from "@/lib/format";
 import { formatInstant, formatMonth, purposeLabels } from "../admin-format";
 import { AdminLink } from "../admin-link";
 import { tenantHref } from "../admin-params";
-import {
-  EmptyRow,
-  Panel,
-  PaymentStatusPill,
-  UpdatedAt,
-  tdClass,
-  thClass,
-  theadClass,
-} from "../admin-ui";
+import { EmptyRow, Panel, PaymentStatusPill, UpdatedAt } from "../admin-ui";
+import { tdNowrapClass, thClass, theadClass } from "../table-classes";
 
 function UserLink({ id, email }: { id: string; email: string }) {
   return (
@@ -55,26 +48,26 @@ function PaymentsTable({ payments }: { payments: AdminBillingPayment[] }) {
       <tbody>
         {payments.map((payment) => (
           <tr key={payment.id} className="border-t border-line">
-            <td className={`${tdClass} text-sub`}>{formatInstant(payment.createdAt)}</td>
-            <td className={tdClass}>
+            <td className={`${tdNowrapClass} text-sub`}>{formatInstant(payment.createdAt)}</td>
+            <td className={tdNowrapClass}>
               <UserLink id={payment.userId} email={payment.userEmail} />
             </td>
-            <td className={tdClass}>{purposeLabels[payment.purpose]}</td>
-            <td className={`${tdClass} text-right tabular-nums`}>
+            <td className={tdNowrapClass}>{purposeLabels[payment.purpose]}</td>
+            <td className={`${tdNowrapClass} text-right tabular-nums`}>
               {formatAmount(payment.amountKes)}
             </td>
-            <td className={`${tdClass} text-right tabular-nums`}>
+            <td className={`${tdNowrapClass} text-right tabular-nums`}>
               {payment.priceUsd === null ? (
                 <span className="text-sub">No data</span>
               ) : (
                 formatAmount(payment.priceUsd)
               )}
             </td>
-            <td className={tdClass}>
+            <td className={tdNowrapClass}>
               <PaymentStatusPill status={payment.status} />
             </td>
-            <td className={`${tdClass} text-sub tabular-nums`}>{payment.phone}</td>
-            <td className={`${tdClass} text-sub`}>
+            <td className={`${tdNowrapClass} text-sub tabular-nums`}>{payment.phone}</td>
+            <td className={`${tdNowrapClass} text-sub`}>
               {(payment.status === "failed" ? payment.resultDescription : payment.receipt) ??
                 "No data"}
             </td>
@@ -135,15 +128,15 @@ export function BillingPanels({ data }: { data: AdminBilling }) {
             <tbody>
               {data.freeLimitHits.map((hit) => (
                 <tr key={`${hit.userId}:${hit.month}`} className="border-t border-line">
-                  <td className={tdClass}>
+                  <td className={tdNowrapClass}>
                     <UserLink id={hit.userId} email={hit.userEmail} />
                   </td>
-                  <td className={tdClass}>{formatMonth(hit.month)}</td>
-                  <td className={`${tdClass} text-sub`}>
+                  <td className={tdNowrapClass}>{formatMonth(hit.month)}</td>
+                  <td className={`${tdNowrapClass} text-sub`}>
                     {formatInstant(hit.hitAt)}
                     <span className="block text-xs">Limit of {hit.limit} invoices</span>
                   </td>
-                  <td className={tdClass}>{hit.paidWithin30Days ? "Yes" : "No"}</td>
+                  <td className={tdNowrapClass}>{hit.paidWithin30Days ? "Yes" : "No"}</td>
                 </tr>
               ))}
             </tbody>

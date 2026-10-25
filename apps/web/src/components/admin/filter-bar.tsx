@@ -38,7 +38,23 @@ export function FilterBar({ fields, label }: { fields: FilterField[]; label: str
     ),
   );
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  /** Typed text not yet in the URL, while a debounce is waiting. */
+  const pendingText = useRef<Record<string, string>>({});
   useEffect(() => () => clearTimeout(timer.current), []);
+
+  // The URL can change without typing: back and forward, "Clear filters" links, deep links.
+  // Follow it, unless the user is mid-typing and their text is about to be applied.
+  const urlKey = searchParams.toString();
+  useEffect(() => {
+    if (Object.keys(pendingText.current).length > 0) return;
+    setDrafts(
+      Object.fromEntries(
+        fields
+          .filter((field) => field.type !== "select")
+          .map((field) => [field.name, new URLSearchParams(urlKey).get(field.name) ?? ""]),
+      ),
+    );
+  }, [urlKey, fields]);
 
   const names = fields.flatMap(fieldNames);
   const active = names.filter((name) => searchParams.get(name)).length;
@@ -46,6 +62,12 @@ export function FilterBar({ fields, label }: { fields: FilterField[]; label: str
   function navigate(change: (params: URLSearchParams) => void) {
     clearTimeout(timer.current);
     const params = new URLSearchParams(searchParams.toString());
+    // Typed text still waiting on its debounce goes along, so it isn't dropped.
+    for (const [name, value] of Object.entries(pendingText.current)) {
+      if (value.trim()) params.set(name, value.trim());
+      else params.delete(name);
+    }
+    pendingText.current = {};
     change(params);
     params.delete("page");
     const text = params.toString();
@@ -57,13 +79,14 @@ export function FilterBar({ fields, label }: { fields: FilterField[]; label: str
   function setText(name: string, value: string, delay: number) {
     setDrafts((current) => ({ ...current, [name]: value }));
     clearTimeout(timer.current);
-    const apply = () =>
-      navigate((params) => (value.trim() ? params.set(name, value.trim()) : params.delete(name)));
+    pendingText.current = { ...pendingText.current, [name]: value };
+    const apply = () => navigate(() => {});
     if (delay) timer.current = setTimeout(apply, delay);
     else apply();
   }
 
   function clear() {
+    pendingText.current = {};
     setDrafts((current) => Object.fromEntries(Object.keys(current).map((key) => [key, ""])));
     navigate((params) => names.forEach((name) => params.delete(name)));
   }

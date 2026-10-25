@@ -4,14 +4,20 @@ import type { AdminAuditRow } from "@billsafi/contracts";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { Fragment, useState } from "react";
-import { formatInstant, formatRelative } from "../admin-format";
 import { tenantHref, userHref } from "../admin-params";
 import { ScrollArea } from "../scroll-area";
+import { tdClass, thClass, theadClass } from "../table-classes";
 import { StatusBadge } from "../status-badge";
 import { actionLabel, actorLabel, targetLabel } from "./audit-labels";
 
-const th = "px-4 py-3 font-medium whitespace-nowrap";
-const td = "px-4 py-3 align-top";
+const th = thClass;
+const td = tdClass;
+
+/**
+ * An audit row with its times already formatted on the server, so the server and browser
+ * renders agree whatever the browser's clock or locale data.
+ */
+export type AuditDisplayRow = AdminAuditRow & { when: string; ago: string };
 
 function targetHref(target: AdminAuditRow["target"]): string | null {
   if (target.type === "account") return tenantHref(target.id);
@@ -72,9 +78,7 @@ function Details({ entry }: { entry: AdminAuditRow }) {
 }
 
 /** The audit log. Each row opens to show the reason, changes, request ID and address. */
-export function AuditTable({ entries, now }: { entries: AdminAuditRow[]; now: string }) {
-  // Relative times count from when the server read the log, so both renders agree.
-  const nowMs = Date.parse(now);
+export function AuditTable({ entries }: { entries: AuditDisplayRow[] }) {
   const [open, setOpen] = useState<Set<string>>(() => new Set());
   const toggle = (id: string) =>
     setOpen((current) => {
@@ -88,7 +92,7 @@ export function AuditTable({ entries, now }: { entries: AdminAuditRow[]; now: st
     <ScrollArea label="Audit events">
       <table className="w-full text-sm">
         <caption className="sr-only">Audit events, newest first</caption>
-        <thead className="bg-background text-left text-xs text-sub">
+        <thead className={theadClass}>
           <tr>
             <th scope="col" className={th}>
               <span className="sr-only">Details</span>
@@ -136,10 +140,8 @@ export function AuditTable({ entries, now }: { entries: AdminAuditRow[]; now: st
                     </button>
                   </td>
                   <td className={`${td} whitespace-nowrap`}>
-                    <time dateTime={entry.occurredAt}>{formatInstant(entry.occurredAt)}</time>
-                    <span className="block text-xs text-sub">
-                      {formatRelative(entry.occurredAt, nowMs)}
-                    </span>
+                    <time dateTime={entry.occurredAt}>{entry.when}</time>
+                    <span className="block text-xs text-sub">{entry.ago}</span>
                   </td>
                   <td className={`${td} max-w-56 break-all`}>{actorLabel(entry.actor)}</td>
                   <td className={`${td} whitespace-nowrap`}>
