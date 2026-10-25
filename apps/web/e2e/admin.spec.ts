@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { addNairobiMonths } from "@billsafi/domain";
 import { createFirstBusiness, signIn, signUp, uniqueEmail } from "./support";
 
 // Everyone else's view of /admin: a real 404 when signed in, sign-in when signed out.
@@ -77,5 +78,65 @@ test.describe("as an admin", () => {
     await reactivate.getByRole("button", { name: "Reactivate account" }).click();
     await expect(reactivate).toBeHidden();
     await expect(page.getByText("Account: Active").first()).toBeVisible();
+  });
+
+  test("records a manual Pro payment and grants credits for a tenant", async ({
+    browser,
+    page,
+  }) => {
+    const tenantEmail = uniqueEmail("admin-billing");
+    const tenantContext = await browser.newContext();
+    await signUp(await tenantContext.newPage(), "Baraka Mutua", tenantEmail);
+    await tenantContext.close();
+
+    await signIn(page, adminEmail!, adminPassword!);
+    await expect(page).not.toHaveURL(/\/sign-in/);
+    await page.goto(`/admin/tenants?search=${encodeURIComponent(tenantEmail)}`);
+    await page
+      .getByRole("table", { name: "Tenants" })
+      .getByRole("link", { name: "Baraka Mutua" })
+      .click();
+    await expect(page.getByRole("heading", { name: "Baraka Mutua", level: 1 })).toBeVisible();
+    await page.getByRole("link", { name: "Subscription", exact: true }).click();
+    await expect(page).toHaveURL(/tab=subscription/);
+
+    // Two Pro months from now, the rule a new run follows.
+    const proUntil = new Intl.DateTimeFormat("en-KE", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "Africa/Nairobi",
+    }).format(addNairobiMonths(new Date(), 2));
+    const reference = `BT-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+
+    await page.getByRole("button", { name: "Record payment" }).click();
+    const payment = page.getByRole("dialog", { name: "Record a payment" });
+    await payment.getByLabel("Months").fill("2");
+    await payment.getByLabel("Amount paid").fill("1040");
+    await payment.getByLabel("Method").selectOption("bank_transfer");
+    await payment.getByLabel("Reference", { exact: true }).fill(reference);
+    await expect(payment).toContainText(`Pro will run until ${proUntil}`);
+    await payment.getByLabel(/Reason/).fill("Browser test: paid by bank transfer");
+    await payment.getByRole("button", { name: "Record payment" }).click();
+    await expect(payment).toBeHidden();
+    await expect(
+      page.getByRole("status").filter({ hasText: `Pro runs until ${proUntil}` }),
+    ).toBeVisible();
+    await expect(page.getByText("Subscription: Pro").first()).toBeVisible();
+    await expect(page.getByRole("table", { name: "Plan payments" })).toContainText(reference);
+
+    await page.getByRole("button", { name: "Grant credits" }).click();
+    const grant = page.getByRole("dialog", { name: "Grant invoice credits" });
+    await grant.getByLabel("Invoice credits").fill("25");
+    await expect(grant).toContainText("Credits will go from 0 to 25");
+    await grant.getByLabel(/Reason/).fill("Browser test: goodwill credits");
+    await grant.getByRole("button", { name: "Grant credits" }).click();
+    await expect(grant).toBeHidden();
+    await expect(page.getByText("25 (bought and granted, not used yet)")).toBeVisible();
+
+    await page.goto(`/admin/subscriptions?tab=payments&search=${encodeURIComponent(tenantEmail)}`);
+    const payments = page.getByRole("table", { name: "Plan payments" });
+    await expect(payments).toContainText(reference);
+    await expect(payments).toContainText("KES 1,040.00");
   });
 });
