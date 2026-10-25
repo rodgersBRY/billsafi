@@ -7,7 +7,7 @@ import {
   subscriptionStatuses,
 } from "@billsafi/domain";
 import { z } from "zod";
-import type { SubscriptionPaymentStatus, SubscriptionPurpose } from "./billing.js";
+import type { AdminPlanPayment } from "./admin-subscriptions.js";
 import type { InvoiceStatus } from "./invoices.js";
 
 /*
@@ -141,22 +141,8 @@ export interface AdminRetention {
   generatedAt: string;
 }
 
-export interface AdminBillingPayment {
-  id: string;
-  createdAt: string;
-  userId: string;
-  userEmail: string;
-  purpose: SubscriptionPurpose;
-  amountKes: string;
-  /** USD list price at checkout; null for payments made before prices were stored. */
-  priceUsd: string | null;
-  status: SubscriptionPaymentStatus;
-  /** Middle digits hidden, like +2547•••••678. */
-  phone: string;
-  receipt: string | null;
-  /** M-Pesa's reason, for failed payments only. */
-  resultDescription: string | null;
-}
+/** A plan payment in the admin Billing tab; see AdminPlanPayment. */
+export type AdminBillingPayment = AdminPlanPayment;
 
 export interface AdminFreeLimitHit {
   userId: string;
@@ -394,17 +380,8 @@ export interface AdminTenantUsage {
   storageBytes: number;
 }
 
-export interface AdminTenantPayment {
-  id: string;
-  createdAt: string;
-  confirmedAt: string | null;
-  purpose: SubscriptionPurpose;
-  amountKes: string;
-  status: SubscriptionPaymentStatus;
-  /** Middle digits hidden. */
-  phone: string;
-  receipt: string | null;
-}
+/** A plan payment in tenant detail; see AdminPlanPayment. */
+export type AdminTenantPayment = AdminPlanPayment;
 
 export interface AdminTenantSubscription {
   plan: AdminPlan;
@@ -416,8 +393,8 @@ export interface AdminTenantSubscription {
   paidUntil: string | null;
   /** Set while the account has asked not to continue after paid access. */
   cancelledAt: string | null;
-  /** The 10 most recent plan payments, newest first. */
-  recentPayments: AdminTenantPayment[];
+  /** Every plan payment, M-Pesa and manual, newest first. */
+  payments: AdminTenantPayment[];
 }
 
 export interface AdminTenantDetail {

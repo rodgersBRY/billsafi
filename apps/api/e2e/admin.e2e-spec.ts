@@ -13,6 +13,7 @@ import { AuditService } from "../src/audit/audit.service.js";
 import { DISABLED_ADMIN_PATHS } from "../src/auth/auth.js";
 import type { FakeMpesaProvider } from "../src/billing/mpesa/fake.provider.js";
 import { DATABASE } from "../src/database/database.module.js";
+import { subscriptionSuite } from "./admin-subscriptions.suite.js";
 import {
   createBusiness,
   createClient,
@@ -554,10 +555,11 @@ describe("admin", () => {
           invoices: { draft: 0, ready: 1, partially_paid: 0, paid: 0, cancelled: 0 },
         }),
       ]);
-      expect(tenant.body.subscription.recentPayments).toEqual([
+      expect(tenant.body.subscription.payments).toEqual([
         expect.objectContaining({
           purpose: "pro_month",
-          amountKes: "500.00",
+          amount: "500.00",
+          currency: "KES",
           status: "succeeded",
           receipt,
           phone: "+2547•••••149",
@@ -573,7 +575,10 @@ describe("admin", () => {
       expect(payment).toMatchObject({
         userEmail: customerEmail,
         purpose: "pro_month",
-        amountKes: "500.00",
+        amount: "500.00",
+        currency: "KES",
+        provider: "mpesa",
+        method: null,
         priceUsd: "4.00",
         status: "succeeded",
         phone: "+2547•••••149",
@@ -1228,7 +1233,9 @@ describe("admin", () => {
         paidMonths: 1,
         paidUntil: body.tenant.plan.proUntil,
         cancelledAt: null,
-        recentPayments: [expect.objectContaining({ receipt: paid, phone: "+2547•••••149" })],
+        payments: [
+          expect.objectContaining({ receipt: paid, phone: "+2547•••••149", provider: "mpesa" }),
+        ],
       });
       expect(body.recentAudit).toEqual([]);
       // Phone numbers only ever leave masked.
@@ -1736,5 +1743,14 @@ describe("admin", () => {
         ).toMatchObject({ actor: { userId: null, role: "system", email: null } });
       });
     });
+  });
+
+  subscriptionSuite({
+    app: () => app,
+    adminCookie: () => adminCookie,
+    adminId: () => adminId,
+    seedAccount,
+    payPro,
+    userId,
   });
 });

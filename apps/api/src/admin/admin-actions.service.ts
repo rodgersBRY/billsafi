@@ -23,15 +23,18 @@ export interface AdminActionContext {
   request: AuditRequest;
 }
 
-interface ActionTarget {
+export interface ActionTarget {
   action: string;
-  target: { type: "account" | "user"; id: string };
+  target: { type: "account" | "user" | "override"; id: string };
 }
 
-/** Directory caches an action can make stale. */
-const DIRECTORY_CACHE_PREFIXES = ["tenants:", "users:"];
+/** What an action's change step returns: the audit diff and the response. */
+export interface ActionOutcome<T> {
+  changes: Record<string, unknown>;
+  result: T;
+}
 
-function conflict(code: string, message: string): ConflictException {
+export function conflict(code: string, message: string): ConflictException {
   return new ConflictException({ code, message });
 }
 
@@ -146,9 +149,13 @@ export class AdminActionsService {
   }
 
   /** Locks the user row so two admins acting at once take turns; 404 when unknown. */
-  private async lockUser(tx: Transaction, id: string) {
+  async lockUser(tx: Transaction, id: string) {
     const [user] = await tx
-      .select({ role: schema.users.role, banned: schema.users.banned })
+      .select({
+        role: schema.users.role,
+        banned: schema.users.banned,
+        createdAt: schema.users.createdAt,
+      })
       .from(schema.users)
       .where(eq(schema.users.id, id))
       .for("update");
@@ -158,9 +165,26 @@ export class AdminActionsService {
 
   private async perform(
     context: AdminActionContext,
-    { action, target }: ActionTarget,
+    target: ActionTarget,
     change: (tx: Transaction) => Promise<Record<string, unknown>>,
   ): Promise<void> {
+    await this.performWith(context, target, async (tx) => ({
+      changes: await change(tx),
+      result: undefined,
+    }));
+  }
+
+  /**
+   * Runs one audited action and returns what its change step produced. The success row
+   * commits with the change; any error rolls both back and writes a failure row instead.
+   * Every admin cache entry is cleared afterwards, since an action can move any list or
+   * metric (directories, subscriptions, payments, grants, overrides, overview, billing).
+   */
+  async performWith<T>(
+    context: AdminActionContext,
+    { action, target }: ActionTarget,
+    change: (tx: Transaction) => Promise<ActionOutcome<T>>,
+  ): Promise<T> {
     const entry = {
       actor: { userId: context.adminId, role: "admin" },
       action,
@@ -168,10 +192,12 @@ export class AdminActionsService {
       reason: context.reason,
       request: context.request,
     };
+    let result: T;
     try {
-      await this.connection.db.transaction(async (tx) => {
-        const changes = await change(tx);
-        await this.audit.record({ ...entry, outcome: "success", changes }, tx);
+      result = await this.connection.db.transaction(async (tx) => {
+        const outcome = await change(tx);
+        await this.audit.record({ ...entry, outcome: "success", changes: outcome.changes }, tx);
+        return outcome.result;
       });
     } catch (error) {
       try {
@@ -186,6 +212,7 @@ export class AdminActionsService {
       }
       throw error;
     }
-    for (const prefix of DIRECTORY_CACHE_PREFIXES) this.cache.invalidate(prefix);
+    this.cache.invalidate("");
+    return result;
   }
 }

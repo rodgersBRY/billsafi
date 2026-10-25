@@ -6,7 +6,6 @@ import {
   type AdminSubscriptionStatus,
   type AdminTenantBusiness,
   type AdminTenantDetail,
-  type AdminTenantPayment,
   type AdminTenantRow,
   type AdminTenantSort,
   type AdminTenantsPage,
@@ -27,6 +26,7 @@ import {
   subscriptionStatusSql,
 } from "./account-sql.js";
 import { AdminAuditService } from "./admin-audit.service.js";
+import { planPaymentColumns, toAdminPlanPayment } from "./admin-payments.js";
 import {
   at,
   DAY_MS,
@@ -40,9 +40,7 @@ import {
   toAdminRole,
 } from "./admin-sql.js";
 
-const { subscriptionPayments } = schema;
-
-const RECENT_PAYMENTS = 10;
+const { subscriptionPayments, users } = schema;
 
 /** One row of the `tenants` CTE, already formatted for the response. */
 interface TenantRowData {
@@ -273,11 +271,11 @@ export class AdminTenantsService {
     const allowance = await this.allowance.usage(id, now);
 
     const payments = await this.connection.db
-      .select()
+      .select(planPaymentColumns)
       .from(subscriptionPayments)
+      .innerJoin(users, eq(users.id, subscriptionPayments.userId))
       .where(eq(subscriptionPayments.userId, id))
-      .orderBy(desc(subscriptionPayments.createdAt))
-      .limit(RECENT_PAYMENTS);
+      .orderBy(desc(subscriptionPayments.createdAt), desc(subscriptionPayments.id));
 
     const tenant = this.toRow(row);
     return {
@@ -313,16 +311,7 @@ export class AdminTenantsService {
         paidMonths: row.paidMonths,
         paidUntil: row.proEndsAt,
         cancelledAt: row.cancelledAt,
-        recentPayments: payments.map((payment): AdminTenantPayment => ({
-          id: payment.id,
-          createdAt: payment.createdAt.toISOString(),
-          confirmedAt: payment.confirmedAt?.toISOString() ?? null,
-          purpose: payment.purpose,
-          amountKes: payment.amount,
-          status: payment.status,
-          phone: maskPhone(payment.phone),
-          receipt: payment.receipt,
-        })),
+        payments: payments.map(toAdminPlanPayment),
       },
       recentAudit: await this.audit.recentForAccount(id),
       generatedAt: now.toISOString(),

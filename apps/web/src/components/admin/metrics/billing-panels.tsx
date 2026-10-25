@@ -54,10 +54,16 @@ function PaymentsTable({ payments }: { payments: AdminBillingPayment[] }) {
             </td>
             <td className={tdNowrapClass}>{purposeLabels[payment.purpose]}</td>
             <td className={`${tdNowrapClass} text-right tabular-nums`}>
-              {formatAmount(payment.amountKes)}
+              {payment.currency === "KES" ? (
+                formatAmount(payment.amount)
+              ) : (
+                <span className="text-sub">No data</span>
+              )}
             </td>
             <td className={`${tdNowrapClass} text-right tabular-nums`}>
-              {payment.priceUsd === null ? (
+              {payment.currency === "USD" ? (
+                formatAmount(payment.amount)
+              ) : payment.priceUsd === null ? (
                 <span className="text-sub">No data</span>
               ) : (
                 formatAmount(payment.priceUsd)
@@ -66,10 +72,13 @@ function PaymentsTable({ payments }: { payments: AdminBillingPayment[] }) {
             <td className={tdNowrapClass}>
               <PaymentStatusPill status={payment.status} />
             </td>
-            <td className={`${tdNowrapClass} text-sub tabular-nums`}>{payment.phone}</td>
+            <td className={`${tdNowrapClass} text-sub tabular-nums`}>
+              {payment.phone ?? "Recorded manually"}
+            </td>
             <td className={`${tdNowrapClass} text-sub`}>
-              {(payment.status === "failed" ? payment.resultDescription : payment.receipt) ??
-                "No data"}
+              {(payment.status === "failed"
+                ? payment.resultDescription
+                : (payment.receipt ?? payment.externalReference)) ?? "No data"}
             </td>
           </tr>
         ))}

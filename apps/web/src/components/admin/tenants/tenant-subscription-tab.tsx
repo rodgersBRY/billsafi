@@ -1,6 +1,7 @@
 import type { AdminTenantSubscription } from "@billsafi/contracts";
 import { CreditCard, Info } from "lucide-react";
-import { formatCount, formatDay, formatInstant, formatKes, purposeLabels } from "../admin-format";
+import { formatMoney } from "@/lib/format";
+import { formatCount, formatDay, formatInstant, purposeLabels } from "../admin-format";
 import { EmptyState, Panel, PaymentStatusPill } from "../admin-ui";
 import { type Column, DataTable, tdClass } from "../data-table";
 import { StatusBadge } from "../status-badge";
@@ -51,27 +52,29 @@ export function TenantSubscriptionTab({ subscription }: { subscription: AdminTen
           ))}
         </dl>
       </Panel>
-      <Panel title="Recent plan payments" description="The 10 latest, newest first.">
-        {subscription.recentPayments.length === 0 ? (
+      <Panel title="Plan payments" description="M-Pesa and manual payments, newest first.">
+        {subscription.payments.length === 0 ? (
           <EmptyState icon={CreditCard} title="No plan payments" />
         ) : (
-          <DataTable caption="Recent plan payments" columns={columns}>
-            {subscription.recentPayments.map((payment) => (
+          <DataTable caption="Plan payments" columns={columns}>
+            {subscription.payments.map((payment) => (
               <tr key={payment.id} className="border-t border-line">
                 <td className={`${tdClass} whitespace-nowrap text-sub`}>
                   {formatInstant(payment.createdAt)}
                 </td>
                 <td className={`${tdClass} whitespace-nowrap`}>{purposeLabels[payment.purpose]}</td>
                 <td className={`${tdClass} text-right whitespace-nowrap tabular-nums`}>
-                  {formatKes(payment.amountKes)}
+                  {formatMoney(payment.amount, payment.currency)}
                 </td>
                 <td className={tdClass}>
                   <PaymentStatusPill status={payment.status} />
                 </td>
                 <td className={`${tdClass} whitespace-nowrap text-sub tabular-nums`}>
-                  {payment.phone}
+                  {payment.phone ?? "Recorded manually"}
                 </td>
-                <td className={`${tdClass} text-sub`}>{payment.receipt ?? "None"}</td>
+                <td className={`${tdClass} text-sub`}>
+                  {payment.receipt ?? payment.externalReference ?? "None"}
+                </td>
               </tr>
             ))}
           </DataTable>

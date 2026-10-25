@@ -1,10 +1,24 @@
-import { Body, Controller, HttpCode, Param, Post, Req, UseGuards } from "@nestjs/common";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Headers,
+  HttpCode,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from "@nestjs/common";
 import {
   type AdminActionAck,
   type AdminActionBody,
   adminActionBodySchema,
+  type AdminPaymentRecorded,
+  type AdminRecordPayment,
+  adminRecordPaymentSchema,
   type AdminTenantRow,
   type AdminUserRow,
+  idempotencyKeySchema,
 } from "@billsafi/contracts";
 import { OptionalAuth } from "@thallesp/nestjs-better-auth";
 import type { Request } from "express";
@@ -13,10 +27,24 @@ import type { RequestWithId } from "../common/request-id.js";
 import { UuidParamPipe } from "../common/uuid-param.pipe.js";
 import { ZodValidationPipe } from "../common/zod-validation.pipe.js";
 import { type AdminActionContext, AdminActionsService } from "./admin-actions.service.js";
+import { AdminSubscriptionActionsService } from "./admin-subscription-actions.service.js";
 import { AdminGuard } from "./admin.guard.js";
 import { AdminActionRateLimitGuard } from "./rate-limit.guard.js";
 
 type AdminActionRequest = Request & Partial<RequestWithId> & AuthenticatedRequest;
+
+/** The optional Idempotency-Key header; 400 when it is sent but blank or too long. */
+function idempotencyKey(header: string | string[] | undefined): string | undefined {
+  if (header === undefined) return undefined;
+  const parsed = idempotencyKeySchema.safeParse(Array.isArray(header) ? header.join(",") : header);
+  if (!parsed.success) {
+    throw new BadRequestException({
+      message: "Validation failed",
+      issues: [{ path: "Idempotency-Key", message: parsed.error.issues[0]!.message }],
+    });
+  }
+  return parsed.data;
+}
 
 function actionContext(request: AdminActionRequest, body: AdminActionBody): AdminActionContext {
   return {
@@ -37,7 +65,10 @@ function actionContext(request: AdminActionRequest, body: AdminActionBody): Admi
 @UseGuards(AdminGuard, AdminActionRateLimitGuard)
 @Controller("admin")
 export class AdminActionsController {
-  constructor(private readonly actions: AdminActionsService) {}
+  constructor(
+    private readonly actions: AdminActionsService,
+    private readonly subscriptions: AdminSubscriptionActionsService,
+  ) {}
 
   /** Blocks sign-in and ends every session. Invoice links already sent keep working. */
   @Post("tenants/:id/suspend")
@@ -69,5 +100,24 @@ export class AdminActionsController {
     @Req() request: AdminActionRequest,
   ): Promise<AdminUserRow | AdminActionAck> {
     return this.actions.revokeSessions(actionContext(request, body), id);
+  }
+
+  /**
+   * Records a plan payment received outside M-Pesa checkout and applies it: Pro months
+   * or credit packs. Send an Idempotency-Key header to make retries safe.
+   */
+  @Post("tenants/:id/payments")
+  recordPayment(
+    @Param("id", new UuidParamPipe("Tenant")) id: string,
+    @Body(new ZodValidationPipe(adminRecordPaymentSchema)) body: AdminRecordPayment,
+    @Headers("idempotency-key") key: string | undefined,
+    @Req() request: AdminActionRequest,
+  ): Promise<AdminPaymentRecorded> {
+    return this.subscriptions.recordPayment(
+      actionContext(request, body),
+      id,
+      body,
+      idempotencyKey(key),
+    );
   }
 }

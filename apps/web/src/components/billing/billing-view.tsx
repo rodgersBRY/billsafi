@@ -459,7 +459,8 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
               <div>
                 <h2 className="text-base font-semibold">Waiting for payment confirmation</h2>
                 <p className="mt-1 text-sm text-sub">
-                  Approve the {formatMoney(payment.amount)} request on {localPhone(payment.phone)}.{" "}
+                  Approve the {formatMoney(payment.amount)} request on{" "}
+                  {localPhone(payment.phone ?? "")}.{" "}
                   {payment.purpose === "pro_month"
                     ? "Pro activates after your payment is confirmed."
                     : "Credits are added after your payment is confirmed."}

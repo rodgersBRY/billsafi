@@ -78,6 +78,13 @@
       "when": 1792907965165,
       "tag": "0010_paid_until",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792908112902,
+      "tag": "0011_manual_payments",
+      "breakpoints": true
     }
   ]
 }

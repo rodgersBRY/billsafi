@@ -10,6 +10,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { users } from "./auth.js";
@@ -59,9 +60,18 @@ export const subscriptionPaymentStatus = pgEnum("subscription_payment_status", [
   "failed",
 ]);
 
+/** How a manually recorded plan payment reached Billsafi. */
+export const manualPaymentMethods = ["mpesa_direct", "bank_transfer", "cash", "other"] as const;
+export type ManualPaymentMethod = (typeof manualPaymentMethods)[number];
+
+/** `provider` of a payment an admin recorded by hand; M-Pesa rows name their provider. */
+export const MANUAL_PROVIDER = "manual";
+
 /**
- * One M-Pesa checkout for the platform Paybill (D051). Kept separate from the
- * payments freelancers record on their own invoices.
+ * One plan payment (D051): an M-Pesa checkout for the platform Paybill, or a payment
+ * received some other way and recorded by an admin (`provider` = 'manual', which is
+ * always succeeded and names its method, reference, date paid and recorder). Kept
+ * separate from the payments freelancers record on their own invoices.
  */
 export const subscriptionPayments = pgTable(
   "subscription_payments",
@@ -71,12 +81,16 @@ export const subscriptionPayments = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
     purpose: subscriptionPurpose("purpose").notNull(),
+    /** Pro months or credit packs paid for; M-Pesa checkouts buy one. */
+    quantity: integer("quantity").notNull().default(1),
+    /** In `currency`: KES for M-Pesa, KES or USD for manual payments. */
     amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
     currency: text("currency").notNull().default("KES"),
     /** The USD list price and the USD to KES rate used to set `amount`. */
     priceUsd: numeric("price_usd", { precision: 14, scale: 2 }),
     usdKesRate: numeric("usd_kes_rate", { precision: 14, scale: 6 }),
-    phone: text("phone").notNull(),
+    /** The M-Pesa number prompted; null for manual payments. */
+    phone: text("phone"),
     status: subscriptionPaymentStatus("status").notNull().default("pending"),
     provider: text("provider").notNull(),
     merchantRequestId: text("merchant_request_id"),
@@ -91,11 +105,39 @@ export const subscriptionPayments = pgTable(
     grantedUntil: timestamp("granted_until", { withTimezone: true }),
     /** For credit packs: invoices added to the account's credit balance. */
     creditsGranted: integer("credits_granted").notNull().default(0),
+    /** Manual payments: how it was paid, the payer's reference, and the day it was paid. */
+    method: text("method", { enum: manualPaymentMethods }),
+    externalReference: text("external_reference"),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    /** The admin who recorded a manual payment. Never shown to the account. */
+    recordedBy: uuid("recorded_by").references(() => users.id, { onDelete: "restrict" }),
+    /** An admin's note on a manual payment. Never shown to the account. */
+    note: text("note"),
     ...timestamps(),
   },
   (table) => [
     index("subscription_payments_user_created_idx").on(table.userId, table.createdAt),
     check("subscription_payments_amount", sql`${table.amount} > 0`),
+    check("subscription_payments_quantity", sql`${table.quantity} between 1 and 12`),
+    check("subscription_payments_currency", sql`${table.currency} in ('KES', 'USD')`),
+    check(
+      "subscription_payments_method",
+      sql`${table.method} is null or ${table.method} in ('mpesa_direct', 'bank_transfer', 'cash', 'other')`,
+    ),
+    check(
+      "subscription_payments_phone",
+      sql`${table.provider} = 'manual' or ${table.phone} is not null`,
+    ),
+    check(
+      "subscription_payments_manual",
+      sql`${table.provider} <> 'manual' or (${table.status} = 'succeeded'
+        and ${table.method} is not null and ${table.externalReference} is not null
+        and ${table.paidAt} is not null and ${table.recordedBy} is not null)`,
+    ),
+    // The same payment can't be recorded twice: one reference per method, any letter case.
+    uniqueIndex("subscription_payments_manual_reference")
+      .on(table.provider, table.method, sql`upper(${table.externalReference})`)
+      .where(sql`${table.provider} = 'manual'`),
   ],
 );
 

@@ -19,7 +19,8 @@ export interface SubscriptionPayment {
   id: string;
   purpose: SubscriptionPurpose;
   amount: string;
-  phone: string;
+  /** The M-Pesa number prompted; null for a payment Billsafi recorded by hand. */
+  phone: string | null;
   status: SubscriptionPaymentStatus;
   receipt: string | null;
   /** Why a payment failed, in the provider's words. */

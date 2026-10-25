@@ -1,8 +1,9 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { AdminBilling, AdminBillingPayment, AdminFreeLimitHit } from "@billsafi/contracts";
+import type { AdminBilling, AdminFreeLimitHit } from "@billsafi/contracts";
 import { and, asc, type DatabaseConnection, desc, eq, schema, type SQL, sql } from "@billsafi/db";
-import { FREE_PLAN, maskPhone, stuckPaymentCutoff } from "@billsafi/domain";
+import { FREE_PLAN, stuckPaymentCutoff } from "@billsafi/domain";
 import { DATABASE } from "../database/database.module.js";
+import { planPaymentColumns, toAdminPlanPayment } from "./admin-payments.js";
 import { at, DAY_MS, iso, selectRows } from "./admin-sql.js";
 
 const { subscriptionPayments, users } = schema;
@@ -12,28 +13,6 @@ const LIMIT_HIT_WINDOW_DAYS = 90;
 const PAID_AFTER_DAYS = 30;
 /** Plenty for one owner's review; keeps the response bounded. */
 const MAX_LIMIT_HITS = 200;
-
-const paymentColumns = {
-  payment: subscriptionPayments,
-  userEmail: users.email,
-};
-type PaymentWithEmail = { payment: typeof subscriptionPayments.$inferSelect; userEmail: string };
-
-function toBillingPayment({ payment, userEmail }: PaymentWithEmail): AdminBillingPayment {
-  return {
-    id: payment.id,
-    createdAt: payment.createdAt.toISOString(),
-    userId: payment.userId,
-    userEmail,
-    purpose: payment.purpose,
-    amountKes: payment.amount,
-    priceUsd: payment.priceUsd,
-    status: payment.status,
-    phone: maskPhone(payment.phone),
-    receipt: payment.receipt,
-    resultDescription: payment.status === "failed" ? payment.resultDescription : null,
-  };
-}
 
 /** Read-only plan payment health for the admin Billing tab. */
 @Injectable()
@@ -46,14 +25,14 @@ export class AdminBillingService {
 
   async billing(now = new Date()): Promise<AdminBilling> {
     const recent = await this.db
-      .select(paymentColumns)
+      .select(planPaymentColumns)
       .from(subscriptionPayments)
       .innerJoin(users, eq(users.id, subscriptionPayments.userId))
       .orderBy(desc(subscriptionPayments.createdAt))
       .limit(RECENT_PAYMENTS);
 
     const stuck = await this.db
-      .select(paymentColumns)
+      .select(planPaymentColumns)
       .from(subscriptionPayments)
       .innerJoin(users, eq(users.id, subscriptionPayments.userId))
       .where(
@@ -65,8 +44,8 @@ export class AdminBillingService {
       .orderBy(asc(subscriptionPayments.createdAt));
 
     return {
-      recentPayments: recent.map(toBillingPayment),
-      stuckPayments: stuck.map(toBillingPayment),
+      recentPayments: recent.map(toAdminPlanPayment),
+      stuckPayments: stuck.map(toAdminPlanPayment),
       freeLimitHits: await this.freeLimitHits(now),
       generatedAt: now.toISOString(),
     };
