@@ -603,6 +603,66 @@ export function subscriptionSuite(ctx: SubscriptionSuiteContext) {
       expect(after!.paidUntil).toEqual(addNairobiMonths(before!.anchorAt!, 1));
     });
 
+    it("shows windows cut by end-pro with their real end and records the cut", async () => {
+      const account = await newAccount();
+      await ctx.payPro(account.cookie);
+      const body = proPayment({ months: 2 });
+      await post(`tenants/${account.id}/payments`, body).expect(201);
+      await post(`tenants/${account.id}/grants`, {
+        kind: "pro_months",
+        quantity: 1,
+        reason: "Loyalty month",
+      }).expect(201);
+      const firstEnd = addNairobiMonths((await subscriptionOf(account.id))!.anchorAt!, 1);
+      await endPro(account.id).expect(200);
+
+      const event = (await eventsOf(account.id)).at(-1)!;
+      const cut = event.details as { endedEarly: { payments: unknown[]; grants: unknown[] } };
+      expect(cut.endedEarly.payments).toHaveLength(1);
+      expect(cut.endedEarly.grants).toHaveLength(1);
+
+      const billing = await billingOf(account.cookie);
+      const mpesa = billing.payments.find((p: { source: string }) => p.source === "mpesa");
+      const manual = billing.payments.find((p: { source: string }) => p.source === "manual");
+      // The M-Pesa month is the current one and was not cut.
+      expect(mpesa).toMatchObject({ endedEarly: false, grantedUntil: firstEnd.toISOString() });
+      // The prepaid months and the gift after them never ran: they end at the new end.
+      expect(manual).toMatchObject({ endedEarly: true, grantedUntil: firstEnd.toISOString() });
+      expect(billing.grants[0]).toMatchObject({
+        endedEarly: true,
+        grantedUntil: firstEnd.toISOString(),
+      });
+      // The stored rows keep what was bought.
+      const stored = (await paymentsOf(account.id)).find((p) => p.provider === "manual")!;
+      expect(stored.grantedUntil!.getTime()).toBeGreaterThan(firstEnd.getTime());
+      expect(stored.endedEarlyAt).toEqual(firstEnd);
+
+      const detail = (await get(`tenants/${account.id}`).expect(200)).body;
+      expect(
+        detail.subscription.payments.find((p: { provider: string }) => p.provider === "manual"),
+      ).toMatchObject({ endedEarly: true, grantedUntil: firstEnd.toISOString() });
+      expect(detail.subscription.grants[0]).toMatchObject({
+        endedEarly: true,
+        grantedUntil: firstEnd.toISOString(),
+      });
+    });
+
+    it("extends from the new end when the account pays through M-Pesa after end-pro", async () => {
+      const account = await newAccount();
+      await ctx.payPro(account.cookie);
+      await post(`tenants/${account.id}/payments`, proPayment({ months: 2 })).expect(201);
+      await endPro(account.id).expect(200);
+      const cut = await subscriptionOf(account.id);
+      await ctx.payPro(account.cookie);
+      const after = await expectPaidUntilParity(account.id);
+      expect(after!.anchorAt).toEqual(cut!.anchorAt);
+      expect(after!.paidMonths).toBe(2);
+      const latest = (await paymentsOf(account.id)).at(-1)!;
+      expect(latest.grantedFrom).toEqual(cut!.paidUntil);
+      expect(latest.grantedUntil).toEqual(after!.paidUntil);
+      expect(latest.endedEarlyAt).toBeNull();
+    });
+
     it("treats the month boundary as the start of the next month", async () => {
       const account = await newAccount();
       // The second month started a moment ago: Pro now ends at the end of month two.

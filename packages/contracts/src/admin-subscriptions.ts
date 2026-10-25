@@ -160,9 +160,13 @@ export interface AdminPlanPayment {
   note: string | null;
   /** M-Pesa's reason, for failed payments only. */
   resultDescription: string | null;
-  /** Pro payments: the access window added. */
+  /**
+   * Pro payments: the access window added. `grantedUntil` is when it really ended: earlier
+   * than bought when an admin ended Pro early, which `endedEarly` marks.
+   */
   grantedFrom: string | null;
   grantedUntil: string | null;
+  endedEarly: boolean;
   creditsGranted: number;
 }
 
@@ -402,9 +406,10 @@ export interface AdminGrantRow {
   quantity: number;
   reason: string;
   grantedBy: { id: string; email: string | null };
-  /** For Pro: the access window this grant added. */
+  /** For Pro: the access window this grant added, cut short when `endedEarly`. */
   grantedFrom: string | null;
   grantedUntil: string | null;
+  endedEarly: boolean;
   createdAt: string;
 }
 

@@ -325,12 +325,58 @@ export class AdminSubscriptionActionsService {
           .set({ paidMonths, paidUntil })
           .where(eq(subscriptions.id, subscription.id))
           .returning();
+        // Payments and grants whose windows ran past the new end keep what they bought in
+        // granted_until and record where the run now really ends.
+        const cut = sql`${paidUntil.toISOString()}::timestamptz`;
+        const cutPayments = await tx
+          .update(subscriptionPayments)
+          .set({ endedEarlyAt: paidUntil })
+          .where(
+            and(
+              eq(subscriptionPayments.userId, id),
+              eq(subscriptionPayments.status, "succeeded"),
+              eq(subscriptionPayments.purpose, "pro_month"),
+              sql`${subscriptionPayments.grantedUntil} > ${cut}`,
+              sql`(${subscriptionPayments.endedEarlyAt} is null or ${subscriptionPayments.endedEarlyAt} > ${cut})`,
+            ),
+          )
+          .returning({
+            id: subscriptionPayments.id,
+            grantedFrom: subscriptionPayments.grantedFrom,
+            grantedUntil: subscriptionPayments.grantedUntil,
+          });
+        const cutGrants = await tx
+          .update(accountGrants)
+          .set({ endedEarlyAt: paidUntil })
+          .where(
+            and(
+              eq(accountGrants.userId, id),
+              eq(accountGrants.kind, "pro_months"),
+              sql`${accountGrants.grantedUntil} > ${cut}`,
+              sql`(${accountGrants.endedEarlyAt} is null or ${accountGrants.endedEarlyAt} > ${cut})`,
+            ),
+          )
+          .returning({
+            id: accountGrants.id,
+            grantedFrom: accountGrants.grantedFrom,
+            grantedUntil: accountGrants.grantedUntil,
+          });
+        const window = (row: {
+          id: string;
+          grantedFrom: Date | null;
+          grantedUntil: Date | null;
+        }) => ({
+          id: row.id,
+          grantedFrom: iso(row.grantedFrom),
+          grantedUntil: iso(row.grantedUntil),
+        });
         await tx.insert(subscriptionEvents).values({
           subscriptionId: subscription.id,
           kind: "ended_by_admin",
           details: {
             paidMonths: { from: subscription.paidMonths, to: paidMonths },
             paidUntil: { from: before.paidUntil, to: paidUntil.toISOString() },
+            endedEarly: { payments: cutPayments.map(window), grants: cutGrants.map(window) },
           },
         });
         const after = await this.state(tx, updated!, now);

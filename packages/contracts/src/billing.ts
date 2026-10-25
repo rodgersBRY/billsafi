@@ -35,7 +35,10 @@ export interface SubscriptionPayment {
   resultDescription: string | null;
   createdAt: string;
   confirmedAt: string | null;
+  /** When the Pro access this payment added ends; earlier than bought if `endedEarly`. */
   grantedUntil: string | null;
+  /** BillSafi ended Pro before this payment's months ran out. */
+  endedEarly: boolean;
   creditsGranted: number;
 }
 
@@ -85,6 +88,7 @@ export interface BillingGrant {
   /** Pro months or invoice credits. */
   quantity: number;
   createdAt: string;
-  /** For Pro: when the access this grant added ends. */
+  /** For Pro: when the access this grant added ends; earlier than given if `endedEarly`. */
   grantedUntil: string | null;
+  endedEarly: boolean;
 }

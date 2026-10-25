@@ -585,7 +585,12 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
                     <td className="px-5 py-3.5 text-sub">{shortFormat.format(new Date(row.at))}</td>
                     <td className="px-5 py-3.5">
                       {grantLabel(row.grant)}
-                      <span className="block text-xs text-sub">From Billsafi</span>
+                      <span className="block text-xs text-sub">From BillSafi</span>
+                      {row.grant.endedEarly && row.grant.grantedUntil && (
+                        <span className="block text-xs text-sub">
+                          Ended early on {formatInstant(row.grant.grantedUntil)}
+                        </span>
+                      )}
                     </td>
                     <td className="hidden px-5 py-3.5 text-sub sm:table-cell" />
                     <td className="px-5 py-3.5 text-right text-sub">No charge</td>
@@ -597,8 +602,13 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
                       {paymentLabel(row.payment)}
                       {row.payment.source === "manual" && (
                         <span className="block text-xs text-sub">
-                          Recorded by Billsafi
+                          Recorded by BillSafi
                           {row.payment.method && ` · ${methodLabels[row.payment.method]}`}
+                        </span>
+                      )}
+                      {row.payment.endedEarly && row.payment.grantedUntil && (
+                        <span className="block text-xs text-sub">
+                          Ended early on {formatInstant(row.payment.grantedUntil)}
                         </span>
                       )}
                       {row.payment.status === "failed" && (

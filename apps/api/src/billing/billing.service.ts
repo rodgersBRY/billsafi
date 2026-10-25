@@ -8,6 +8,7 @@ import {
   ServiceUnavailableException,
 } from "@nestjs/common";
 import type {
+  BillingGrant,
   BillingOverview,
   Checkout,
   PlanPrices,
@@ -17,6 +18,7 @@ import { and, type DatabaseConnection, desc, eq, schema, sql } from "@billsafi/d
 import {
   addNairobiMonths,
   CREDIT_PACK,
+  effectiveWindowEnd,
   nairobiDate,
   PRO_PLAN,
   REMINDER_DAYS_BEFORE,
@@ -97,6 +99,7 @@ export function paidThrough(subscription: SubscriptionRow): Date | null {
  */
 function toPayment(row: PaymentRow): SubscriptionPayment {
   const manual = row.provider === schema.MANUAL_PROVIDER;
+  const window = row.grantedUntil ? effectiveWindowEnd(row.grantedUntil, row.endedEarlyAt) : null;
   return {
     id: row.id,
     purpose: row.purpose,
@@ -112,8 +115,22 @@ function toPayment(row: PaymentRow): SubscriptionPayment {
     createdAt: row.createdAt.toISOString(),
     // A manual payment is dated by the day it was paid.
     confirmedAt: (manual ? row.paidAt : row.confirmedAt)?.toISOString() ?? null,
-    grantedUntil: row.grantedUntil?.toISOString() ?? null,
+    grantedUntil: window?.end.toISOString() ?? null,
+    endedEarly: window?.endedEarly ?? false,
     creditsGranted: row.creditsGranted,
+  };
+}
+
+/** A complimentary grant as the account sees it: no admin, no internal reason. */
+function toGrant(row: typeof schema.accountGrants.$inferSelect): BillingGrant {
+  const window = row.grantedUntil ? effectiveWindowEnd(row.grantedUntil, row.endedEarlyAt) : null;
+  return {
+    id: row.id,
+    kind: row.kind,
+    quantity: row.quantity,
+    createdAt: row.createdAt.toISOString(),
+    grantedUntil: window?.end.toISOString() ?? null,
+    endedEarly: window?.endedEarly ?? false,
   };
 }
 
@@ -171,13 +188,7 @@ export class BillingService {
       },
       pendingPayment: pending ? toPayment(pending) : null,
       payments: recent.filter((payment) => payment.status !== "pending").map(toPayment),
-      grants: grants.map((grant) => ({
-        id: grant.id,
-        kind: grant.kind,
-        quantity: grant.quantity,
-        createdAt: grant.createdAt.toISOString(),
-        grantedUntil: grant.grantedUntil?.toISOString() ?? null,
-      })),
+      grants: grants.map(toGrant),
     };
   }
 

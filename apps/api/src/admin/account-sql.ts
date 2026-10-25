@@ -92,12 +92,14 @@ export function currentMonthSourceSql(userId: SQL, proAccess: SQL, now: Date): S
         select 'paid' as source, coalesce(sp.confirmed_at, sp.created_at) as added_at
         from subscription_payments sp
         where sp.user_id = ${userId} and sp.status = 'succeeded' and sp.purpose = 'pro_month'
-          and sp.granted_from <= ${at(now)} and sp.granted_until > ${at(now)}
+          and sp.granted_from <= ${at(now)}
+          and least(sp.granted_until, coalesce(sp.ended_early_at, sp.granted_until)) > ${at(now)}
         union all
         select 'complimentary', g.created_at
         from account_grants g
         where g.user_id = ${userId} and g.kind = 'pro_months'
-          and g.granted_from <= ${at(now)} and g.granted_until > ${at(now)}
+          and g.granted_from <= ${at(now)}
+          and least(g.granted_until, coalesce(g.ended_early_at, g.granted_until)) > ${at(now)}
       ) ext order by ext.added_at desc limit 1
     ) = 'complimentary' then 'complimentary' else 'paid' end
   end)`;
@@ -117,4 +119,9 @@ export function creditsSql(userId: SQL): SQL<number> {
 export function activeOverrideSql(alias: SQL, now: Date): SQL<boolean> {
   return sql<boolean>`(${alias}.revoked_at is null and ${alias}.starts_at <= ${at(now)}
     and ${alias}.expires_at > ${at(now)})`;
+}
+
+/** When a Pro window really ended: effectiveWindowEnd in SQL. */
+export function windowEndSql(alias: SQL): SQL {
+  return sql`least(${alias}.granted_until, coalesce(${alias}.ended_early_at, ${alias}.granted_until))`;
 }

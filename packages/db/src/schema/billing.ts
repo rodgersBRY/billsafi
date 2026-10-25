@@ -103,6 +103,12 @@ export const subscriptionPayments = pgTable(
     /** For Pro: the paid access window this payment granted. */
     grantedFrom: timestamp("granted_from", { withTimezone: true }),
     grantedUntil: timestamp("granted_until", { withTimezone: true }),
+    /**
+     * Set when an admin ended Pro before `grantedUntil`: the new end of the run. The
+     * window really ran until the later of `grantedFrom` and this; `grantedUntil` keeps
+     * what was bought.
+     */
+    endedEarlyAt: timestamp("ended_early_at", { withTimezone: true }),
     /** For credit packs: invoices added to the account's credit balance. */
     creditsGranted: integer("credits_granted").notNull().default(0),
     /** Manual payments: how it was paid, the payer's reference, and the day it was paid. */
@@ -165,6 +171,8 @@ export const accountGrants = pgTable(
     /** For Pro: the access window this grant added. */
     grantedFrom: timestamp("granted_from", { withTimezone: true }),
     grantedUntil: timestamp("granted_until", { withTimezone: true }),
+    /** As on subscription_payments: the run's new end when an admin ended Pro early. */
+    endedEarlyAt: timestamp("ended_early_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

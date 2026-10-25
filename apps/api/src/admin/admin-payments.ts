@@ -1,6 +1,6 @@
 import type { AdminPlanPayment, ManualPaymentCurrency } from "@billsafi/contracts";
 import { schema, sql } from "@billsafi/db";
-import { maskPhone, nairobiDate } from "@billsafi/domain";
+import { effectiveWindowEnd, maskPhone, nairobiDate } from "@billsafi/domain";
 
 const { subscriptionPayments, users } = schema;
 
@@ -28,6 +28,9 @@ export function toAdminPlanPayment({
   recorderEmail,
 }: PlanPaymentRow): AdminPlanPayment {
   const manual = payment.provider === schema.MANUAL_PROVIDER;
+  const window = payment.grantedUntil
+    ? effectiveWindowEnd(payment.grantedUntil, payment.endedEarlyAt)
+    : null;
   return {
     id: payment.id,
     createdAt: payment.createdAt.toISOString(),
@@ -50,7 +53,8 @@ export function toAdminPlanPayment({
     note: payment.note,
     resultDescription: payment.status === "failed" ? payment.resultDescription : null,
     grantedFrom: payment.grantedFrom?.toISOString() ?? null,
-    grantedUntil: payment.grantedUntil?.toISOString() ?? null,
+    grantedUntil: window?.end.toISOString() ?? null,
+    endedEarly: window?.endedEarly ?? false,
     creditsGranted: payment.creditsGranted,
   };
 }

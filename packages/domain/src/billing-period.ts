@@ -94,3 +94,18 @@ export function proPeriodAt(anchor: Date, paidMonths: number, at: Date): ProPeri
     end: addNairobiMonths(anchor, index + 1),
   };
 }
+
+/**
+ * When a Pro window granted by a payment or gift really ends. An admin can end Pro early
+ * (end-pro), which records the run's new end on every window that ran past it; the window
+ * then stops there. A window that never started ends at that date too, which is before
+ * its own start. Returns the end and whether it was cut short.
+ */
+export function effectiveWindowEnd(
+  grantedUntil: Date,
+  endedEarlyAt: Date | null,
+): { end: Date; endedEarly: boolean } {
+  return endedEarlyAt && endedEarlyAt < grantedUntil
+    ? { end: endedEarlyAt, endedEarly: true }
+    : { end: grantedUntil, endedEarly: false };
+}
