@@ -1,4 +1,8 @@
 import {
+  adminGrantsQuerySchema,
+  adminOverridesQuerySchema,
+  adminPlanPaymentsQuerySchema,
+  adminSubscriptionsQuerySchema,
   adminAuditLogsQuerySchema,
   adminFunnelQuerySchema,
   adminRetentionQuerySchema,
@@ -54,6 +58,48 @@ export function parseAuditParams(raw: RawParams) {
   return state;
 }
 export type AuditState = ReturnType<typeof parseAuditParams>;
+
+export const subscriptionsDefaults = { page: 1, sort: "registered", dir: "desc" } as const;
+
+export function parseSubscriptionsParams(raw: RawParams) {
+  const state = parseFields(adminSubscriptionsQuerySchema.shape, raw);
+  // The filter offers one window at a time.
+  if (state.renewalWithin && state.lapsedWithin) state.lapsedWithin = undefined;
+  return {
+    ...state,
+    hasOverride: state.hasOverride === undefined ? undefined : String(state.hasOverride),
+  };
+}
+
+function withRange<T extends { from?: string; to?: string }>(state: T): T {
+  if (state.from && state.to && state.from > state.to) state.to = undefined;
+  return state;
+}
+
+export function parsePlanPaymentsParams(raw: RawParams) {
+  return withRange(parseFields(adminPlanPaymentsQuerySchema.shape, raw));
+}
+
+export function parseGrantsParams(raw: RawParams) {
+  return withRange(parseFields(adminGrantsQuerySchema.shape, raw));
+}
+
+export function parseOverridesParams(raw: RawParams) {
+  return parseFields(adminOverridesQuerySchema.shape, raw);
+}
+
+const SUBSCRIPTION_TABS = ["subscriptions", "payments", "grants", "overrides", "plans"] as const;
+export type SubscriptionTab = (typeof SUBSCRIPTION_TABS)[number];
+export const subscriptionTabs = SUBSCRIPTION_TABS;
+
+export function parseSubscriptionTab(raw: RawParams): SubscriptionTab {
+  const value = first(raw.tab);
+  return SUBSCRIPTION_TABS.find((tab) => tab === value) ?? "subscriptions";
+}
+
+/** A Subscriptions tab, with its own filters. */
+export const subscriptionsHref = (tab: SubscriptionTab, filters: Values = {}) =>
+  `/admin/subscriptions${toQuery({ tab: tab === "subscriptions" ? undefined : tab, ...filters })}`;
 
 export function parseAnalyticsParams(raw: RawParams) {
   const funnel = adminFunnelQuerySchema.safeParse({ days: first(raw.days) });
