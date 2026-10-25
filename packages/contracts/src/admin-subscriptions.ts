@@ -150,3 +150,39 @@ export interface AdminPlanPayment {
   grantedUntil: string | null;
   creditsGranted: number;
 }
+
+export const accountGrantKinds = ["pro_months", "invoice_credits"] as const;
+export type AccountGrantKind = (typeof accountGrantKinds)[number];
+
+export const ADMIN_GRANT_MAX_MONTHS = 12;
+export const ADMIN_GRANT_MAX_CREDITS = 500;
+
+/**
+ * A gift at no charge: Pro months (added with the same rule as a payment) or invoice
+ * credits. Gifts never count as revenue.
+ */
+export const adminGrantSchema = z.discriminatedUnion(
+  "kind",
+  [
+    z.object({
+      kind: z.literal("pro_months"),
+      quantity: z.int().min(1).max(ADMIN_GRANT_MAX_MONTHS),
+      reason: reasonSchema,
+    }),
+    z.object({
+      kind: z.literal("invoice_credits"),
+      quantity: z.int().min(1).max(ADMIN_GRANT_MAX_CREDITS),
+      reason: reasonSchema,
+    }),
+  ],
+  { error: "Choose Pro months or invoice credits" },
+);
+export type AdminGrantInput = z.input<typeof adminGrantSchema>;
+export type AdminGrant = z.output<typeof adminGrantSchema>;
+
+export interface AdminGrantRecorded {
+  grantId: string;
+  /** True when this answer replays an earlier request with the same Idempotency-Key. */
+  replayed: boolean;
+  subscription: AdminSubscriptionState;
+}

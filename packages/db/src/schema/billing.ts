@@ -141,12 +141,51 @@ export const subscriptionPayments = pgTable(
   ],
 );
 
+export const accountGrantKind = pgEnum("account_grant_kind", ["pro_months", "invoice_credits"]);
+
+/**
+ * Pro months or invoice credits an admin gave an account at no charge. Gifts have no
+ * amount, so they live apart from subscription_payments and never count as revenue.
+ * Granted credits join bought ones in the balance (AllowanceService.credits).
+ */
+export const accountGrants = pgTable(
+  "account_grants",
+  {
+    id: id(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    kind: accountGrantKind("kind").notNull(),
+    /** Pro months (1 to 12) or invoice credits (1 to 500). */
+    quantity: integer("quantity").notNull(),
+    reason: text("reason").notNull(),
+    grantedBy: uuid("granted_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    /** For Pro: the access window this grant added. */
+    grantedFrom: timestamp("granted_from", { withTimezone: true }),
+    grantedUntil: timestamp("granted_until", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("account_grants_user_created_idx").on(table.userId, table.createdAt),
+    check(
+      "account_grants_quantity",
+      sql`(${table.kind} = 'pro_months' and ${table.quantity} between 1 and 12
+        and ${table.grantedFrom} is not null and ${table.grantedUntil} is not null)
+      or (${table.kind} = 'invoice_credits' and ${table.quantity} between 1 and 500)`,
+    ),
+  ],
+);
+
 export const subscriptionEventKind = pgEnum("subscription_event_kind", [
   "activated",
   "renewed",
   "credits_added",
   "cancelled",
   "cancellation_undone",
+  /** An admin gave Pro months or invoice credits at no charge. */
+  "granted",
 ]);
 
 /** Plan history; cancellations and undos are recorded, never deleted (D044). */
@@ -161,6 +200,7 @@ export const subscriptionEvents = pgTable(
     paymentId: uuid("payment_id").references(() => subscriptionPayments.id, {
       onDelete: "restrict",
     }),
+    grantId: uuid("grant_id").references(() => accountGrants.id, { onDelete: "restrict" }),
     details: jsonb("details").$type<Record<string, unknown>>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

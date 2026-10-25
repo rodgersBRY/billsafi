@@ -85,6 +85,13 @@
       "when": 1792908112902,
       "tag": "0011_manual_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792908548011,
+      "tag": "0012_account_grants",
+      "breakpoints": true
     }
   ]
 }

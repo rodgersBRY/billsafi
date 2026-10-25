@@ -365,4 +365,169 @@ export function subscriptionSuite(ctx: SubscriptionSuiteContext) {
       ]);
     });
   });
+
+  describe("subscriptions: grants", () => {
+    const grantsOf = (userId: string) =>
+      db()
+        .select()
+        .from(schema.accountGrants)
+        .where(eq(schema.accountGrants.userId, userId))
+        .orderBy(asc(schema.accountGrants.createdAt));
+
+    it("grants Pro months on Free as a new run, audited, never as a payment", async () => {
+      const account = await newAccount();
+      const response = await post(`tenants/${account.id}/grants`, {
+        kind: "pro_months",
+        quantity: 2,
+        reason: "Apology for the outage",
+      }).expect(201);
+      expect(response.body).toMatchObject({
+        grantId: expect.any(String),
+        replayed: false,
+        subscription: { plan: { code: "pro" }, paidMonths: 2 },
+      });
+      const row = await expectPaidUntilParity(account.id);
+      expect(await grantsOf(account.id)).toEqual([
+        expect.objectContaining({
+          id: response.body.grantId,
+          kind: "pro_months",
+          quantity: 2,
+          reason: "Apology for the outage",
+          grantedBy: ctx.adminId(),
+          grantedUntil: row!.paidUntil,
+        }),
+      ]);
+      expect(await paymentsOf(account.id)).toEqual([]);
+      expect(await eventsOf(account.id)).toEqual([
+        expect.objectContaining({
+          kind: "granted",
+          grantId: response.body.grantId,
+          details: expect.objectContaining({ grant: "pro_months", quantity: 2, renews: false }),
+        }),
+      ]);
+      expect((await auditFor(account.id)).at(-1)).toMatchObject({
+        action: "tenant.grant",
+        outcome: "success",
+        changes: {
+          grant: { id: response.body.grantId, kind: "pro_months", quantity: 2 },
+          paidMonths: { from: 0, to: 2 },
+        },
+      });
+      expect((await billingOf(account.cookie)).subscription.status).toBe("active");
+    });
+
+    it("adds granted months after a paid run and keeps the account's cancellation", async () => {
+      const account = await newAccount();
+      await ctx.payPro(account.cookie);
+      await api().post("/api/v1/billing/cancel").set("Cookie", account.cookie).expect(200);
+      const before = await expectPaidUntilParity(account.id);
+      await post(`tenants/${account.id}/grants`, {
+        kind: "pro_months",
+        quantity: 1,
+        reason: "Loyalty month",
+      }).expect(201);
+      const after = await expectPaidUntilParity(account.id);
+      expect(after!.paidMonths).toBe(2);
+      expect(after!.anchorAt).toEqual(before!.anchorAt);
+      expect(after!.cancelledAt).toEqual(before!.cancelledAt);
+      expect((await grantsOf(account.id))[0]!.grantedFrom).toEqual(before!.paidUntil);
+    });
+
+    it("counts granted credits with bought ones and spends them after the plan allowance", async () => {
+      const account = await ctx.seedAccount("admin-sub-credits", 10);
+      const id = await ctx.userId(account.email);
+      await post(`tenants/${id}/payments`, {
+        ...proPayment({ purpose: "invoice_credits", amount: "260", currency: "KES" }),
+        packs: 1,
+      }).expect(201);
+      const response = await post(`tenants/${id}/grants`, {
+        kind: "invoice_credits",
+        quantity: 3,
+        reason: "Goodwill credits",
+      }).expect(201);
+      expect(response.body.subscription.credits).toBe(CREDIT_PACK.invoices + 3);
+      await account.issue(2);
+      expect((await billingOf(account.cookie)).usage).toMatchObject({
+        used: 10,
+        credits: CREDIT_PACK.invoices + 1,
+      });
+      const detail = await get(`tenants/${id}`).expect(200);
+      expect(detail.body.usage.credits).toBe(CREDIT_PACK.invoices + 1);
+    });
+
+    it.each([
+      [{ kind: "pro_months", quantity: 0 }],
+      [{ kind: "pro_months", quantity: 13 }],
+      [{ kind: "invoice_credits", quantity: 501 }],
+      [{ kind: "invoice_credits", quantity: "5" }],
+      [{ kind: "trial", quantity: 1 }],
+      [{ kind: "pro_months", quantity: 1, reason: "abc" }],
+    ])("answers 400 for %o", async (body) => {
+      const account = await newAccount();
+      await post(`tenants/${account.id}/grants`, { reason: "Goodwill credits", ...body }).expect(
+        400,
+      );
+      expect(await grantsOf(account.id)).toEqual([]);
+      expect(await auditFor(account.id)).toEqual([]);
+    });
+
+    it("refuses to grant to your own account and answers 404 for unknown accounts", async () => {
+      const self = await post(`tenants/${ctx.adminId()}/grants`, {
+        kind: "invoice_credits",
+        quantity: 5,
+        reason: "Just testing this",
+      }).expect(409);
+      expect(self.body.code).toBe("CANNOT_GRANT_SELF");
+      expect(await grantsOf(ctx.adminId())).toEqual([]);
+      await post(`tenants/${crypto.randomUUID()}/grants`, {
+        kind: "invoice_credits",
+        quantity: 5,
+        reason: "Goodwill credits",
+      }).expect(404);
+    });
+
+    it("replays a grant sent twice with one Idempotency-Key", async () => {
+      const account = await newAccount();
+      const key = `idem-${crypto.randomUUID()}`;
+      const body = { kind: "invoice_credits", quantity: 7, reason: "Goodwill credits" };
+      const first = await post(`tenants/${account.id}/grants`, body)
+        .set("Idempotency-Key", key)
+        .expect(201);
+      const again = await post(`tenants/${account.id}/grants`, body)
+        .set("Idempotency-Key", key)
+        .expect(201);
+      expect(again.body).toEqual({ ...first.body, replayed: true });
+      expect(await grantsOf(account.id)).toHaveLength(1);
+      // A key is per action: reusing it for a payment is a different request.
+      const other = await post(`tenants/${account.id}/payments`, proPayment())
+        .set("Idempotency-Key", key)
+        .expect(409);
+      expect(other.body.code).toBe("IDEMPOTENCY_MISMATCH");
+    });
+
+    it("rolls a grant back when the audit row can't be written", async () => {
+      const account = await newAccount();
+      const audit = ctx.app().get(AuditService);
+      const original = audit.record.bind(audit);
+      const spy = vi
+        .spyOn(audit, "record")
+        .mockImplementation((entry, executor) =>
+          executor ? Promise.reject(new Error("audit insert failed")) : original(entry),
+        );
+      try {
+        await post(`tenants/${account.id}/grants`, {
+          kind: "pro_months",
+          quantity: 1,
+          reason: "Loyalty month",
+        }).expect(500);
+      } finally {
+        spy.mockRestore();
+      }
+      expect(await grantsOf(account.id)).toEqual([]);
+      expect((await subscriptionOf(account.id))?.anchorAt ?? null).toBeNull();
+      expect(await auditFor(account.id)).toEqual([
+        expect.objectContaining({ action: "tenant.grant", outcome: "failure" }),
+      ]);
+    });
+  });
 }

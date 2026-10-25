@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { BadRequestException, ConflictException, Inject, Injectable } from "@nestjs/common";
 import type {
+  AdminGrant,
+  AdminGrantRecorded,
   AdminPaymentRecorded,
   AdminRecordPayment,
   AdminSubscriptionState,
@@ -20,7 +22,7 @@ import {
 } from "./admin-actions.service.js";
 import { planAt } from "./admin-sql.js";
 
-const { subscriptionPayments, adminIdempotencyKeys } = schema;
+const { subscriptionPayments, adminIdempotencyKeys, accountGrants, subscriptionEvents } = schema;
 
 const MANUAL = schema.MANUAL_PROVIDER;
 
@@ -189,6 +191,78 @@ export class AdminSubscriptionActionsService {
               reference: body.reference,
               paidAt: body.paidAt,
             },
+            ...this.stateDiff(before, after),
+          },
+          result,
+        };
+      }),
+    );
+  }
+
+  /**
+   * Gives Pro months or invoice credits at no charge. Pro months go through extendPro like
+   * a payment, but keep an active run's cancellation: a gift is not a request to renew.
+   */
+  async grant(
+    context: AdminActionContext,
+    id: string,
+    body: AdminGrant,
+    idempotencyKey?: string,
+  ): Promise<AdminGrantRecorded> {
+    const target: ActionTarget = { action: "tenant.grant", target: { type: "account", id } };
+    return this.idempotent(context, target, body, idempotencyKey, (key) =>
+      this.actions.performWith(context, target, async (tx) => {
+        await key.claim(tx);
+        await this.actions.lockUser(tx, id);
+        this.refuseSelf(context, id);
+        const subscription = await this.allowance.lockAccount(tx, id);
+        const now = new Date();
+        const before = await this.state(tx, subscription, now);
+
+        const extension =
+          body.kind === "pro_months"
+            ? await this.billing.extendPro(tx, subscription, body.quantity, now, {
+                clearCancellation: false,
+              })
+            : null;
+        const [grant] = await tx
+          .insert(accountGrants)
+          .values({
+            userId: id,
+            kind: body.kind,
+            quantity: body.quantity,
+            reason: body.reason,
+            grantedBy: context.adminId,
+            grantedFrom: extension?.grantedFrom ?? null,
+            grantedUntil: extension?.grantedUntil ?? null,
+            createdAt: now,
+          })
+          .returning({ id: accountGrants.id });
+        await tx.insert(subscriptionEvents).values({
+          subscriptionId: subscription.id,
+          kind: "granted",
+          grantId: grant!.id,
+          details: {
+            grant: body.kind,
+            quantity: body.quantity,
+            ...(extension && {
+              renews: extension.kind === "renewed",
+              grantedFrom: extension.grantedFrom.toISOString(),
+              grantedUntil: extension.grantedUntil.toISOString(),
+            }),
+          },
+        });
+
+        const after = await this.state(tx, extension?.subscription ?? subscription, now);
+        const result: AdminGrantRecorded = {
+          grantId: grant!.id,
+          replayed: false,
+          subscription: after,
+        };
+        await key.save(tx, result);
+        return {
+          changes: {
+            grant: { id: grant!.id, kind: body.kind, quantity: body.quantity },
             ...this.stateDiff(before, after),
           },
           result,

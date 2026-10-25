@@ -4,7 +4,8 @@ import { and, type Database, type DatabaseConnection, eq, schema, sql } from "@b
 import { FREE_PLAN, nairobiCalendarMonth, PRO_PLAN, proPeriodAt } from "@billsafi/domain";
 import { DATABASE } from "../database/database.module.js";
 
-const { usagePeriods, invoiceIssuances, subscriptions, subscriptionPayments } = schema;
+const { usagePeriods, invoiceIssuances, subscriptions, subscriptionPayments, accountGrants } =
+  schema;
 
 export type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 type Db = Database | Transaction;
@@ -199,18 +200,22 @@ export class AllowanceService {
     return Math.min(row!.count, FREE_PLAN.invoiceLimit);
   }
 
-  /** Credits bought minus credits used; they never expire (D051). */
+  /** Credits bought plus credits an admin granted, minus credits used; they never expire (D051). */
   async credits(db: Db, userId: string): Promise<number> {
-    const [granted] = await db
+    const [bought] = await db
       .select({ total: sql<number>`coalesce(sum(${subscriptionPayments.creditsGranted}), 0)::int` })
       .from(subscriptionPayments)
       .where(
         and(eq(subscriptionPayments.userId, userId), eq(subscriptionPayments.status, "succeeded")),
       );
+    const [granted] = await db
+      .select({ total: sql<number>`coalesce(sum(${accountGrants.quantity}), 0)::int` })
+      .from(accountGrants)
+      .where(and(eq(accountGrants.userId, userId), eq(accountGrants.kind, "invoice_credits")));
     const [used] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(invoiceIssuances)
       .where(and(eq(invoiceIssuances.userId, userId), eq(invoiceIssuances.source, "credit")));
-    return granted!.total - used!.count;
+    return bought!.total + granted!.total - used!.count;
   }
 }

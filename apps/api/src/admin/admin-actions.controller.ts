@@ -13,6 +13,9 @@ import {
   type AdminActionAck,
   type AdminActionBody,
   adminActionBodySchema,
+  type AdminGrant,
+  type AdminGrantRecorded,
+  adminGrantSchema,
   type AdminPaymentRecorded,
   type AdminRecordPayment,
   adminRecordPaymentSchema,
@@ -119,5 +122,16 @@ export class AdminActionsController {
       body,
       idempotencyKey(key),
     );
+  }
+
+  /** Gives Pro months or invoice credits at no charge. Accepts an Idempotency-Key header. */
+  @Post("tenants/:id/grants")
+  grant(
+    @Param("id", new UuidParamPipe("Tenant")) id: string,
+    @Body(new ZodValidationPipe(adminGrantSchema)) body: AdminGrant,
+    @Headers("idempotency-key") key: string | undefined,
+    @Req() request: AdminActionRequest,
+  ): Promise<AdminGrantRecorded> {
+    return this.subscriptions.grant(actionContext(request, body), id, body, idempotencyKey(key));
   }
 }

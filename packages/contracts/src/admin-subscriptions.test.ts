@@ -1,6 +1,10 @@
 import { nairobiDate } from "@billsafi/domain";
 import { describe, expect, it } from "vitest";
-import { adminRecordPaymentSchema, idempotencyKeySchema } from "./admin-subscriptions.js";
+import {
+  adminGrantSchema,
+  adminRecordPaymentSchema,
+  idempotencyKeySchema,
+} from "./admin-subscriptions.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const reason = "Paid by bank transfer";
@@ -82,5 +86,33 @@ describe("idempotencyKeySchema", () => {
     expect(idempotencyKeySchema.safeParse("k".repeat(100)).success).toBe(true);
     expect(idempotencyKeySchema.safeParse("k".repeat(101)).success).toBe(false);
     expect(idempotencyKeySchema.safeParse("   ").success).toBe(false);
+  });
+});
+
+describe("adminGrantSchema", () => {
+  it("reads Pro months up to 12 and credits up to 500", () => {
+    expect(adminGrantSchema.parse({ kind: "pro_months", quantity: 12, reason })).toEqual({
+      kind: "pro_months",
+      quantity: 12,
+      reason,
+    });
+    expect(
+      adminGrantSchema.parse({ kind: "invoice_credits", quantity: 500, reason }).quantity,
+    ).toBe(500);
+  });
+
+  it.each([
+    { kind: "pro_months", quantity: 0 },
+    { kind: "pro_months", quantity: 13 },
+    { kind: "invoice_credits", quantity: 501 },
+    { kind: "invoice_credits", quantity: "5" },
+    { kind: "invoice_credits", quantity: 2.5 },
+    { kind: "trial", quantity: 1 },
+  ])("rejects %o", (body) => {
+    expect(adminGrantSchema.safeParse({ ...body, reason }).success).toBe(false);
+  });
+
+  it("needs a reason", () => {
+    expect(adminGrantSchema.safeParse({ kind: "pro_months", quantity: 1 }).success).toBe(false);
   });
 });
