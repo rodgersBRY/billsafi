@@ -32,16 +32,22 @@ export async function generateMetadata({ params }: PageProps<"/admin/tenants/[id
   return adminMetadata(`${data.tenant.owner.name} · Tenants`);
 }
 
-function TabContent({ tab, data }: { tab: TenantTab; data: AdminTenantDetail }) {
+interface TabContentProps {
+  tab: TenantTab;
+  data: AdminTenantDetail;
+  selfId: string;
+}
+
+function TabContent({ tab, data, selfId }: TabContentProps) {
   switch (tab) {
     case "overview":
       return <TenantOverviewTab data={data} />;
     case "businesses":
       return <TenantBusinessesTab businesses={data.businesses} />;
     case "subscription":
-      return <TenantSubscriptionTab subscription={data.subscription} />;
+      return <TenantSubscriptionTab data={data} selfId={selfId} />;
     case "usage":
-      return <TenantUsageTab usage={data.usage} />;
+      return <TenantUsageTab usage={data.usage} overrides={data.subscription.overrides} />;
     case "activity":
       return (
         <Panel
@@ -73,7 +79,7 @@ async function TenantDetail({ params, searchParams }: PageProps<"/admin/tenants/
       <TenantHeader data={data} selfId={self.id} />
       <TenantTabs id={data.tenant.id} current={tab} />
       <div className="space-y-3">
-        <TabContent tab={tab} data={data} />
+        <TabContent tab={tab} data={data} selfId={self.id} />
         <UpdatedAt iso={data.generatedAt} cached={false} />
       </div>
     </>
