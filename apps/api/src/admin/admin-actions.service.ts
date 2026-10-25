@@ -34,6 +34,12 @@ export interface ActionOutcome<T> {
   result: T;
 }
 
+/**
+ * A refusal that changed nothing and is answered some other way (an idempotent replay), so
+ * performWith rolls back without writing a failure row.
+ */
+export class UnauditedRefusal extends ConflictException {}
+
 export function conflict(code: string, message: string): ConflictException {
   return new ConflictException({ code, message });
 }
@@ -205,6 +211,7 @@ export class AdminActionsService {
         return outcome.result;
       });
     } catch (error) {
+      if (error instanceof UnauditedRefusal) throw error;
       try {
         await this.audit.record({
           ...entry,

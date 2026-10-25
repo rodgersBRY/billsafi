@@ -70,10 +70,16 @@ export class AllowanceService {
     at: Date,
   ): Promise<AllowanceUsage> {
     const window = await this.window(db, userId, subscription, at);
+    const used =
+      window.carriedOver + (await this.countPlanIssued(db, userId, window.start, window.end));
     return {
       plan: window.plan,
       limit: window.limit,
-      used: window.carriedOver + (await this.countPlanIssued(db, userId, window.start, window.end)),
+      planLimit: window.planLimit,
+      extraInvoices: window.extra,
+      extraEndsAt: window.extra > 0 ? await this.extraEndsAt(db, userId, at) : null,
+      used,
+      remaining: Math.max(0, window.limit - used),
       periodStart: window.start.toISOString(),
       periodEnd: window.end.toISOString(),
       credits: await this.credits(db, userId),
@@ -161,6 +167,24 @@ export class AllowanceService {
     };
   }
 
+  /** When the soonest-ending override active at `at` ends. */
+  private async extraEndsAt(db: Db, userId: string, at: Date): Promise<string | null> {
+    const [row] = await db
+      .select({ endsAt: sql<string | null>`min(${allowanceOverrides.expiresAt})` })
+      .from(allowanceOverrides)
+      .where(this.activeOverrides(userId, at));
+    return row?.endsAt ? new Date(row.endsAt).toISOString() : null;
+  }
+
+  private activeOverrides(userId: string, at: Date) {
+    return and(
+      eq(allowanceOverrides.userId, userId),
+      isNull(allowanceOverrides.revokedAt),
+      sql`${allowanceOverrides.startsAt} <= ${at.toISOString()}`,
+      sql`${allowanceOverrides.expiresAt} > ${at.toISOString()}`,
+    );
+  }
+
   /**
    * Extra invoices from admin overrides active at `at`: started (starts_at <= at), not yet
    * expired (at < expires_at) and not revoked. Both reserve() and usage() read it, so the
@@ -170,14 +194,7 @@ export class AllowanceService {
     const [row] = await db
       .select({ total: sql<number>`coalesce(sum(${allowanceOverrides.extraInvoices}), 0)::int` })
       .from(allowanceOverrides)
-      .where(
-        and(
-          eq(allowanceOverrides.userId, userId),
-          isNull(allowanceOverrides.revokedAt),
-          sql`${allowanceOverrides.startsAt} <= ${at.toISOString()}`,
-          sql`${allowanceOverrides.expiresAt} > ${at.toISOString()}`,
-        ),
-      );
+      .where(this.activeOverrides(userId, at));
     return row!.total;
   }
 

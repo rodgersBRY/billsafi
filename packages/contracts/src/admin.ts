@@ -169,7 +169,10 @@ export interface AdminFreeLimitHit {
   userEmail: string;
   /** The Free month, as a Nairobi YYYY-MM. */
   month: string;
+  /** The limit reached: the Free limit plus override extra in force at the time. */
   limit: number;
+  /** Of `limit`, the extra invoices from limit overrides. */
+  extraInvoices: number;
   /** When the limit-th invoice of the month was made Ready. */
   hitAt: string;
   /** A succeeded plan payment between the hit and 30 days after the month ended. */
@@ -394,8 +397,13 @@ export interface AdminTenantSubscription {
   paidUntil: string | null;
   /** Set while the account has asked not to continue after paid access. */
   cancelledAt: string | null;
-  /** Every plan payment, M-Pesa and manual, newest first. */
+  /**
+   * The 25 latest plan payments, M-Pesa and manual, newest first. The rest are in
+   * GET /admin/subscription-payments?search=<account id>.
+   */
   payments: AdminTenantPayment[];
+  /** All of the account's plan payments. */
+  paymentCount: number;
   currentMonthSource: AdminCurrentMonthSource | null;
   /** Every complimentary grant, newest first. */
   grants: AdminGrantRow[];

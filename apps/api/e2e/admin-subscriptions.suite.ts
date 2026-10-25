@@ -2,9 +2,11 @@ import type { INestApplication } from "@nestjs/common";
 import { asc, type DatabaseConnection, eq, schema, sql } from "@billsafi/db";
 import { addNairobiMonths, CREDIT_PACK, nairobiDate } from "@billsafi/domain";
 import request from "supertest";
+import { AdminBillingService } from "../src/admin/admin-billing.service.js";
 import { AdminMetricsService } from "../src/admin/admin-metrics.service.js";
 import { AuditService } from "../src/audit/audit.service.js";
 import { AllowanceService } from "../src/billing/allowance.service.js";
+import { BillingService } from "../src/billing/billing.service.js";
 import { DATABASE } from "../src/database/database.module.js";
 import { signUp, uniqueEmail } from "./support/app.js";
 
@@ -1306,6 +1308,182 @@ export function subscriptionSuite(ctx: SubscriptionSuiteContext) {
         release();
         await holder;
       }
+    });
+  });
+
+  describe("subscriptions: concurrency, history and limit reporting", () => {
+    const DAY = 86_400_000;
+
+    it("lets one of two concurrent payments with one reference through", async () => {
+      const first = await newAccount();
+      const second = await newAccount();
+      const ref = reference();
+      const responses = await Promise.all([
+        post(`tenants/${first.id}/payments`, proPayment({ reference: ref })).then((r) => r),
+        post(`tenants/${second.id}/payments`, proPayment({ reference: ref })).then((r) => r),
+      ]);
+      expect(responses.map((response) => response.status).sort()).toEqual([201, 409]);
+      expect(responses.find((response) => response.status === 409)!.body.code).toBe(
+        "DUPLICATE_REFERENCE",
+      );
+    });
+
+    it("replays a request racing another with the same key without a failure row", async () => {
+      const account = await newAccount();
+      const key = `idem-${crypto.randomUUID()}`;
+      const body = proPayment({ months: 1 });
+      const send = () =>
+        post(`tenants/${account.id}/payments`, body)
+          .set("Idempotency-Key", key)
+          .then((response) => response);
+      const responses = await Promise.all([send(), send()]);
+      expect(responses.map((response) => response.status)).toEqual([201, 201]);
+      expect(responses.map((response) => response.body.replayed).sort()).toEqual([false, true]);
+      expect(await paymentsOf(account.id)).toHaveLength(1);
+      expect((await auditFor(account.id)).map((row) => row.outcome)).toEqual(["success"]);
+    });
+
+    it("deletes Idempotency-Key rows older than 30 days and keeps newer ones", async () => {
+      const old = `old-${crypto.randomUUID()}`;
+      const recent = `recent-${crypto.randomUUID()}`;
+      const values = (key: string, createdAt: Date) => ({
+        adminUserId: ctx.adminId(),
+        key,
+        action: "tenant.grant",
+        requestHash: "hash",
+        response: { ok: true },
+        createdAt,
+      });
+      await db()
+        .insert(schema.adminIdempotencyKeys)
+        .values([
+          values(old, new Date(Date.now() - 31 * DAY)),
+          values(recent, new Date(Date.now() - 29 * DAY)),
+        ]);
+      expect(await ctx.app().get(BillingService).pruneIdempotencyKeys()).toBeGreaterThanOrEqual(1);
+      const left = (
+        await db()
+          .select({ key: schema.adminIdempotencyKeys.key })
+          .from(schema.adminIdempotencyKeys)
+          .where(eq(schema.adminIdempotencyKeys.adminUserId, ctx.adminId()))
+      ).map((row) => row.key);
+      expect(left).toContain(recent);
+      expect(left).not.toContain(old);
+    });
+
+    it("reports a Free limit hit only at the plan limit plus the override in force", async () => {
+      const raised = await ctx.seedAccount("admin-sub-hit-raised", 0);
+      const raisedId = await ctx.userId(raised.email);
+      const under = await ctx.seedAccount("admin-sub-hit-under", 0);
+      const underId = await ctx.userId(under.email);
+      for (const id of [raisedId, underId]) {
+        await post(`tenants/${id}/overrides`, {
+          extraInvoices: 2,
+          expiresAt: new Date(Date.now() + 20 * DAY).toISOString(),
+          reason: "Month-end rush",
+        }).expect(201);
+      }
+      await raised.issue(12);
+      await under.issue(11);
+      const { freeLimitHits } = await ctx.app().get(AdminBillingService).billing();
+      expect(freeLimitHits.find((hit) => hit.userId === raisedId)).toMatchObject({
+        limit: 12,
+        extraInvoices: 2,
+      });
+      expect(freeLimitHits.some((hit) => hit.userId === underId)).toBe(false);
+    }, 30_000);
+
+    it("never shows a negative remainder once a raised limit has ended", async () => {
+      const account = await ctx.seedAccount("admin-sub-overuse", 0);
+      const id = await ctx.userId(account.email);
+      const created = await post(`tenants/${id}/overrides`, {
+        extraInvoices: 5,
+        expiresAt: new Date(Date.now() + 20 * DAY).toISOString(),
+        reason: "Month-end rush",
+      }).expect(201);
+      const raised = (await billingOf(account.cookie)).usage;
+      expect(raised).toMatchObject({
+        limit: 15,
+        planLimit: 10,
+        extraInvoices: 5,
+        extraEndsAt: created.body.override.expiresAt,
+        remaining: 15,
+      });
+      await account.issue(12);
+      await db()
+        .update(schema.allowanceOverrides)
+        .set({ startsAt: new Date(Date.now() - DAY), expiresAt: new Date(Date.now() - 1000) })
+        .where(eq(schema.allowanceOverrides.id, created.body.override.id));
+      expect((await billingOf(account.cookie)).usage).toMatchObject({
+        used: 12,
+        limit: 10,
+        planLimit: 10,
+        extraInvoices: 0,
+        extraEndsAt: null,
+        remaining: 0,
+      });
+    }, 30_000);
+
+    it("shows the latest 20 history entries across payments and grants", async () => {
+      const account = await newAccount();
+      // 15 manual payments and 15 grants, alternating a day apart, oldest first.
+      const base = Date.now() - 40 * DAY;
+      for (let index = 0; index < 30; index++) {
+        const at = new Date(base + index * DAY);
+        if (index % 2 === 0) {
+          await db().insert(schema.subscriptionPayments).values({
+            userId: account.id,
+            purpose: "invoice_credits",
+            amount: "260.00",
+            status: "succeeded",
+            provider: "manual",
+            method: "cash",
+            externalReference: reference(),
+            paidAt: at,
+            confirmedAt: at,
+            createdAt: at,
+            recordedBy: ctx.adminId(),
+          });
+        } else {
+          await db().insert(schema.accountGrants).values({
+            userId: account.id,
+            kind: "invoice_credits",
+            quantity: 1,
+            reason: "Seeded in a test",
+            grantedBy: ctx.adminId(),
+            createdAt: at,
+          });
+        }
+      }
+      const billing = await billingOf(account.cookie);
+      expect(billing.payments).toHaveLength(10);
+      expect(billing.grants).toHaveLength(10);
+      const dates = [
+        ...billing.payments.map((payment: { confirmedAt: string }) => payment.confirmedAt),
+        ...billing.grants.map((grant: { createdAt: string }) => grant.createdAt),
+      ].sort();
+      expect(dates[0]).toBe(new Date(base + 10 * DAY).toISOString());
+    });
+
+    it("lists the 25 latest payments in tenant detail with the total count", async () => {
+      const account = await newAccount();
+      for (let index = 0; index < 27; index++) {
+        await db().insert(schema.subscriptionPayments).values({
+          userId: account.id,
+          purpose: "invoice_credits",
+          amount: "260.00",
+          status: "succeeded",
+          provider: "manual",
+          method: "other",
+          externalReference: reference(),
+          paidAt: new Date(),
+          confirmedAt: new Date(),
+          recordedBy: ctx.adminId(),
+        });
+      }
+      const detail = (await get(`tenants/${account.id}`).expect(200)).body;
+      expect(detail.subscription.payments).toHaveLength(25);
+      expect(detail.subscription.paymentCount).toBe(27);
     });
   });
 }

@@ -1,11 +1,5 @@
 import { createHash } from "node:crypto";
-import {
-  BadRequestException,
-  ConflictException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import type {
   AdminGrant,
   AdminGrantRecorded,
@@ -35,6 +29,7 @@ import {
   type AdminActionContext,
   AdminActionsService,
   conflict,
+  UnauditedRefusal,
 } from "./admin-actions.service.js";
 import { selectOverrides } from "./admin-overrides.js";
 import { planAt } from "./admin-sql.js";
@@ -53,8 +48,11 @@ const MANUAL = schema.MANUAL_PROVIDER;
 /** Postgres unique_violation. */
 const UNIQUE_VIOLATION = "23505";
 
-/** Another request with the same key committed while this one waited; it is replayed. */
-class IdempotencyKeyTaken extends ConflictException {
+/**
+ * Another request with the same key committed while this one waited. It is replayed, so
+ * this is not audited as a failure.
+ */
+class IdempotencyKeyTaken extends UnauditedRefusal {
   constructor() {
     super({
       code: "IDEMPOTENCY_IN_PROGRESS",

@@ -37,6 +37,7 @@ export class BillingJobs implements OnApplicationBootstrap, OnApplicationShutdow
       await this.billing.sweepPending();
       const sent = await this.billing.sendReminders();
       if (sent > 0) this.logger.log(`Sent ${sent} renewal reminder(s)`);
+      await this.billing.pruneIdempotencyKeys();
     } catch (error) {
       this.logger.error(`Billing job failed: ${String(error)}`);
     }

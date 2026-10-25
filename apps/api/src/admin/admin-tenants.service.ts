@@ -45,6 +45,9 @@ import {
 
 const { subscriptionPayments, users } = schema;
 
+/** The rest are in GET /admin/subscription-payments, searched by the account id. */
+const TENANT_PAYMENTS = 25;
+
 /** One row of the `tenants` CTE, already formatted for the response. */
 interface TenantRowData {
   id: string;
@@ -280,7 +283,12 @@ export class AdminTenantsService {
       .from(subscriptionPayments)
       .innerJoin(users, eq(users.id, subscriptionPayments.userId))
       .where(eq(subscriptionPayments.userId, id))
-      .orderBy(desc(subscriptionPayments.createdAt), desc(subscriptionPayments.id));
+      .orderBy(desc(subscriptionPayments.createdAt), desc(subscriptionPayments.id))
+      .limit(TENANT_PAYMENTS);
+    const [paymentCount] = await this.connection.db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(subscriptionPayments)
+      .where(eq(subscriptionPayments.userId, id));
 
     const tenant = this.toRow(row);
     return {
@@ -318,6 +326,7 @@ export class AdminTenantsService {
         paidUntil: row.proEndsAt,
         cancelledAt: row.cancelledAt,
         payments: payments.map(toAdminPlanPayment),
+        paymentCount: paymentCount!.total,
         currentMonthSource: await this.subscriptions.currentMonthSource(id, now),
         grants: await selectGrants(this.connection.db, sql`g.user_id = ${id}`),
         overrides: await selectOverrides(this.connection.db, now, sql`o.user_id = ${id}`),

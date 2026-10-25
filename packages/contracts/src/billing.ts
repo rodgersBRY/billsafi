@@ -76,8 +76,12 @@ export interface BillingOverview {
     renewalDue: boolean;
   };
   pendingPayment: SubscriptionPayment | null;
+  /**
+   * Settled payments and grants together make up the latest 20 history entries; merge
+   * them by date (a payment's confirmedAt, else createdAt) to show them in order.
+   */
   payments: SubscriptionPayment[];
-  /** Pro months and invoice credits Billsafi gave at no charge, newest first. */
+  /** Pro months and invoice credits BillSafi gave at no charge, newest first. */
   grants: BillingGrant[];
 }
 

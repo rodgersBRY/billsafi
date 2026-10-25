@@ -322,6 +322,12 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
             <p className="text-xs text-sub">
               {shared}. Resets {formatInstant(usage.periodEnd)}.
             </p>
+            {usage.extraInvoices > 0 && usage.extraEndsAt && (
+              <p className="mt-1.5 text-xs text-sub">
+                BillSafi raised your limit from {usage.planLimit} to {usage.limit} until{" "}
+                {formatInstant(usage.extraEndsAt)}.
+              </p>
+            )}
             {usage.credits > 0 && (
               <p className="mt-1.5 text-xs text-sub">
                 Plus {usage.credits} invoice credits, used after the plan allowance runs out.

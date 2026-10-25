@@ -41,6 +41,7 @@ const {
   subscriptionReminders,
   users,
   accountGrants,
+  adminIdempotencyKeys,
 } = schema;
 
 type PaymentRow = typeof subscriptionPayments.$inferSelect;
@@ -50,6 +51,10 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const PENDING_WINDOW_MS = 2 * 60 * 1000;
 /** Ask Daraja directly once a callback is this late. */
 const QUERY_AFTER_MS = 20 * 1000;
+/** Billing history entries (payments and grants together) on the Billing page. */
+const HISTORY_LENGTH = 20;
+/** Admin Idempotency-Key rows are kept this long. */
+const IDEMPOTENCY_KEY_DAYS = 30;
 /** Give up on a request Daraja still cannot report on after a day. */
 const ABANDON_AFTER_MS = DAY_MS;
 
@@ -160,22 +165,18 @@ export class BillingService {
       .select()
       .from(subscriptions)
       .where(eq(subscriptions.userId, userId));
-    const recent = await this.db
+    const [pending] = await this.db
       .select()
       .from(subscriptionPayments)
-      .where(eq(subscriptionPayments.userId, userId))
+      .where(
+        and(eq(subscriptionPayments.userId, userId), eq(subscriptionPayments.status, "pending")),
+      )
       .orderBy(desc(subscriptionPayments.createdAt))
-      .limit(20);
-    const grants = await this.db
-      .select()
-      .from(accountGrants)
-      .where(eq(accountGrants.userId, userId))
-      .orderBy(desc(accountGrants.createdAt))
-      .limit(20);
+      .limit(1);
+    const history = await this.history(userId);
     const until = subscription ? paidThrough(subscription) : null;
     const active = until !== null && at < until;
     const cancelled = active && subscription!.cancelledAt !== null;
-    const pending = recent.find((payment) => payment.status === "pending");
     return {
       usage: await this.allowance.usageFor(this.db, userId, subscription ?? null, at),
       prices: planPrices(await this.rates.usdKes()),
@@ -187,8 +188,49 @@ export class BillingService {
           active && !cancelled && until.getTime() - at.getTime() <= REMINDER_DAYS_BEFORE * DAY_MS,
       },
       pendingPayment: pending ? toPayment(pending) : null,
-      payments: recent.filter((payment) => payment.status !== "pending").map(toPayment),
-      grants: grants.map(toGrant),
+      ...history,
+    };
+  }
+
+  /**
+   * The latest 20 entries of the account's billing history: settled payments and grants
+   * together, newest first by the date the page shows (toPayment's confirmedAt, else the
+   * creation time). The top 20 of each list is enough to find the top 20 of both.
+   */
+  private async history(userId: string) {
+    const shownAt = sql`coalesce(case when ${subscriptionPayments.provider} = ${schema.MANUAL_PROVIDER}
+      then ${subscriptionPayments.paidAt} else ${subscriptionPayments.confirmedAt} end,
+      ${subscriptionPayments.createdAt})`;
+    const payments = (
+      await this.db
+        .select()
+        .from(subscriptionPayments)
+        .where(
+          and(
+            eq(subscriptionPayments.userId, userId),
+            sql`${subscriptionPayments.status} <> 'pending'`,
+          ),
+        )
+        .orderBy(desc(shownAt), desc(subscriptionPayments.id))
+        .limit(HISTORY_LENGTH)
+    ).map(toPayment);
+    const grants = (
+      await this.db
+        .select()
+        .from(accountGrants)
+        .where(eq(accountGrants.userId, userId))
+        .orderBy(desc(accountGrants.createdAt), desc(accountGrants.id))
+        .limit(HISTORY_LENGTH)
+    ).map(toGrant);
+    const timeline = [
+      ...payments.map((payment) => ({ at: payment.confirmedAt ?? payment.createdAt, payment })),
+      ...grants.map((grant) => ({ at: grant.createdAt, grant })),
+    ]
+      .sort((a, b) => b.at.localeCompare(a.at))
+      .slice(0, HISTORY_LENGTH);
+    return {
+      payments: timeline.flatMap((entry) => ("payment" in entry ? [entry.payment] : [])),
+      grants: timeline.flatMap((entry) => ("grant" in entry ? [entry.grant] : [])),
     };
   }
 
@@ -358,6 +400,19 @@ export class BillingService {
       )
       .limit(50);
     for (const payment of stale) await this.refresh(payment, at);
+  }
+
+  /**
+   * Deletes admin Idempotency-Key rows older than 30 days: a retry never comes that late,
+   * and the payment or grant they point to is kept. Runs with the billing jobs.
+   */
+  async pruneIdempotencyKeys(at = new Date()): Promise<number> {
+    const cutoff = new Date(at.getTime() - IDEMPOTENCY_KEY_DAYS * DAY_MS);
+    const deleted = await this.db
+      .delete(adminIdempotencyKeys)
+      .where(sql`${adminIdempotencyKeys.createdAt} < ${cutoff.toISOString()}`)
+      .returning({ key: adminIdempotencyKeys.key });
+    return deleted.length;
   }
 
   /** Sends each renewal reminder once per expiry date (D051). */
