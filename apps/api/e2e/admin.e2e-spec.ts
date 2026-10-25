@@ -888,6 +888,7 @@ describe("admin", () => {
       );
       expect(subscribed).toMatchObject({
         owner: { name: `subscribed ${tag}`, email: expect.stringContaining(`${tag}-subscribed`) },
+        role: "user",
         businesses: { firstName: "Seeded Studio", count: 1 },
         plan: { code: "pro", label: "Pro", proUntil: expect.any(String) },
         readyInvoices: 1,
@@ -905,6 +906,11 @@ describe("admin", () => {
       // A lapsed account is on Free again.
       const lapsed = body.tenants.find((tenant: { id: string }) => tenant.id === ids.lapsed);
       expect(lapsed.plan).toEqual({ code: "free", label: "Free", proUntil: null });
+    });
+
+    it("marks admin accounts in the list, so the row menu can refuse to suspend them", async () => {
+      const { body } = await admin(`tenants?search=${adminId}`).expect(200);
+      expect(body.tenants).toEqual([expect.objectContaining({ id: adminId, role: "admin" })]);
     });
 
     it.each([

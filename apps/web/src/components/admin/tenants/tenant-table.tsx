@@ -4,6 +4,7 @@ import { formatCount, formatDay, formatInstant } from "../admin-format";
 import { ClickableRow } from "../admin-link";
 import { tenantHref } from "../admin-params";
 import { accountActionBlock } from "../account-actions";
+import { ActionHost } from "../action-host";
 import { type Column, DataTable, tdClass } from "../data-table";
 import { StatusBadge } from "../status-badge";
 import { TenantRowMenu } from "./tenant-row-menu";
@@ -34,7 +35,10 @@ function Menu({ tenant, selfId }: { tenant: AdminTenantRow; selfId: string }) {
       target={{ id: tenant.id, name: tenant.owner.name, email: tenant.owner.email }}
       href={tenantHref(tenant.id)}
       accountStatus={tenant.accountStatus}
-      blocked={accountActionBlock({ isSelf: tenant.id === selfId })}
+      blocked={accountActionBlock({
+        isSelf: tenant.id === selfId,
+        isAdmin: tenant.role === "admin",
+      })}
     />
   );
 }
@@ -58,8 +62,7 @@ function TenantCards({ tenants, selfId }: Omit<TenantTableProps, "sort" | "sortH
               <StatusBadge kind="lifecycle" value={tenant.lifecycleStage} labelled />
             </div>
             <p className="mt-2 text-xs text-sub">
-              {planText(tenant.plan)}. Last activity{" "}
-              {lastActivityText(tenant.lastMeaningfulActivityAt)}.
+              {planText(tenant.plan)}. {activityLine(tenant.lastMeaningfulActivityAt)}.
             </p>
           </div>
           <Menu tenant={tenant} selfId={selfId} />
@@ -69,61 +72,67 @@ function TenantCards({ tenants, selfId }: Omit<TenantTableProps, "sort" | "sortH
   );
 }
 
-/** The tenants directory: a sortable table, and cards on phones. */
+function activityLine(iso: string | null): string {
+  return iso ? `Last active ${lastActivityText(iso)}` : "No activity yet";
+}
+
+/** The tenants directory: a sortable table, and cards on phones, sharing one confirm dialog. */
 export function TenantTable({ tenants, selfId, sort, sortHref }: TenantTableProps) {
   return (
-    <DataTable
-      caption="Tenants"
-      columns={columns}
-      sort={sort}
-      sortHref={sortHref}
-      mobile={<TenantCards tenants={tenants} selfId={selfId} />}
-    >
-      {tenants.map((tenant) => (
-        <ClickableRow key={tenant.id} href={tenantHref(tenant.id)}>
-          <td className={`${tdClass} max-w-72 min-w-60`}>
-            <Link
-              href={tenantHref(tenant.id)}
-              className="font-medium break-words hover:text-accent hover:underline focus-visible:outline-2 focus-visible:outline-accent"
-            >
-              {tenant.owner.name}
-            </Link>
-            <p className="text-xs break-all text-sub">{tenant.owner.email}</p>
-            <p className="text-xs break-words text-sub">{businessText(tenant)}</p>
-          </td>
-          <td className={`${tdClass} whitespace-nowrap`}>{planText(tenant.plan)}</td>
-          <td className={tdClass}>
-            <StatusBadge kind="account" value={tenant.accountStatus} />
-          </td>
-          <td className={tdClass}>
-            <StatusBadge kind="subscription" value={tenant.subscriptionStatus} />
-          </td>
-          <td className={tdClass}>
-            <StatusBadge kind="lifecycle" value={tenant.lifecycleStage} />
-          </td>
-          <td className={`${tdClass} whitespace-nowrap text-sub`}>
-            {formatDay(tenant.registeredAt)}
-          </td>
-          <td className={`${tdClass} whitespace-nowrap text-sub`}>
-            {tenant.lastMeaningfulActivityAt ? (
-              <time
-                dateTime={tenant.lastMeaningfulActivityAt}
-                title={formatInstant(tenant.lastMeaningfulActivityAt)}
+    <ActionHost>
+      <DataTable
+        caption="Tenants"
+        columns={columns}
+        sort={sort}
+        sortHref={sortHref}
+        mobile={<TenantCards tenants={tenants} selfId={selfId} />}
+      >
+        {tenants.map((tenant) => (
+          <ClickableRow key={tenant.id} href={tenantHref(tenant.id)}>
+            <td className={`${tdClass} max-w-72 min-w-60`}>
+              <Link
+                href={tenantHref(tenant.id)}
+                className="font-medium break-words hover:text-accent hover:underline focus-visible:outline-2 focus-visible:outline-accent"
               >
-                {lastActivityText(tenant.lastMeaningfulActivityAt)}
-              </time>
-            ) : (
-              lastActivityText(null)
-            )}
-          </td>
-          <td className={`${tdClass} text-right tabular-nums`}>
-            {formatCount(tenant.readyInvoices)}
-          </td>
-          <td className={`${tdClass} py-1.5 text-right`}>
-            <Menu tenant={tenant} selfId={selfId} />
-          </td>
-        </ClickableRow>
-      ))}
-    </DataTable>
+                {tenant.owner.name}
+              </Link>
+              <p className="text-xs break-all text-sub">{tenant.owner.email}</p>
+              <p className="text-xs break-words text-sub">{businessText(tenant)}</p>
+            </td>
+            <td className={`${tdClass} whitespace-nowrap`}>{planText(tenant.plan)}</td>
+            <td className={tdClass}>
+              <StatusBadge kind="account" value={tenant.accountStatus} />
+            </td>
+            <td className={tdClass}>
+              <StatusBadge kind="subscription" value={tenant.subscriptionStatus} />
+            </td>
+            <td className={tdClass}>
+              <StatusBadge kind="lifecycle" value={tenant.lifecycleStage} />
+            </td>
+            <td className={`${tdClass} whitespace-nowrap text-sub`}>
+              {formatDay(tenant.registeredAt)}
+            </td>
+            <td className={`${tdClass} whitespace-nowrap text-sub`}>
+              {tenant.lastMeaningfulActivityAt ? (
+                <time
+                  dateTime={tenant.lastMeaningfulActivityAt}
+                  title={formatInstant(tenant.lastMeaningfulActivityAt)}
+                >
+                  {lastActivityText(tenant.lastMeaningfulActivityAt)}
+                </time>
+              ) : (
+                lastActivityText(null)
+              )}
+            </td>
+            <td className={`${tdClass} text-right tabular-nums`}>
+              {formatCount(tenant.readyInvoices)}
+            </td>
+            <td className={`${tdClass} py-1.5 text-right`}>
+              <Menu tenant={tenant} selfId={selfId} />
+            </td>
+          </ClickableRow>
+        ))}
+      </DataTable>
+    </ActionHost>
   );
 }

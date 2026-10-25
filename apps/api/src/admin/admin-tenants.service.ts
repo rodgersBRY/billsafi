@@ -179,6 +179,7 @@ export class AdminTenantsService {
     return {
       id: row.id,
       owner: { name: row.name, email: row.email },
+      role: toAdminRole(row.role),
       businesses: { firstName: row.firstBusinessName, count: row.businessCount },
       plan: pro ? proPlan(row.proEndsAt!) : FREE_ADMIN_PLAN,
       accountStatus: row.accountStatus,

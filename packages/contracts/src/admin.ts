@@ -335,6 +335,8 @@ export interface AdminTenantRow {
   /** The account id, which is the owner's user id. */
   id: string;
   owner: { name: string; email: string };
+  /** The owner's platform role; admins can't be suspended. */
+  role: AdminRole;
   /** The first business by creation date, and how many the account has. */
   businesses: { firstName: string | null; count: number };
   plan: AdminPlan;
