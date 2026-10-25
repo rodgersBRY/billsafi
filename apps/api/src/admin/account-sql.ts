@@ -6,7 +6,8 @@ import { at } from "./admin-sql.js";
  * The account statuses from @billsafi/domain (account-status.ts) as SQL, so the tenants
  * directory can filter, sort and page on them. Every admin page that shows a status or
  * "last meaningful activity" uses these, and the admin e2e suite checks they agree with
- * the domain functions, including the Pro rule (proPeriodAt).
+ * the domain functions, including the Pro rule (proPeriodAt). The Pro end date comes from
+ * `subscriptions.paid_until`, written by BillingService with addNairobiMonths.
  *
  * Day windows are written as hours (24 * N): with a daylight-saving session time zone,
  * "N days" on a timestamptz would follow the wall clock and shift the window by an hour.
@@ -16,6 +17,10 @@ import { at } from "./admin-sql.js";
  * End of the latest run of paid months, or null with none paid. Same as the domain's
  * addNairobiMonths: Postgres adds months to the Nairobi wall-clock time and clamps a
  * missing day to the month's last day, keeping the anchor day for longer runs.
+ *
+ * Admin queries read the stored `subscriptions.paid_until` instead, which only billing
+ * writes. This is the expression migration 0010 backfilled that column with, kept so the
+ * e2e suite keeps proving it matches the domain function.
  */
 export function proEndsAtSql(anchorAt: SQL, paidMonths: SQL): SQL {
   return sql`case when ${anchorAt} is not null and ${paidMonths} > 0 then

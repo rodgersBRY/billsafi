@@ -69,6 +69,16 @@ function planPrices(rate: UsdKesRate | null): PlanPrices {
   };
 }
 
+/** A Pro extension applied by BillingService.extendPro. */
+export interface ProExtension {
+  /** activated: a new run from now; renewed: added to the active run. */
+  kind: "activated" | "renewed";
+  grantedFrom: Date;
+  grantedUntil: Date;
+  /** The subscription row after the change. */
+  subscription: SubscriptionRow;
+}
+
 export function paidThrough(subscription: SubscriptionRow): Date | null {
   return subscription.anchorAt
     ? addNairobiMonths(subscription.anchorAt, subscription.paidMonths)
@@ -439,27 +449,14 @@ export class BillingService {
             creditsGranted: CREDIT_PACK.invoices,
           })
           .where(eq(subscriptionPayments.id, payment.id));
-        await tx.insert(subscriptionEvents).values({
-          subscriptionId: subscription.id,
-          kind: "credits_added",
+        await this.recordCreditsAdded(tx, subscription.id, CREDIT_PACK.invoices, {
           paymentId: payment.id,
-          details: { credits: CREDIT_PACK.invoices },
         });
         return;
       }
 
-      // Each Pro payment buys one month: from the current expiry while active,
-      // or from now as a new anniversary anchor after expiry (D044, D051).
-      const until = paidThrough(subscription);
-      const active = until !== null && now < until;
-      const anchorAt = active ? subscription.anchorAt! : now;
-      const paidMonths = active ? subscription.paidMonths + 1 : 1;
-      const grantedFrom = active ? until : now;
-      const grantedUntil = addNairobiMonths(anchorAt, paidMonths);
-      await tx
-        .update(subscriptions)
-        .set({ anchorAt, paidMonths, cancelledAt: null })
-        .where(eq(subscriptions.id, subscription.id));
+      // Each Pro payment buys one month (D044, D051).
+      const extension = await this.extendPro(tx, subscription, 1, now);
       await tx
         .update(subscriptionPayments)
         .set({
@@ -467,19 +464,89 @@ export class BillingService {
           receipt: outcome.receipt ?? null,
           resultCode: "0",
           confirmedAt: now,
-          grantedFrom,
-          grantedUntil,
+          grantedFrom: extension.grantedFrom,
+          grantedUntil: extension.grantedUntil,
         })
         .where(eq(subscriptionPayments.id, payment.id));
-      await tx.insert(subscriptionEvents).values({
-        subscriptionId: subscription.id,
-        kind: active ? "renewed" : "activated",
-        paymentId: payment.id,
-        details: {
-          grantedFrom: grantedFrom.toISOString(),
-          grantedUntil: grantedUntil.toISOString(),
-        },
-      });
+      await this.recordProEvent(tx, subscription.id, extension, { paymentId: payment.id });
+    });
+  }
+
+  /**
+   * Adds `months` Pro months under the account lock (taken by the caller): from the current
+   * expiry while Pro is active, or from `now` as a new anniversary anchor after it ended
+   * (D044, D051). M-Pesa payments, manual payments and admin grants all go through here, so
+   * the rule is the same whichever way Pro is added. Also writes `paidUntil`.
+   *
+   * A payment clears an earlier cancellation (D051). A gift keeps it while Pro is active,
+   * since the account said it does not want to continue; a new run always starts uncancelled.
+   */
+  async extendPro(
+    tx: Transaction,
+    subscription: SubscriptionRow,
+    months: number,
+    now: Date,
+    { clearCancellation = true }: { clearCancellation?: boolean } = {},
+  ): Promise<ProExtension> {
+    if (!Number.isInteger(months) || months < 1) throw new Error(`Invalid Pro months: ${months}`);
+    const until = paidThrough(subscription);
+    const active = until !== null && now < until;
+    const anchorAt = active ? subscription.anchorAt! : now;
+    const paidMonths = active ? subscription.paidMonths + months : months;
+    const grantedFrom = active ? until : now;
+    const grantedUntil = addNairobiMonths(anchorAt, paidMonths);
+    const [updated] = await tx
+      .update(subscriptions)
+      .set({
+        anchorAt,
+        paidMonths,
+        paidUntil: grantedUntil,
+        cancelledAt: active && !clearCancellation ? subscription.cancelledAt : null,
+      })
+      .where(eq(subscriptions.id, subscription.id))
+      .returning();
+    return {
+      kind: active ? "renewed" : "activated",
+      grantedFrom,
+      grantedUntil,
+      subscription: updated!,
+    };
+  }
+
+  /** The plan history row for a Pro extension from a payment. */
+  async recordProEvent(
+    tx: Transaction,
+    subscriptionId: string,
+    extension: ProExtension,
+    { paymentId, details = {} }: { paymentId: string; details?: Record<string, unknown> },
+  ): Promise<void> {
+    await tx.insert(subscriptionEvents).values({
+      subscriptionId,
+      kind: extension.kind,
+      paymentId,
+      details: {
+        ...details,
+        grantedFrom: extension.grantedFrom.toISOString(),
+        grantedUntil: extension.grantedUntil.toISOString(),
+      },
+    });
+  }
+
+  /**
+   * The plan history row for credits a payment added. The balance itself is derived from
+   * the payment (or grant) rows by AllowanceService.credits, so nothing else changes here.
+   */
+  async recordCreditsAdded(
+    tx: Transaction,
+    subscriptionId: string,
+    credits: number,
+    { paymentId, details = {} }: { paymentId: string; details?: Record<string, unknown> },
+  ): Promise<void> {
+    await tx.insert(subscriptionEvents).values({
+      subscriptionId,
+      kind: "credits_added",
+      paymentId,
+      details: { ...details, credits },
     });
   }
 

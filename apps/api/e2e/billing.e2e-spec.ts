@@ -112,7 +112,7 @@ describe("billing", () => {
     const anchorAt = addNairobiMonths(end, -paidMonths);
     await db()
       .update(schema.subscriptions)
-      .set({ anchorAt, paidMonths })
+      .set({ anchorAt, paidMonths, paidUntil: end })
       .where(eq(schema.subscriptions.userId, userId));
   }
 
@@ -256,6 +256,30 @@ describe("billing", () => {
     expect(after.subscription.paidUntil).toBe(
       addNairobiMonths(new Date(before.usage.periodStart), 2).toISOString(),
     );
+  });
+
+  it("stores paid_until as the domain rule after activation, renewal and restart", async () => {
+    const account = await setup();
+    const userId = await account.userId();
+    const stored = async () => {
+      const [row] = await db()
+        .select()
+        .from(schema.subscriptions)
+        .where(eq(schema.subscriptions.userId, userId));
+      expect(row!.paidUntil).toEqual(addNairobiMonths(row!.anchorAt!, row!.paidMonths));
+      return row!;
+    };
+    await pay(account);
+    expect((await stored()).paidMonths).toBe(1);
+    await pay(account);
+    const renewed = await stored();
+    expect(renewed.paidMonths).toBe(2);
+    expect((await account.overview()).subscription.paidUntil).toBe(
+      renewed.paidUntil!.toISOString(),
+    );
+    await shiftAccess(userId, -60_000);
+    await pay(account);
+    expect((await stored()).paidMonths).toBe(1);
   });
 
   it("starts a new anniversary after expiry and carries only Free usage", async () => {

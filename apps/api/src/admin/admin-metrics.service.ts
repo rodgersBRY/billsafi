@@ -19,17 +19,7 @@ import {
   money,
 } from "@billsafi/domain";
 import { DATABASE } from "../database/database.module.js";
-import {
-  at,
-  DAY_MS,
-  fromUtc,
-  hasGoogle,
-  iso,
-  planAt,
-  ratio,
-  selectRows,
-  utcAt,
-} from "./admin-sql.js";
+import { at, DAY_MS, fromUtc, hasGoogle, iso, ratio, selectRows, utcAt } from "./admin-sql.js";
 
 const WEEK_MS = 7 * DAY_MS;
 
@@ -132,19 +122,13 @@ export class AdminMetricsService {
     };
   }
 
-  /** Accounts with Pro access now, decided by the shared `proPeriodAt` rule. */
+  /** Accounts with Pro access now: anchor <= now < paid_until, as proPeriodAt decides. */
   private async payingAccounts(now: Date): Promise<number> {
-    const subscriptions = await this.rows<{ anchorAt: string; paidMonths: number }>(sql`
-      select ${iso(sql`anchor_at`)} as "anchorAt", paid_months as "paidMonths"
-      from subscriptions
-      where anchor_at is not null and paid_months > 0
-        -- A loose prefilter (a month of slack for day clamping); proPeriodAt decides.
-        and anchor_at <= ${at(now)}
-        and anchor_at + make_interval(months => paid_months + 1) > ${at(now)}
+    const [row] = await this.rows<{ total: number }>(sql`
+      select count(*)::int as total from subscriptions
+      where anchor_at <= ${at(now)} and paid_until > ${at(now)}
     `);
-    return subscriptions.filter(
-      (row) => planAt(new Date(row.anchorAt), row.paidMonths, now).code === "pro",
-    ).length;
+    return row!.total;
   }
 
   /**

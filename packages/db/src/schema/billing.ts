@@ -32,11 +32,23 @@ export const subscriptions = pgTable(
     /** Start of the current run of paid months; replaced when Pro restarts after expiry. */
     anchorAt: timestamp("anchor_at", { withTimezone: true }),
     paidMonths: integer("paid_months").notNull().default(0),
+    /**
+     * When the latest run of paid months ends: addNairobiMonths(anchorAt, paidMonths).
+     * Only the billing service writes it, every time it changes the anchor or months, so
+     * admin SQL can read one stored value instead of repeating the Pro rule.
+     */
+    paidUntil: timestamp("paid_until", { withTimezone: true }),
     /** Set while the account has asked not to continue after paid access (D044). */
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     ...timestamps(),
   },
-  (table) => [check("subscriptions_paid_months", sql`${table.paidMonths} >= 0`)],
+  (table) => [
+    check("subscriptions_paid_months", sql`${table.paidMonths} >= 0`),
+    check(
+      "subscriptions_paid_until",
+      sql`(${table.anchorAt} is null) = (${table.paidUntil} is null)`,
+    ),
+  ],
 );
 
 export const subscriptionPurpose = pgEnum("subscription_purpose", ["pro_month", "invoice_credits"]);

@@ -669,7 +669,10 @@ describe("admin", () => {
         set created_at = ${t("05:50")}::timestamptz, confirmed_at = ${t("05:51")}::timestamptz
         where user_id = ${payingId}`);
       await db().execute(sql`
-        update subscriptions set anchor_at = ${t("05:51")}::timestamptz where user_id = ${payingId}`);
+        update subscriptions
+        set anchor_at = ${t("05:51")}::timestamptz,
+          paid_until = ${addNairobiMonths(new Date(t("05:51")), 1).toISOString()}::timestamptz
+        where user_id = ${payingId}`);
 
       const after = await metrics().overview(now);
       const signups = { total: 2, google: 1, email: 1 };
@@ -753,11 +756,17 @@ describe("admin", () => {
       sql`update users set created_at = (${instant.toISOString()}::timestamptz at time zone 'UTC') where id = ${id}`,
     );
   const daysAgo = (days: number) => new Date(Date.now() - days * DAY_MS);
-  const setSubscription = (id: string, anchorAt: Date, paidMonths: number) =>
-    db()
+  const setSubscription = (id: string, anchorAt: Date, paidMonths: number) => {
+    // Billing always writes paid_until with the anchor and months; tests must too.
+    const paidUntil = addNairobiMonths(anchorAt, paidMonths);
+    return db()
       .insert(schema.subscriptions)
-      .values({ userId: id, anchorAt, paidMonths })
-      .onConflictDoUpdate({ target: schema.subscriptions.userId, set: { anchorAt, paidMonths } });
+      .values({ userId: id, anchorAt, paidMonths, paidUntil })
+      .onConflictDoUpdate({
+        target: schema.subscriptions.userId,
+        set: { anchorAt, paidMonths, paidUntil },
+      });
+  };
   const act = (
     path: string,
     body: object = { reason: "Checked with the owner" },

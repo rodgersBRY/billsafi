@@ -24,7 +24,6 @@ import {
   lastMeaningfulActivitySql,
   lifecycleStageSql,
   proAccessSql,
-  proEndsAtSql,
   subscriptionStatusSql,
 } from "./account-sql.js";
 import { AdminAuditService } from "./admin-audit.service.js";
@@ -98,7 +97,7 @@ export class AdminTenantsService {
           u.id, u.name, u.email, u.email_verified, u.role, u.banned, u.ban_reason,
           ${fromUtc(sql`u.created_at`)} as registered_at,
           s.anchor_at, coalesce(s.paid_months, 0) as paid_months, s.cancelled_at,
-          ${proEndsAtSql(sql`s.anchor_at`, sql`s.paid_months`)} as pro_ends_at,
+          s.paid_until as pro_ends_at,
           b.business_count, b.first_business_name,
           (select count(*) from invoice_issuances ii where ii.user_id = u.id)::int as ready_invoices,
           ${lastMeaningfulActivitySql(sql`u.id`)} as last_activity_at
