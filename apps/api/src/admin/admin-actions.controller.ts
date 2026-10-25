@@ -1,5 +1,6 @@
 import { Body, Controller, HttpCode, Param, Post, Req, UseGuards } from "@nestjs/common";
 import {
+  type AdminActionAck,
   type AdminActionBody,
   adminActionBodySchema,
   type AdminTenantRow,
@@ -45,7 +46,7 @@ export class AdminActionsController {
     @Param("id", new UuidParamPipe("Tenant")) id: string,
     @Body(new ZodValidationPipe(adminActionBodySchema)) body: AdminActionBody,
     @Req() request: AdminActionRequest,
-  ): Promise<AdminTenantRow> {
+  ): Promise<AdminTenantRow | AdminActionAck> {
     return this.actions.suspendTenant(actionContext(request, body), id);
   }
 
@@ -55,7 +56,7 @@ export class AdminActionsController {
     @Param("id", new UuidParamPipe("Tenant")) id: string,
     @Body(new ZodValidationPipe(adminActionBodySchema)) body: AdminActionBody,
     @Req() request: AdminActionRequest,
-  ): Promise<AdminTenantRow> {
+  ): Promise<AdminTenantRow | AdminActionAck> {
     return this.actions.reactivateTenant(actionContext(request, body), id);
   }
 
@@ -66,7 +67,7 @@ export class AdminActionsController {
     @Param("id", new UuidParamPipe("User")) id: string,
     @Body(new ZodValidationPipe(adminActionBodySchema)) body: AdminActionBody,
     @Req() request: AdminActionRequest,
-  ): Promise<AdminUserRow> {
+  ): Promise<AdminUserRow | AdminActionAck> {
     return this.actions.revokeSessions(actionContext(request, body), id);
   }
 }

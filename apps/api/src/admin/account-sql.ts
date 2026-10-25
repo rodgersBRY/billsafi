@@ -7,6 +7,9 @@ import { at } from "./admin-sql.js";
  * directory can filter, sort and page on them. Every admin page that shows a status or
  * "last meaningful activity" uses these, and the admin e2e suite checks they agree with
  * the domain functions, including the Pro rule (proPeriodAt).
+ *
+ * Day windows are written as hours (24 * N): with a daylight-saving session time zone,
+ * "N days" on a timestamptz would follow the wall clock and shift the window by an hour.
  */
 
 /**
@@ -48,7 +51,7 @@ export function accountStatusSql(banned: SQL): SQL<string> {
 
 export function subscriptionStatusSql(proAccess: SQL, proEndsAt: SQL, now: Date): SQL<string> {
   return sql<string>`(case
-    when ${proAccess} and ${proEndsAt} <= ${at(now)} + make_interval(days => ${PRO_ENDING_WITHIN_DAYS})
+    when ${proAccess} and ${proEndsAt} <= ${at(now)} + make_interval(hours => ${24 * PRO_ENDING_WITHIN_DAYS})
       then 'pro_ending'
     when ${proAccess} then 'pro'
     when ${proEndsAt} is not null and ${proEndsAt} <= ${at(now)} then 'lapsed'
@@ -61,7 +64,7 @@ export function lifecycleStageSql(
   facts: { proAccess: SQL; businesses: SQL; readyInvoices: SQL; lastActivityAt: SQL },
   now: Date,
 ): SQL<string> {
-  const cutoff = sql`${at(now)} - make_interval(days => ${INACTIVE_AFTER_DAYS})`;
+  const cutoff = sql`${at(now)} - make_interval(hours => ${24 * INACTIVE_AFTER_DAYS})`;
   return sql<string>`(case
     when ${facts.proAccess} then 'subscribed'
     when ${facts.readyInvoices} > 0

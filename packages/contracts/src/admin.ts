@@ -36,6 +36,14 @@ export const reasonSchema = z
 export const adminActionBodySchema = z.object({ reason: reasonSchema });
 export type AdminActionBody = z.output<typeof adminActionBodySchema>;
 
+/**
+ * An action normally answers with the fresh tenant or user row. If the change committed
+ * but reading that row back failed, it answers this instead; reload to see the result.
+ */
+export interface AdminActionAck {
+  ok: true;
+}
+
 export const adminFunnelQuerySchema = z.object({
   days: z.coerce.number().pipe(z.literal(adminFunnelDays)).default(30),
 });

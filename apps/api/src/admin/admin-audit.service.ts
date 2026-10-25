@@ -8,6 +8,7 @@ import {
 import { type DatabaseConnection, type SQL, sql } from "@billsafi/db";
 import { DATABASE } from "../database/database.module.js";
 import { iso, selectRows } from "./admin-sql.js";
+import { maskIpAddress } from "./session-display.js";
 
 /** Rows about one account, whichever side they were recorded against. */
 const ACCOUNT_TARGET_TYPES = ["account", "user"];
@@ -23,8 +24,12 @@ function nairobiDayStart(date: string): Date {
 export class AdminAuditService {
   constructor(@Inject(DATABASE) private readonly connection: DatabaseConnection) {}
 
-  private select(where: SQL, limit: number, offset = 0): Promise<AdminAuditRow[]> {
-    return selectRows<AdminAuditRow>(
+  /**
+   * The IP address is truncated like session addresses on every admin read. The table
+   * keeps the full address for forensics; only direct database access sees it.
+   */
+  private async select(where: SQL, limit: number, offset = 0): Promise<AdminAuditRow[]> {
+    const rows = await selectRows<AdminAuditRow>(
       this.connection.db,
       sql`
         select
@@ -42,6 +47,7 @@ export class AdminAuditService {
         limit ${limit} offset ${offset}
       `,
     );
+    return rows.map((row) => ({ ...row, ipAddress: maskIpAddress(row.ipAddress) }));
   }
 
   /** The newest rows about this account or its user (the same id). */
