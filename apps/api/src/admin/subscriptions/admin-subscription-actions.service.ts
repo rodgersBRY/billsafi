@@ -19,20 +19,20 @@ import {
   proPeriodAt,
   subscriptionStatus,
 } from "@billsafi/domain";
-import { AllowanceService, type SubscriptionRow } from "../billing/allowance.service.js";
-import { BillingService, type ProExtension } from "../billing/billing.service.js";
-import { DATABASE } from "../database/database.module.js";
-import type { Transaction } from "../database/transaction.js";
+import { AllowanceService, type SubscriptionRow } from "../../billing/allowance.service.js";
+import { BillingService, type ProExtension } from "../../billing/billing.service.js";
+import { DATABASE } from "../../database/database.module.js";
+import type { Transaction } from "../../database/transaction.js";
 import {
   type ActionOutcome,
   type ActionTarget,
   type AdminActionContext,
-  AdminActionsService,
+  AdminActionRunner,
   conflict,
   UnauditedRefusal,
-} from "./admin-actions.service.js";
-import { selectOverrides } from "./admin-overrides.js";
-import { planAt } from "./admin-sql.js";
+} from "../shared/admin-action-runner.js";
+import { selectOverrides } from "./overrides.js";
+import { planAt } from "../shared/admin-sql.js";
 
 const {
   subscriptionPayments,
@@ -99,7 +99,7 @@ interface KeySteps<T> {
 
 /**
  * Admin actions on an account's plan (super admin phase 3): manual payments, gifts,
- * ending Pro and limit overrides. Each runs through AdminActionsService.performWith, so it
+ * ending Pro and limit overrides. Each runs through AdminActionRunner.performWith, so it
  * is audited the same way as the phase 1 actions, and takes the user row lock and then the
  * account's subscription lock (AllowanceService.lockAccount) before changing anything.
  * Pro months always go through BillingService.extendPro.
@@ -108,7 +108,7 @@ interface KeySteps<T> {
 export class AdminSubscriptionActionsService {
   constructor(
     @Inject(DATABASE) private readonly connection: DatabaseConnection,
-    private readonly actions: AdminActionsService,
+    private readonly actions: AdminActionRunner,
     private readonly billing: BillingService,
     private readonly allowance: AllowanceService,
   ) {}

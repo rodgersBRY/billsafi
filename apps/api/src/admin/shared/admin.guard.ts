@@ -6,8 +6,8 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { type DatabaseConnection, eq, schema } from "@billsafi/db";
-import type { AuthenticatedRequest } from "../common/current-user.js";
-import { DATABASE } from "../database/database.module.js";
+import type { AuthenticatedRequest } from "../../common/current-user.js";
+import { DATABASE } from "../../database/database.module.js";
 
 type AdminRequest = Partial<AuthenticatedRequest> & { method: string; originalUrl: string };
 

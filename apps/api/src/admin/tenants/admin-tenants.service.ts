@@ -15,21 +15,21 @@ import {
 } from "@billsafi/contracts";
 import { type DatabaseConnection, desc, eq, schema, type SQL, sql } from "@billsafi/db";
 import { maskPhone } from "@billsafi/domain";
-import { AllowanceService } from "../billing/allowance.service.js";
-import { containsPattern } from "../common/like-pattern.js";
-import { DATABASE } from "../database/database.module.js";
+import { AllowanceService } from "../../billing/allowance.service.js";
+import { containsPattern } from "../../common/like-pattern.js";
+import { DATABASE } from "../../database/database.module.js";
 import {
   accountStatusSql,
   lastMeaningfulActivitySql,
   lifecycleStageSql,
   proAccessSql,
   subscriptionStatusSql,
-} from "./account-sql.js";
-import { AdminAuditService } from "./admin-audit.service.js";
-import { selectGrants } from "./admin-grants.js";
-import { selectOverrides } from "./admin-overrides.js";
-import { AdminSubscriptionsService } from "./admin-subscriptions.service.js";
-import { planPaymentColumns, toAdminPlanPayment } from "./admin-payments.js";
+} from "../shared/account-sql.js";
+import { AdminAuditService } from "../audit/admin-audit.service.js";
+import { selectGrants } from "../subscriptions/grants.js";
+import { selectOverrides } from "../subscriptions/overrides.js";
+import { AdminSubscriptionsService } from "../subscriptions/admin-subscriptions.service.js";
+import { planPaymentColumns, toAdminPlanPayment } from "../subscriptions/payments.js";
 import {
   at,
   DAY_MS,
@@ -41,7 +41,7 @@ import {
   selectRows,
   signInMethods,
   toAdminRole,
-} from "./admin-sql.js";
+} from "../shared/admin-sql.js";
 
 const { subscriptionPayments, users } = schema;
 

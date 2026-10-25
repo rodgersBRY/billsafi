@@ -9,10 +9,10 @@ import {
   schema,
   sql,
 } from "@billsafi/db";
-import { AuditService } from "../audit/audit.service.js";
-import { ENV } from "../config/config.module.js";
-import type { Env } from "../config/env.js";
-import { DATABASE } from "../database/database.module.js";
+import { AuditService } from "../../audit/audit.service.js";
+import { ENV } from "../../config/config.module.js";
+import type { Env } from "../../config/env.js";
+import { DATABASE } from "../../database/database.module.js";
 
 /** Arbitrary constant: one advisory lock key reserved for this sync. */
 const ROLE_SYNC_LOCK = 4_217_001;

@@ -1,8 +1,8 @@
 import type { AdminGrantRow } from "@billsafi/contracts";
 import { type SQL, sql } from "@billsafi/db";
-import type { Executor } from "../database/transaction.js";
-import { windowEndSql } from "./account-sql.js";
-import { iso } from "./admin-sql.js";
+import type { Executor } from "../../database/transaction.js";
+import { windowEndSql } from "../shared/account-sql.js";
+import { iso } from "../shared/admin-sql.js";
 
 interface GrantSqlRow extends Omit<AdminGrantRow, "grantedBy"> {
   grantedById: string;

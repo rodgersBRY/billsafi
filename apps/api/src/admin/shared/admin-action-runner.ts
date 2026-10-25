@@ -6,14 +6,11 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import type { AdminActionAck, AdminTenantRow, AdminUserRow } from "@billsafi/contracts";
+import type { AdminActionAck } from "@billsafi/contracts";
 import { type DatabaseConnection, eq, schema } from "@billsafi/db";
-import { type AuditRequest, AuditService } from "../audit/audit.service.js";
-import { DATABASE } from "../database/database.module.js";
-import type { Transaction } from "../database/transaction.js";
-import { AccountAccessService } from "./account-access.service.js";
-import { AdminTenantsService } from "./admin-tenants.service.js";
-import { AdminUsersService } from "./admin-users.service.js";
+import { type AuditRequest, AuditService } from "../../audit/audit.service.js";
+import { DATABASE } from "../../database/database.module.js";
+import type { Transaction } from "../../database/transaction.js";
 import { ADMIN_CACHE, type TtlCache } from "./ttl-cache.js";
 
 /** Who is acting, why, and the request it came from. */
@@ -55,97 +52,26 @@ function describeError(error: unknown) {
 }
 
 /**
- * Admin actions that change accounts. Each one checks its preconditions under a row lock,
- * makes the change and writes the success audit row in the same transaction. Anything
- * that stops it, a refusal included, rolls the change back and writes a failure row.
+ * Runs admin actions that change accounts. Each one checks its preconditions under a row
+ * lock, makes the change and writes the success audit row in the same transaction.
+ * Anything that stops it, a refusal included, rolls the change back and writes a failure
+ * row.
  */
 @Injectable()
-export class AdminActionsService {
-  private readonly logger = new Logger(AdminActionsService.name);
+export class AdminActionRunner {
+  private readonly logger = new Logger(AdminActionRunner.name);
 
   constructor(
     @Inject(DATABASE) private readonly connection: DatabaseConnection,
     private readonly audit: AuditService,
-    private readonly access: AccountAccessService,
-    private readonly tenants: AdminTenantsService,
-    private readonly users: AdminUsersService,
     @Inject(ADMIN_CACHE) private readonly cache: TtlCache,
   ) {}
-
-  async suspendTenant(
-    context: AdminActionContext,
-    id: string,
-  ): Promise<AdminTenantRow | AdminActionAck> {
-    await this.perform(
-      context,
-      { action: "tenant.suspend", target: { type: "account", id } },
-      async (tx) => {
-        const user = await this.lockUser(tx, id);
-        if (id === context.adminId) {
-          throw conflict("CANNOT_SUSPEND_SELF", "You can't suspend your own account.");
-        }
-        if (user.role === "admin") {
-          throw conflict(
-            "CANNOT_SUSPEND_ADMIN",
-            "Admins can't be suspended. Remove them from ADMIN_USER_IDS and restart the API first.",
-          );
-        }
-        if (user.banned) {
-          throw conflict("ALREADY_SUSPENDED", "This account is already suspended.");
-        }
-        await this.access.suspend(id, context.reason, tx);
-        return { banned: { from: false, to: true } };
-      },
-    );
-    return this.summaryAfter(context.adminId, () => this.tenants.summary(id));
-  }
-
-  async reactivateTenant(
-    context: AdminActionContext,
-    id: string,
-  ): Promise<AdminTenantRow | AdminActionAck> {
-    await this.perform(
-      context,
-      { action: "tenant.reactivate", target: { type: "account", id } },
-      async (tx) => {
-        const user = await this.lockUser(tx, id);
-        if (!user.banned) throw conflict("NOT_SUSPENDED", "This account is not suspended.");
-        await this.access.reactivate(id, tx);
-        return { banned: { from: true, to: false } };
-      },
-    );
-    return this.summaryAfter(context.adminId, () => this.tenants.summary(id));
-  }
-
-  async revokeSessions(
-    context: AdminActionContext,
-    id: string,
-  ): Promise<AdminUserRow | AdminActionAck> {
-    await this.perform(
-      context,
-      { action: "user.revoke_sessions", target: { type: "user", id } },
-      async (tx) => {
-        await this.lockUser(tx, id);
-        // Revoking another admin's sessions stays allowed: it is the answer to a stolen
-        // admin session. Revoking your own would only sign you out mid-action.
-        if (id === context.adminId) {
-          throw conflict("CANNOT_REVOKE_SELF", "You can't revoke your own sessions here.");
-        }
-        const revoked = await this.access.revokeSessions(id, tx);
-        return { sessions: { from: revoked, to: 0 } };
-      },
-    );
-    return this.summaryAfter(context.adminId, () => this.users.summary(id));
-  }
 
   /**
    * The change has committed by now, so a failure to read the fresh row must not look
    * like a failed action: log it and answer a bare acknowledgement instead of a 500.
    */
-  private async summaryAfter<T>(
-    adminId: string,
-    load: () => Promise<T>,
-  ): Promise<T | AdminActionAck> {
+  async summaryAfter<T>(adminId: string, load: () => Promise<T>): Promise<T | AdminActionAck> {
     try {
       return await load();
     } catch (error) {
@@ -174,7 +100,7 @@ export class AdminActionsService {
     return user;
   }
 
-  private async perform(
+  async perform(
     context: AdminActionContext,
     target: ActionTarget,
     change: (tx: Transaction) => Promise<Record<string, unknown>>,

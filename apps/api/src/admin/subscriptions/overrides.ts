@@ -1,7 +1,7 @@
 import type { AdminOverrideRow, AdminOverrideState } from "@billsafi/contracts";
 import { type SQL, sql } from "@billsafi/db";
-import type { Executor } from "../database/transaction.js";
-import { at, iso } from "./admin-sql.js";
+import type { Executor } from "../../database/transaction.js";
+import { at, iso } from "../shared/admin-sql.js";
 
 /** An override's state at `now`, the same rule AllowanceService uses to count it. */
 export function overrideStateSql(now: Date): SQL<AdminOverrideState> {

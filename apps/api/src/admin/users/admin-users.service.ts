@@ -10,10 +10,17 @@ import {
 } from "@billsafi/contracts";
 import { type DatabaseConnection, type SQL, sql } from "@billsafi/db";
 import { accountStatus } from "@billsafi/domain";
-import { containsPattern } from "../common/like-pattern.js";
-import { DATABASE } from "../database/database.module.js";
-import { AdminAuditService } from "./admin-audit.service.js";
-import { fromUtc, isUuid, iso, selectRows, signInMethods, toAdminRole } from "./admin-sql.js";
+import { containsPattern } from "../../common/like-pattern.js";
+import { DATABASE } from "../../database/database.module.js";
+import { AdminAuditService } from "../audit/admin-audit.service.js";
+import {
+  fromUtc,
+  isUuid,
+  iso,
+  selectRows,
+  signInMethods,
+  toAdminRole,
+} from "../shared/admin-sql.js";
 import { maskIpAddress, summariseUserAgent } from "./session-display.js";
 
 const RECENT_SESSIONS = 10;

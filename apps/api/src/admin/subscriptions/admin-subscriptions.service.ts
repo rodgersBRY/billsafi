@@ -21,8 +21,8 @@ import {
   type PlanPaymentProvider,
 } from "@billsafi/contracts";
 import { and, type DatabaseConnection, desc, eq, schema, type SQL, sql } from "@billsafi/db";
-import { containsPattern } from "../common/like-pattern.js";
-import { DATABASE } from "../database/database.module.js";
+import { containsPattern } from "../../common/like-pattern.js";
+import { DATABASE } from "../../database/database.module.js";
 import {
   accountStatusSql,
   activeOverrideSql,
@@ -30,10 +30,10 @@ import {
   currentMonthSourceSql,
   proAccessSql,
   subscriptionStatusSql,
-} from "./account-sql.js";
-import { selectGrants } from "./admin-grants.js";
-import { overrideStateSql, selectOverrides } from "./admin-overrides.js";
-import { planPaymentColumns, toAdminPlanPayment } from "./admin-payments.js";
+} from "../shared/account-sql.js";
+import { selectGrants } from "./grants.js";
+import { overrideStateSql, selectOverrides } from "./overrides.js";
+import { planPaymentColumns, toAdminPlanPayment } from "./payments.js";
 import {
   at,
   DAY_MS,
@@ -43,7 +43,7 @@ import {
   iso,
   proPlan,
   selectRows,
-} from "./admin-sql.js";
+} from "../shared/admin-sql.js";
 
 const { subscriptionPayments, users } = schema;
 

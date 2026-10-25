@@ -6,9 +6,9 @@ import {
   type AdminAuditRow,
 } from "@billsafi/contracts";
 import { type DatabaseConnection, type SQL, sql } from "@billsafi/db";
-import { DATABASE } from "../database/database.module.js";
-import { iso, selectRows } from "./admin-sql.js";
-import { maskIpAddress } from "./session-display.js";
+import { DATABASE } from "../../database/database.module.js";
+import { iso, selectRows } from "../shared/admin-sql.js";
+import { maskIpAddress } from "../users/session-display.js";
 
 /** Rows about one account, whichever side they were recorded against. */
 const ACCOUNT_TARGET_TYPES = ["account", "user"];

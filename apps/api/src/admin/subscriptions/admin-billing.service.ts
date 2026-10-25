@@ -2,9 +2,9 @@ import { Inject, Injectable } from "@nestjs/common";
 import type { AdminBilling, AdminFreeLimitHit } from "@billsafi/contracts";
 import { and, asc, type DatabaseConnection, desc, eq, schema, type SQL, sql } from "@billsafi/db";
 import { FREE_PLAN, stuckPaymentCutoff } from "@billsafi/domain";
-import { DATABASE } from "../database/database.module.js";
-import { planPaymentColumns, toAdminPlanPayment } from "./admin-payments.js";
-import { at, DAY_MS, iso, selectRows } from "./admin-sql.js";
+import { DATABASE } from "../../database/database.module.js";
+import { planPaymentColumns, toAdminPlanPayment } from "./payments.js";
+import { at, DAY_MS, iso, selectRows } from "../shared/admin-sql.js";
 
 const { subscriptionPayments, users } = schema;
 

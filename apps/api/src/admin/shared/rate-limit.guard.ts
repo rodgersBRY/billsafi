@@ -7,7 +7,7 @@ import {
   Injectable,
 } from "@nestjs/common";
 import type { Response } from "express";
-import type { AuthenticatedRequest } from "../common/current-user.js";
+import type { AuthenticatedRequest } from "../../common/current-user.js";
 
 /** Sliding-window counter per key, kept in memory: one API process, one admin. */
 export class SlidingWindowLimiter {

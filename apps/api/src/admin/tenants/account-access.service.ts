@@ -1,7 +1,7 @@
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { type DatabaseConnection, eq, schema } from "@billsafi/db";
-import { DATABASE } from "../database/database.module.js";
-import type { Executor, Transaction } from "../database/transaction.js";
+import { DATABASE } from "../../database/database.module.js";
+import type { Executor, Transaction } from "../../database/transaction.js";
 
 const { sessions, users } = schema;
 

@@ -18,9 +18,9 @@ import {
   PRO_PLAN,
   money,
 } from "@billsafi/domain";
-import { DATABASE } from "../database/database.module.js";
-import { currentMonthSourceSql, proAccessSql } from "./account-sql.js";
-import { at, DAY_MS, fromUtc, hasGoogle, ratio, selectRows, utcAt } from "./admin-sql.js";
+import { DATABASE } from "../../database/database.module.js";
+import { currentMonthSourceSql, proAccessSql } from "../shared/account-sql.js";
+import { at, DAY_MS, fromUtc, hasGoogle, ratio, selectRows, utcAt } from "../shared/admin-sql.js";
 
 const WEEK_MS = 7 * DAY_MS;
 const MANUAL = schema.MANUAL_PROVIDER;
