@@ -40,8 +40,8 @@ export function RecordPaymentDialog({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const count = Number(quantity);
-  const validCount = Number.isInteger(count) && count >= 1;
   const max = purpose === "pro_month" ? ADMIN_PAYMENT_MAX_MONTHS : ADMIN_PAYMENT_MAX_PACKS;
+  const validCount = Number.isInteger(count) && count >= 1 && count <= max;
   const preview = !validCount
     ? "Enter how many to see the result."
     : purpose === "pro_month"

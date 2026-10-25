@@ -41,7 +41,8 @@ function errorText(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 429) return error.message || "Too many admin actions. Wait a minute.";
     if (error.status === 400 && error.issues.length > 0) {
-      return "Some fields need another look. Nothing was changed.";
+      // Name the first problem too, since it may be one the form has no field for.
+      return `Some fields need another look (${error.issues[0]!.message}). Nothing was changed.`;
     }
     if ([400, 404, 409].includes(error.status)) return error.message;
   }
