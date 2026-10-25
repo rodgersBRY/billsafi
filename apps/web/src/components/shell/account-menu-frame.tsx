@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { authClient } from "@/lib/auth-client";
 import { useNavigationPending } from "@/lib/use-navigation-pending";
+import { type SidebarMode, sidebarClasses } from "./sidebar-mode";
 import { ThemeSwitch } from "./theme-switch";
 
 /** Row style shared by every item in an account menu. */
@@ -28,15 +29,15 @@ function initials(name: string) {
 export function AccountMenuFrame({
   name,
   email,
-  compact = false,
+  mode = "full",
   dataTour,
   children,
   footer,
 }: {
   name: string;
   email: string;
-  /** Icon rail: only the initials show below 1280px. */
-  compact?: boolean;
+  /** In an icon rail only the initials show. */
+  mode?: SidebarMode;
   dataTour?: string;
   /** Items between the name and the theme switch. */
   children?: React.ReactNode;
@@ -46,7 +47,7 @@ export function AccountMenuFrame({
   const router = useRouter();
   const [signingOut, setSigningOut] = useNavigationPending();
   const menuRef = useRef<HTMLDetailsElement>(null);
-  const hideLabel = compact ? "sr-only xl:not-sr-only" : "";
+  const classes = sidebarClasses(mode);
 
   // Next.js keeps visited pages alive; don't come back to an open menu.
   useLayoutEffect(() => {
@@ -94,7 +95,7 @@ export function AccountMenuFrame({
     <details ref={menuRef} data-tour={dataTour} className="group relative">
       <summary
         aria-label={`Account menu for ${name}`}
-        className={`flex min-h-11 cursor-pointer list-none items-center gap-2.5 rounded-lg p-2 hover:bg-soft group-open:bg-soft ${compact ? "justify-center xl:justify-start" : ""}`}
+        className={`flex min-h-11 cursor-pointer list-none items-center gap-2.5 rounded-lg p-2 hover:bg-soft group-open:bg-soft ${classes.center}`}
       >
         <span
           aria-hidden
@@ -102,11 +103,10 @@ export function AccountMenuFrame({
         >
           {initials(name)}
         </span>
-        <span className={`min-w-0 flex-1 truncate text-sm ${hideLabel}`}>{name}</span>
-        <Ellipsis
-          aria-hidden
-          className={`size-4 shrink-0 text-sub ${compact ? "hidden xl:block" : ""}`}
-        />
+        <span className={`min-w-0 flex-1 truncate text-sm whitespace-nowrap ${classes.label}`}>
+          {name}
+        </span>
+        <Ellipsis aria-hidden className={`size-4 shrink-0 text-sub ${classes.expandedOnly}`} />
       </summary>
       <div
         onClick={closeOnLink}
