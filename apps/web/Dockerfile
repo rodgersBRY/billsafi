@@ -16,7 +16,9 @@ COPY --from=pruner /repo/out/full/ .
 ARG API_INTERNAL_URL=http://api:4000
 # Browser error reporting is compiled in; empty leaves it off (D052).
 ARG NEXT_PUBLIC_SENTRY_DSN=
-ENV API_INTERNAL_URL=$API_INTERNAL_URL NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN NEXT_STANDALONE=1 NEXT_TELEMETRY_DISABLED=1
+# production, staging or development; the admin header shows it. Unset means development.
+ARG NEXT_PUBLIC_APP_ENV=
+ENV API_INTERNAL_URL=$API_INTERNAL_URL NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN NEXT_PUBLIC_APP_ENV=$NEXT_PUBLIC_APP_ENV NEXT_STANDALONE=1 NEXT_TELEMETRY_DISABLED=1
 RUN pnpm turbo run build --filter=@billsafi/web
 
 FROM node:24-alpine AS web

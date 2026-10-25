@@ -1,13 +1,21 @@
 "use client";
 
-import { ArrowLeft, ChevronRight, Code, LogOut, Menu, ShieldAlert } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronRight,
+  Code,
+  FlaskConical,
+  LogOut,
+  Menu,
+  ShieldAlert,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { useNavigationPending } from "@/lib/use-navigation-pending";
 import { adminCrumbs } from "./admin-nav";
 
-export type AdminEnvironment = "production" | "development";
+import type { AdminEnvironment } from "./admin-environment";
 
 interface AdminHeaderProps {
   user: { name: string; email: string };
@@ -19,20 +27,33 @@ interface AdminHeaderProps {
 const iconButton =
   "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-panel px-2.5 text-sm text-sub hover:bg-soft hover:text-ink focus-visible:outline-2 focus-visible:outline-accent md:min-h-9";
 
+const environments = {
+  production: {
+    label: "Production",
+    icon: ShieldAlert,
+    tone: "border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200",
+  },
+  staging: {
+    label: "Staging",
+    icon: FlaskConical,
+    tone: "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200",
+  },
+  development: {
+    label: "Development",
+    icon: Code,
+    tone: "border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200",
+  },
+} as const;
+
 function EnvironmentBadge({ environment }: { environment: AdminEnvironment }) {
-  const production = environment === "production";
-  const Icon = production ? ShieldAlert : Code;
+  const { label, icon: Icon, tone } = environments[environment];
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium whitespace-nowrap ${
-        production
-          ? "border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
-          : "border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200"
-      }`}
+      className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium whitespace-nowrap ${tone}`}
     >
       <Icon aria-hidden className="size-3.5" />
       <span className="sr-only">Environment: </span>
-      {production ? "Production" : "Development"}
+      {label}
     </span>
   );
 }
@@ -102,7 +123,14 @@ export function AdminHeader({ user, environment, menuButtonRef, onOpenMenu }: Ad
         <p className="max-w-40 truncate text-sm font-medium">{user.name}</p>
         <p className="max-w-40 truncate text-xs text-sub">{user.email}</p>
       </div>
-      <button type="button" onClick={signOut} disabled={signingOut} className={iconButton}>
+      <button
+        type="button"
+        onClick={signOut}
+        disabled={signingOut}
+        // The name is only visible from 1024px; the accessible name always carries it.
+        aria-label={`${signingOut ? "Signing out" : "Sign out"} ${user.name}`}
+        className={iconButton}
+      >
         <LogOut aria-hidden className="size-4" />
         <span className="sr-only xl:not-sr-only">{signingOut ? "Signing out" : "Sign out"}</span>
       </button>

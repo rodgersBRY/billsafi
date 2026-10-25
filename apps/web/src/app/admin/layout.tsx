@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { adminEnvironment } from "@/components/admin/shell/admin-environment";
 import { AdminShell } from "@/components/admin/shell/admin-shell";
 import { BrandLoader } from "@/components/brand/brand-loader";
 import { getAdminAccess, getAdminSelf } from "@/lib/server-api/admin";
@@ -13,7 +14,7 @@ async function AdminFrame({ children }: { children: React.ReactNode }) {
   return (
     <AdminShell
       user={{ name: user.name, email: user.email }}
-      environment={process.env.NODE_ENV === "production" ? "production" : "development"}
+      environment={adminEnvironment(process.env.NEXT_PUBLIC_APP_ENV)}
     >
       {children}
     </AdminShell>
