@@ -4,6 +4,7 @@ import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AdminToastProvider } from "../admin-toast";
+import { AdminAccountMenu } from "./admin-account-menu";
 import { AdminDrawer } from "./admin-drawer";
 import type { AdminEnvironment } from "./admin-environment";
 import { AdminHeader } from "./admin-header";
@@ -52,33 +53,42 @@ export function AdminShell({ user, environment, children }: AdminShellProps) {
         {/* The outer column stretches with the page so its background and border run the
             full height; the inner block stays pinned to the viewport. */}
         <aside
-          className={`hidden shrink-0 border-r border-line bg-panel md:block xl:w-64 ${railOpen ? "w-64" : "w-17"}`}
+          className={`relative z-40 hidden shrink-0 border-r border-line bg-panel md:block xl:w-64 ${railOpen ? "w-64" : "w-17"}`}
         >
           <div className="sticky top-0 flex h-dvh flex-col p-3 xl:p-4">
             <AdminSidebar compact={!railOpen} />
-            <button
-              type="button"
-              onClick={() => setRailOpen((open) => !open)}
-              aria-expanded={railOpen}
-              className={`mt-auto flex min-h-11 items-center gap-3 rounded-panel px-2.5 text-sm text-sub hover:bg-soft hover:text-ink xl:hidden ${railOpen ? "" : "justify-center"}`}
-            >
-              {railOpen ? (
-                <PanelLeftClose aria-hidden className="size-4.5" />
-              ) : (
-                <PanelLeftOpen aria-hidden className="size-4.5" />
-              )}
-              <span className={railOpen ? "" : "sr-only"}>
-                {railOpen ? "Collapse navigation" : "Expand navigation"}
-              </span>
-            </button>
+            <div className="mt-auto grid gap-1">
+              <button
+                type="button"
+                onClick={() => setRailOpen((open) => !open)}
+                aria-expanded={railOpen}
+                className={`flex min-h-11 items-center gap-3 rounded-panel px-2.5 text-sm text-sub hover:bg-soft hover:text-ink xl:hidden ${railOpen ? "" : "justify-center"}`}
+              >
+                {railOpen ? (
+                  <PanelLeftClose aria-hidden className="size-4.5" />
+                ) : (
+                  <PanelLeftOpen aria-hidden className="size-4.5" />
+                )}
+                <span className={railOpen ? "" : "sr-only"}>
+                  {railOpen ? "Collapse navigation" : "Expand navigation"}
+                </span>
+              </button>
+              <AdminAccountMenu user={user} compact={!railOpen} />
+            </div>
           </div>
         </aside>
         <AdminDrawer open={drawerOpen} onClose={closeDrawer}>
-          {drawerOpen && <AdminSidebar />}
+          {drawerOpen && (
+            <>
+              <AdminSidebar />
+              <div className="mt-auto">
+                <AdminAccountMenu user={user} />
+              </div>
+            </>
+          )}
         </AdminDrawer>
         <div className="flex min-w-0 flex-1 flex-col">
           <AdminHeader
-            user={user}
             environment={environment}
             menuButtonRef={menuButtonRef}
             onOpenMenu={() => setDrawerOpen(true)}
