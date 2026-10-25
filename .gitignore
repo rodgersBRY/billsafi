@@ -19,3 +19,6 @@ next-env.d.ts
 # Local design work, kept out of the repository
 docs/designs/
 docs/superpowers/
+
+# Local-only dev helpers
+scripts/delete-test-users.sh
