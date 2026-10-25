@@ -1,9 +1,21 @@
 import { Inject, Injectable, Logger, type OnApplicationBootstrap } from "@nestjs/common";
-import { and, type DatabaseConnection, eq, inArray, notInArray, schema } from "@billsafi/db";
+import {
+  and,
+  type DatabaseConnection,
+  eq,
+  inArray,
+  ne,
+  notInArray,
+  schema,
+  sql,
+} from "@billsafi/db";
 import { AuditService } from "../audit/audit.service.js";
 import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
 import { DATABASE } from "../database/database.module.js";
+
+/** Arbitrary constant: one advisory lock key reserved for this sync. */
+const ROLE_SYNC_LOCK = 4_217_001;
 
 export interface AdminRoleSyncResult {
   promoted: string[];
@@ -34,16 +46,23 @@ export class AdminRoleSyncService implements OnApplicationBootstrap {
     const listed = this.env.ADMIN_USER_IDS;
     const { users } = schema;
     const result = await this.connection.db.transaction(async (tx) => {
+      // Two API processes starting together take turns instead of interleaving updates.
+      await tx.execute(sql`select pg_advisory_xact_lock(${ROLE_SYNC_LOCK})`);
       const found = listed.length
         ? await tx
             .select({ id: users.id, role: users.role })
             .from(users)
             .where(inArray(users.id, listed))
         : [];
-      const promoted = found.filter((user) => user.role !== "admin").map((user) => user.id);
-      if (promoted.length) {
-        await tx.update(users).set({ role: "admin" }).where(inArray(users.id, promoted));
-      }
+      // RETURNING means only rows this transaction actually changed get an audit row.
+      const promotedRows = listed.length
+        ? await tx
+            .update(users)
+            .set({ role: "admin" })
+            .where(and(inArray(users.id, listed), ne(users.role, "admin")))
+            .returning({ id: users.id })
+        : [];
+      const promoted = promotedRows.map((user) => user.id);
       const demoted = (
         await tx
           .update(users)
@@ -79,6 +98,11 @@ export class AdminRoleSyncService implements OnApplicationBootstrap {
       return { promoted, demoted, unknown: listed.filter((id) => !known.has(id)) };
     });
 
+    if (!listed.length && result.demoted.length) {
+      this.logger.warn(
+        `ADMIN_USER_IDS is empty, so ${result.demoted.length} admin(s) were demoted and nobody is admin`,
+      );
+    }
     // A typo or a not-yet-registered admin must never stop the API from starting.
     for (const id of result.unknown) {
       this.logger.warn(`ADMIN_USER_IDS lists ${id}, but no user has that ID`);

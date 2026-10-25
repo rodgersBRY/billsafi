@@ -12,7 +12,7 @@ import { DATABASE } from "../database/database.module.js";
 type AdminRequest = Partial<AuthenticatedRequest> & { method: string; originalUrl: string };
 
 /**
- * Lets only users whose role is "admin" through. Everyone else, signed out included,
+ * Lets only users whose role is "admin" and who are not suspended through. Everyone else, signed out included,
  * gets the same 404 as an unknown route so admin routes don't reveal themselves.
  */
 @Injectable()
@@ -26,10 +26,11 @@ export class AdminGuard implements CanActivate {
     // request even if session caching is turned on later.
     if (id) {
       const [user] = await this.connection.db
-        .select({ role: schema.users.role })
+        .select({ role: schema.users.role, banned: schema.users.banned })
         .from(schema.users)
         .where(eq(schema.users.id, id));
-      if (user?.role === "admin") return true;
+      // A suspended admin is locked out like anyone else.
+      if (user?.role === "admin" && !user.banned) return true;
     }
     // Same body Nest sends for a route that does not exist.
     throw new NotFoundException(`Cannot ${request.method} ${request.originalUrl}`);

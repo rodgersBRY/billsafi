@@ -278,11 +278,24 @@ describe("admin", () => {
   });
 
   describe("Better Auth admin plugin", () => {
-    it.each(PLUGIN_ENDPOINTS)("answers 404 on %s %s, even to an admin", async (method, path) => {
-      for (const url of [`/api/v1/auth${path}`, `/api/v1/auth${path}/`]) {
-        const call = api()[method](url);
-        await call.set("Origin", WEB_ORIGIN).set("Cookie", adminCookie).send({}).expect(404);
-      }
+    it.each(PLUGIN_ENDPOINTS)("switches off %s %s, even for an admin", async (method, path) => {
+      const call = api()[method](`/api/v1/auth${path}`);
+      const response = await call
+        .set("Origin", WEB_ORIGIN)
+        .set("Cookie", adminCookie)
+        .send({})
+        .expect(404);
+      // Better Auth's disabledPaths answers plain "Not Found"; an unknown auth route is empty.
+      expect(response.text).toBe("Not Found");
+    });
+
+    it("answers an unknown auth route differently, so the check above means something", async () => {
+      const response = await api()
+        .post("/api/v1/auth/admin/not-a-route")
+        .set("Origin", WEB_ORIGIN)
+        .send({});
+      expect(response.status).toBe(404);
+      expect(response.text).not.toBe("Not Found");
     });
 
     it("lists every endpoint the plugin registers", () => {
@@ -299,14 +312,29 @@ describe("admin", () => {
         .set("Cookie", cookie)
         .send({ userId: await userId(email), role: "admin" })
         .expect(404);
-      await api()
+      const update = await api()
         .post("/api/v1/auth/update-user")
         .set("Origin", WEB_ORIGIN)
         .set("Cookie", cookie)
-        .send({ role: "admin", banned: false });
+        .send({ role: "admin" })
+        .expect(400);
+      expect(update.body.code).toBe("FIELD_NOT_ALLOWED");
       expect(
         (await db().select().from(schema.users).where(eq(schema.users.email, email)))[0]!.role,
       ).toBe("user");
+    });
+
+    it("refuses a role at sign-up", async () => {
+      const email = uniqueEmail("signup-admin");
+      const response = await api()
+        .post("/api/v1/auth/sign-up/email")
+        .set("Origin", WEB_ORIGIN)
+        .send({ name: "Wanjiku Kamau", email, password: "correct-horse-battery", role: "admin" })
+        .expect(400);
+      expect(response.body.code).toBe("FIELD_NOT_ALLOWED");
+      expect(await db().select().from(schema.users).where(eq(schema.users.email, email))).toEqual(
+        [],
+      );
     });
   });
 
@@ -339,6 +367,24 @@ describe("admin", () => {
         .get("/api/v1/businesses")
         .set("Cookie", sessionCookie(back.headers["set-cookie"]))
         .expect(200);
+    });
+
+    it("rejects a banned account's surviving session on every route", async () => {
+      const { cookie, email } = await signUp(app, uniqueEmail("ban-no-revoke"));
+      const id = await userId(email);
+      // Promote too, so the admin routes are covered; sessions are deliberately left alone.
+      await db()
+        .update(schema.users)
+        .set({ role: "admin", banned: true })
+        .where(eq(schema.users.id, id));
+      try {
+        await api().get("/api/v1/businesses").set("Cookie", cookie).expect(401);
+        await api().get("/api/v1/admin/access").set("Cookie", cookie).expect(404);
+        await api().get("/api/v1/admin/overview").set("Cookie", cookie).expect(404);
+      } finally {
+        // Back to a plain user, so later role-sync assertions see no stray admin.
+        await db().update(schema.users).set({ role: "user" }).where(eq(schema.users.id, id));
+      }
     });
 
     it("revokes every session without suspending", async () => {
@@ -399,6 +445,9 @@ describe("admin", () => {
       ).toMatch(/append-only: UPDATE/);
       expect((await failure(db().delete(schema.auditLogs).where(where))).message).toMatch(
         /append-only: DELETE/,
+      );
+      expect((await failure(db().execute(sql`truncate audit_logs`))).message).toMatch(
+        /append-only: TRUNCATE/,
       );
       const [still] = await db()
         .select()
