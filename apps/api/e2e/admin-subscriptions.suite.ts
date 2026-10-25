@@ -1180,4 +1180,72 @@ export function subscriptionSuite(ctx: SubscriptionSuiteContext) {
       expect(billing.grants).toEqual([]);
     });
   });
+
+  describe("subscriptions: locking", () => {
+    it("lets an invoice made Ready and an admin action on the same account both finish", async () => {
+      // The account already has its subscription row and this month's usage period, so
+      // Ready's only foreign-key check comes after it holds the subscription lock.
+      const account = await ctx.seedAccount("admin-sub-lock", 1);
+      const id = await ctx.userId(account.email);
+      const allowance = ctx.app().get(AllowanceService);
+      const reserve = allowance.reserve.bind(allowance);
+      let reserved!: () => void;
+      const hasReserved = new Promise<void>((resolve) => (reserved = resolve));
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => (release = resolve));
+      // Ready pauses while holding the subscription lock, before it inserts the issuance.
+      const spy = vi.spyOn(allowance, "reserve").mockImplementationOnce(async (tx, userId, at) => {
+        const reservation = await reserve(tx, userId, at);
+        reserved();
+        await gate;
+        return reservation;
+      });
+      try {
+        const ready = tryIssue(account);
+        await hasReserved;
+        // The admin action locks the user row, then waits for the subscription lock.
+        const action = post(`tenants/${id}/grants`, {
+          kind: "invoice_credits",
+          quantity: 2,
+          reason: "Goodwill credits",
+        }).then((response) => response);
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        release();
+        const [readyResponse, actionResponse] = await Promise.all([ready, action]);
+        expect(readyResponse.status).toBe(200);
+        expect(actionResponse.status).toBe(201);
+      } finally {
+        release();
+        spy.mockRestore();
+      }
+      expect((await billingOf(account.cookie)).usage).toMatchObject({ used: 2, credits: 2 });
+    }, 20_000);
+
+    it("makes an invoice Ready while another transaction holds the owner's row", async () => {
+      const account = await ctx.seedAccount("admin-sub-lock-row", 1);
+      const id = await ctx.userId(account.email);
+      let locked!: () => void;
+      const hasLocked = new Promise<void>((resolve) => (locked = resolve));
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => (release = resolve));
+      const holder = db().transaction(async (tx) => {
+        await tx.execute(sql`select id from users where id = ${id} for no key update`);
+        locked();
+        await gate;
+      });
+      try {
+        await hasLocked;
+        const ready = await Promise.race([
+          tryIssue(account),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("Ready waited on the user row")), 4_000),
+          ),
+        ]);
+        expect(ready.status).toBe(200);
+      } finally {
+        release();
+        await holder;
+      }
+    });
+  });
 }

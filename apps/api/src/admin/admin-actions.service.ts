@@ -148,7 +148,12 @@ export class AdminActionsService {
     }
   }
 
-  /** Locks the user row so two admins acting at once take turns; 404 when unknown. */
+  /**
+   * Locks the user row so two admins acting at once take turns; 404 when unknown.
+   * FOR NO KEY UPDATE, not FOR UPDATE: rows that reference the user (invoice issuances,
+   * payments) take FOR KEY SHARE on it for their foreign key, and Ready and checkout do
+   * that while holding the subscription lock. FOR UPDATE would deadlock with them.
+   */
   async lockUser(tx: Transaction, id: string) {
     const [user] = await tx
       .select({
@@ -158,7 +163,7 @@ export class AdminActionsService {
       })
       .from(schema.users)
       .where(eq(schema.users.id, id))
-      .for("update");
+      .for("no key update");
     if (!user) throw new NotFoundException("Account not found");
     return user;
   }
