@@ -20,6 +20,7 @@ export class ApiError extends Error {
 }
 
 export async function parseApiResponse<T>(response: Response): Promise<T> {
+  if (response.status === 204) return undefined as T;
   if (response.ok) return (await response.json()) as T;
 
   const body = (await response.json().catch(() => ({}))) as {

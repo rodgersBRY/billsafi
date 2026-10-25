@@ -42,14 +42,15 @@ export function ClickableRow({ href, children }: { href: string; children: React
   return (
     <tr
       onClick={(event) => {
-        if ((event.target as HTMLElement).closest("a")) return;
+        // Links, buttons, the row menu and dialogs opened from it handle their own clicks.
+        if ((event.target as HTMLElement).closest("a, button, [role=menu], dialog")) return;
         // Leave modified clicks and text selection to the browser.
         if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
           return;
         if (window.getSelection()?.toString()) return;
         router.push(href);
       }}
-      className="cursor-pointer border-t border-line hover:bg-background/60"
+      className="cursor-pointer border-t border-line hover:bg-background"
     >
       {children}
     </tr>

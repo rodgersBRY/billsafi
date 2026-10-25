@@ -4,9 +4,8 @@ import {
   type AdminFunnelStepKey,
   adminFunnelDays,
 } from "@billsafi/contracts";
-import { formatCount, formatDay, formatDuration, formatShare } from "./admin-format";
-import { type AdminState, adminHref } from "./admin-params";
-import { PeriodSwitch, UpdatedAt } from "./admin-ui";
+import { formatCount, formatDay, formatDuration, formatShare } from "../admin-format";
+import { PeriodSwitch, UpdatedAt } from "../admin-ui";
 
 const stepLabels: Record<AdminFunnelStepKey, string> = {
   signed_up: "Signed up",
@@ -48,16 +47,27 @@ function StepRow({ step }: { step: AdminFunnelStep }) {
   );
 }
 
-export function FunnelTab({ data, state }: { data: AdminFunnel; state: AdminState }) {
+interface FunnelPanelProps {
+  data: AdminFunnel;
+  /** Link to the same page with another sign-up window. */
+  hrefFor: (days: (typeof adminFunnelDays)[number]) => string;
+}
+
+export function FunnelPanel({ data, hrefFor }: FunnelPanelProps) {
   return (
-    <div className="space-y-4">
+    <section aria-labelledby="funnel-title" className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-sub">People who signed up since {formatDay(data.since)}.</p>
+        <div>
+          <h2 id="funnel-title" className="text-lg font-semibold">
+            Activation funnel
+          </h2>
+          <p className="text-sm text-sub">People who signed up since {formatDay(data.since)}.</p>
+        </div>
         <PeriodSwitch
           label="Sign-up window"
           options={adminFunnelDays.map((days) => ({
             label: `${days} days`,
-            href: adminHref(state, { days }),
+            href: hrefFor(days),
             current: days === data.days,
           }))}
         />
@@ -74,6 +84,6 @@ export function FunnelTab({ data, state }: { data: AdminFunnel; state: AdminStat
         steps above it. That is why a step can have more people than the one before.
       </p>
       <UpdatedAt iso={data.generatedAt} />
-    </div>
+    </section>
   );
 }

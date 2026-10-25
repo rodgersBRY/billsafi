@@ -1,4 +1,5 @@
 import type { SubscriptionPaymentStatus } from "@billsafi/contracts";
+import { CircleCheck, CircleX, Clock, Inbox, type LucideIcon } from "lucide-react";
 import { AdminLink } from "./admin-link";
 
 export const thClass = "px-4 py-3 font-normal whitespace-nowrap";
@@ -8,19 +9,43 @@ export const theadClass = "bg-background text-left text-xs text-sub";
 interface PanelProps {
   title: string;
   description?: string;
+  id?: string;
+  actions?: React.ReactNode;
   children: React.ReactNode;
 }
 
 /** A titled panel whose content scrolls sideways instead of stretching the page. */
-export function Panel({ title, description, children }: PanelProps) {
+export function Panel({ title, description, id, actions, children }: PanelProps) {
   return (
-    <section className="min-w-0 rounded-panel border border-line bg-panel">
-      <div className="px-4 py-4">
-        <h2 className="text-base font-semibold">{title}</h2>
-        {description && <p className="mt-1 text-sm text-sub">{description}</p>}
+    <section id={id} className="min-w-0 scroll-mt-20 rounded-panel border border-line bg-panel">
+      <div className="flex flex-wrap items-start justify-between gap-3 px-4 py-4">
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold">{title}</h2>
+          {description && <p className="mt-1 text-sm text-sub">{description}</p>}
+        </div>
+        {actions}
       </div>
       <div className="overflow-x-auto border-t border-line">{children}</div>
     </section>
+  );
+}
+
+interface EmptyStateProps {
+  title: string;
+  description?: string;
+  icon?: LucideIcon;
+  action?: React.ReactNode;
+}
+
+/** Nothing to show. Kept visibly apart from errors: a calm icon and a next step. */
+export function EmptyState({ title, description, icon: Icon = Inbox, action }: EmptyStateProps) {
+  return (
+    <div className="grid place-items-center gap-2 px-4 py-10 text-center">
+      <Icon aria-hidden className="size-7 text-sub" />
+      <p className="text-sm font-medium">{title}</p>
+      {description && <p className="max-w-md text-sm text-sub">{description}</p>}
+      {action && <div className="mt-2">{action}</div>}
+    </div>
   );
 }
 
@@ -65,9 +90,19 @@ const paymentLabels: Record<SubscriptionPaymentStatus, string> = {
   failed: "Failed",
 };
 
+const paymentIcons: Record<SubscriptionPaymentStatus, LucideIcon> = {
+  pending: Clock,
+  succeeded: CircleCheck,
+  failed: CircleX,
+};
+
 export function PaymentStatusPill({ status }: { status: SubscriptionPaymentStatus }) {
+  const Icon = paymentIcons[status];
   return (
-    <span className={`inline-block rounded-md px-1.75 py-1 text-xs ${paymentTones[status]}`}>
+    <span
+      className={`inline-flex items-center gap-1 rounded-md px-1.75 py-1 text-xs ${paymentTones[status]}`}
+    >
+      <Icon aria-hidden className="size-3.5" />
       {paymentLabels[status]}
     </span>
   );
@@ -79,12 +114,15 @@ const timeFormat = new Intl.DateTimeFormat("en-KE", {
   timeZone: "Africa/Nairobi",
 });
 
-/** When the API worked the figures out; it keeps them for up to a minute. */
-export function UpdatedAt({ iso }: { iso: string }) {
+/**
+ * When the API worked the figures out. Cached lists and metrics are kept for up to a
+ * minute; pass `cached={false}` for details and the audit log, which are always fresh.
+ */
+export function UpdatedAt({ iso, cached = true }: { iso: string; cached?: boolean }) {
   return (
     <p className="text-xs text-sub">
-      Figures as of <time dateTime={iso}>{timeFormat.format(new Date(iso))}</time> Nairobi time.
-      They refresh at most once a minute.
+      Last updated <time dateTime={iso}>{timeFormat.format(new Date(iso))}</time> Nairobi time.
+      {cached && " Figures refresh at most once a minute."}
     </p>
   );
 }

@@ -83,3 +83,30 @@ export const purposeLabels: Record<SubscriptionPurpose, string> = {
   pro_month: "Pro, one month",
   invoice_credits: `${CREDIT_PACK.invoices} invoice credits`,
 };
+
+const relativeFormat = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+
+const relativeSteps: [Intl.RelativeTimeFormatUnit, number][] = [
+  ["year", 365 * 86_400],
+  ["month", 30 * 86_400],
+  ["week", 7 * 86_400],
+  ["day", 86_400],
+  ["hour", 3600],
+  ["minute", 60],
+];
+
+/** How long ago (or ahead) an instant is, like "3 hours ago" or "in 2 days". */
+export function formatRelative(iso: string, now = Date.now()): string {
+  const seconds = (new Date(iso).getTime() - now) / 1000;
+  for (const [unit, size] of relativeSteps) {
+    if (Math.abs(seconds) >= size) return relativeFormat.format(Math.round(seconds / size), unit);
+  }
+  return "just now";
+}
+
+/** Bytes as B, KB or MB with one decimal. */
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${formatCount(bytes)} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1).replace(/\.0$/, "")} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1).replace(/\.0$/, "")} MB`;
+}

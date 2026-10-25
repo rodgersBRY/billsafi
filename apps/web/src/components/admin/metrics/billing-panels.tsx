@@ -1,8 +1,8 @@
 import type { AdminBilling, AdminBillingPayment } from "@billsafi/contracts";
 import { formatAmount } from "@/lib/format";
-import { formatInstant, formatMonth, purposeLabels } from "./admin-format";
-import { AdminLink } from "./admin-link";
-import { adminUserHref } from "./admin-params";
+import { formatInstant, formatMonth, purposeLabels } from "../admin-format";
+import { AdminLink } from "../admin-link";
+import { tenantHref } from "../admin-params";
 import {
   EmptyRow,
   Panel,
@@ -11,11 +11,11 @@ import {
   tdClass,
   thClass,
   theadClass,
-} from "./admin-ui";
+} from "../admin-ui";
 
 function UserLink({ id, email }: { id: string; email: string }) {
   return (
-    <AdminLink href={adminUserHref(id)} className="hover:text-accent hover:underline">
+    <AdminLink href={tenantHref(id)} className="hover:text-accent hover:underline">
       {email}
     </AdminLink>
   );
@@ -85,7 +85,7 @@ function PaymentsTable({ payments }: { payments: AdminBillingPayment[] }) {
   );
 }
 
-export function BillingTab({ data }: { data: AdminBilling }) {
+export function BillingPanels({ data }: { data: AdminBilling }) {
   return (
     <div className="space-y-4">
       <Panel title="Recent payments" description="The 50 latest plan payments, newest first.">
@@ -97,6 +97,7 @@ export function BillingTab({ data }: { data: AdminBilling }) {
       </Panel>
 
       <Panel
+        id="stuck-payments"
         title="Stuck payments"
         description="Checkouts still pending more than 10 minutes after they started, oldest first."
       >

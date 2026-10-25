@@ -1,8 +1,15 @@
 import { type AdminRetention, adminRetentionWeeks } from "@billsafi/contracts";
 import { formatDate } from "@/lib/format";
-import { formatCount, formatShare } from "./admin-format";
-import { type AdminState, adminHref } from "./admin-params";
-import { EmptyRow, Panel, PeriodSwitch, UpdatedAt, tdClass, thClass, theadClass } from "./admin-ui";
+import { formatCount, formatShare } from "../admin-format";
+import {
+  EmptyRow,
+  Panel,
+  PeriodSwitch,
+  UpdatedAt,
+  tdClass,
+  thClass,
+  theadClass,
+} from "../admin-ui";
 
 /*
  * The accent colour at a strength that follows the share. A 10% floor keeps
@@ -19,26 +26,37 @@ function shade(share: number): React.CSSProperties | undefined {
   };
 }
 
-export function RetentionTab({ data, state }: { data: AdminRetention; state: AdminState }) {
+interface RetentionPanelProps {
+  data: AdminRetention;
+  /** Link to the same page with another number of cohorts. */
+  hrefFor: (weeks: (typeof adminRetentionWeeks)[number]) => string;
+}
+
+export function RetentionPanel({ data, hrefFor }: RetentionPanelProps) {
   const columns = Math.max(0, ...data.cohorts.map((cohort) => cohort.activeShare.length));
 
   return (
-    <div className="space-y-4">
+    <section aria-labelledby="retention-title" className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-sub">
-          Share of each sign-up week with an invoice made Ready in the weeks after.
-        </p>
+        <div>
+          <h2 id="retention-title" className="text-lg font-semibold">
+            Retention
+          </h2>
+          <p className="text-sm text-sub">
+            Share of each sign-up week with an invoice made Ready in the weeks after.
+          </p>
+        </div>
         <PeriodSwitch
           label="Cohorts shown"
           options={adminRetentionWeeks.map((weeks) => ({
             label: `${weeks} weeks`,
-            href: adminHref(state, { weeks }),
+            href: hrefFor(weeks),
             current: weeks === data.weeks,
           }))}
         />
       </div>
       <Panel
-        title="Weekly retention"
+        title="Weekly cohorts"
         description="Weeks start on Monday, Nairobi time. Week 0 is the sign-up week."
       >
         {data.cohorts.length === 0 ? (
@@ -90,6 +108,6 @@ export function RetentionTab({ data, state }: { data: AdminRetention; state: Adm
         )}
       </Panel>
       <UpdatedAt iso={data.generatedAt} />
-    </div>
+    </section>
   );
 }

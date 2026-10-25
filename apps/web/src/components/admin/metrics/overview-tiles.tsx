@@ -1,12 +1,15 @@
 import type { AdminOverview, AdminSignupCounts } from "@billsafi/contracts";
-import { formatCount, formatKes, formatShare, formatUsd } from "./admin-format";
-import { UpdatedAt } from "./admin-ui";
+import { formatCount, formatKes, formatShare, formatUsd } from "../admin-format";
+import { KpiCard } from "../kpi-card";
 
 interface Tile {
   label: string;
-  value: string;
+  value: string | null;
   definition: string;
+  href?: string;
 }
+
+const share = (value: number | null) => (value === null ? null : formatShare(value));
 
 function signupTile(label: string, counts: AdminSignupCounts, window: string): Tile {
   return {
@@ -40,15 +43,17 @@ function tiles(data: AdminOverview): Tile[] {
       label: "Total accounts",
       value: formatCount(data.totalAccounts),
       definition: "Every account that has signed up.",
+      href: "/admin/tenants",
     },
     {
       label: "Paying accounts",
       value: formatCount(data.payingAccounts),
       definition: "Accounts whose Pro access has not ended.",
+      href: "/admin/tenants?lifecycle=subscribed",
     },
     {
       label: "Conversion",
-      value: formatShare(data.conversion),
+      value: share(data.conversion),
       definition: "Accounts that ever paid for a plan, out of all accounts.",
     },
     {
@@ -63,27 +68,21 @@ function tiles(data: AdminOverview): Tile[] {
     },
     {
       label: "M-Pesa success rate",
-      value: formatShare(data.mpesaSuccessRate30Days),
+      value: share(data.mpesaSuccessRate30Days),
       definition: "Successful checkouts out of settled ones in the last 30 days.",
     },
   ];
 }
 
-export function OverviewTab({ data }: { data: AdminOverview }) {
+/** The overview figures in a 4, 2 or 1 column grid. */
+export function OverviewTiles({ data }: { data: AdminOverview }) {
   return (
-    <div className="space-y-4">
-      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {tiles(data).map((tile) => (
-          <li key={tile.label} className="rounded-panel border border-line bg-panel p-4">
-            <p className="text-sm text-sub">{tile.label}</p>
-            <p className="mt-1.5 text-2xl font-semibold tracking-tight tabular-nums">
-              {tile.value}
-            </p>
-            <p className="mt-1.5 text-xs text-sub">{tile.definition}</p>
-          </li>
-        ))}
-      </ul>
-      <UpdatedAt iso={data.generatedAt} />
-    </div>
+    <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {tiles(data).map((tile) => (
+        <li key={tile.label}>
+          <KpiCard {...tile} />
+        </li>
+      ))}
+    </ul>
   );
 }

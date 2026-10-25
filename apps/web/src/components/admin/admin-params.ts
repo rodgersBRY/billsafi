@@ -1,81 +1,100 @@
 import {
-  type AdminFunnelDays,
-  type AdminRetentionWeeks,
+  adminAuditLogsQuerySchema,
   adminFunnelQuerySchema,
   adminRetentionQuerySchema,
+  adminTenantsQuerySchema,
   adminUsersQuerySchema,
 } from "@billsafi/contracts";
+import type { z } from "zod";
 
-export const adminTabs = ["overview", "funnel", "retention", "users", "billing"] as const;
-export type AdminTab = (typeof adminTabs)[number];
+/*
+ * URL state for the admin pages. Every page keeps its filters, sort and page in the
+ * query string. Each field is parsed on its own with the API's own schema, so one bad
+ * value falls back to its default instead of breaking the whole page.
+ */
 
-export const adminTabLabels: Record<AdminTab, string> = {
-  overview: "Overview",
-  funnel: "Funnel",
-  retention: "Retention",
-  users: "Users",
-  billing: "Billing",
-};
-
-/** Everything the dashboard keeps in the URL, with unknown values replaced by defaults. */
-export interface AdminState {
-  tab: AdminTab;
-  days: AdminFunnelDays;
-  weeks: AdminRetentionWeeks;
-  search?: string;
-  page: number;
-  user?: string;
-}
-
-type RawParams = Record<string, string | string[] | undefined>;
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export type RawParams = Record<string, string | string[] | undefined>;
+type Shape = Record<string, z.ZodType>;
+type Parsed<S extends Shape> = { [K in keyof S]: z.output<S[K]> };
 
 function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-export function parseAdminState(raw: RawParams): AdminState {
-  const tabParam = first(raw.tab);
-  const tab = adminTabs.find((value) => value === tabParam) ?? "overview";
+function parseFields<S extends Shape>(shape: S, raw: RawParams): Parsed<S> {
+  const parsed: Record<string, unknown> = {};
+  for (const key of Object.keys(shape)) {
+    const field = shape[key]!;
+    const result = field.safeParse(first(raw[key]));
+    parsed[key] = result.success ? result.data : field.safeParse(undefined).data;
+  }
+  return parsed as Parsed<S>;
+}
+
+export const tenantsDefaults = { page: 1, sort: "registered", dir: "desc" } as const;
+export const usersDefaults = { page: 1, sort: "registered", dir: "desc" } as const;
+export const auditDefaults = { page: 1 } as const;
+
+export function parseTenantsParams(raw: RawParams) {
+  const state = parseFields(adminTenantsQuerySchema.shape, raw);
+  // The API refuses both at once; the activity filter offers one or the other.
+  if (state.activeWithin && state.inactiveFor) state.inactiveFor = undefined;
+  return state;
+}
+export type TenantsState = ReturnType<typeof parseTenantsParams>;
+
+export function parseUsersParams(raw: RawParams) {
+  return parseFields(adminUsersQuerySchema.shape, raw);
+}
+export type UsersState = ReturnType<typeof parseUsersParams>;
+
+export function parseAuditParams(raw: RawParams) {
+  const state = parseFields(adminAuditLogsQuerySchema.shape, raw);
+  if (state.from && state.to && state.from > state.to) state.to = undefined;
+  return state;
+}
+export type AuditState = ReturnType<typeof parseAuditParams>;
+
+export function parseAnalyticsParams(raw: RawParams) {
   const funnel = adminFunnelQuerySchema.safeParse({ days: first(raw.days) });
   const retention = adminRetentionQuerySchema.safeParse({ weeks: first(raw.weeks) });
-  // Parsed apart, so a bad value in one doesn't reset the other.
-  const page = adminUsersQuerySchema.pick({ page: true }).safeParse({ page: first(raw.page) });
-  const search = adminUsersQuerySchema
-    .pick({ search: true })
-    .safeParse({ search: first(raw.search)?.slice(0, 100) });
-  const user = first(raw.user);
   return {
-    tab,
     days: funnel.success ? funnel.data.days : 30,
     weeks: retention.success ? retention.data.weeks : 8,
-    search: search.success ? search.data.search : undefined,
-    page: page.success ? page.data.page : 1,
-    user: user && UUID.test(user) ? user : undefined,
   };
 }
+export type AnalyticsState = ReturnType<typeof parseAnalyticsParams>;
 
-/** Link to one user's details on the Users tab. */
-export function adminUserHref(userId: string): string {
-  return adminHref({ tab: "users", days: 30, weeks: 8, page: 1, user: userId });
+const TABS = ["overview", "businesses", "subscription", "usage", "activity", "support"] as const;
+export type TenantTab = (typeof TABS)[number];
+export const tenantTabs = TABS;
+
+export function parseTenantTab(raw: RawParams): TenantTab {
+  const value = first(raw.tab);
+  return TABS.find((tab) => tab === value) ?? "overview";
 }
 
-/**
- * Link to a dashboard view. Only the options that belong to the target tab are
- * kept, and defaults are left out so URLs stay short.
- */
-export function adminHref(state: AdminState, changes: Partial<AdminState> = {}): string {
-  const next = { ...state, ...changes };
+type Values = Record<string, string | number | undefined>;
+
+/** A query string of the set values, leaving out defaults so URLs stay short. */
+export function toQuery(values: Values, defaults: Values = {}): string {
   const params = new URLSearchParams();
-  if (next.tab !== "overview") params.set("tab", next.tab);
-  if (next.tab === "funnel" && next.days !== 30) params.set("days", String(next.days));
-  if (next.tab === "retention" && next.weeks !== 8) params.set("weeks", String(next.weeks));
-  if (next.tab === "users") {
-    if (next.search) params.set("search", next.search);
-    if (next.page > 1) params.set("page", String(next.page));
-    if (next.user) params.set("user", next.user);
+  for (const [key, value] of Object.entries(values)) {
+    if (value === undefined || value === "" || defaults[key] === value) continue;
+    params.set(key, String(value));
   }
-  const queryString = params.toString();
-  return queryString ? `/admin?${queryString}` : "/admin";
+  const text = params.toString();
+  return text ? `?${text}` : "";
 }
+
+/** A link to `path` with the current state plus `changes`. */
+export function hrefWith(path: string, state: Values, changes: Values, defaults: Values = {}) {
+  return `${path}${toQuery({ ...state, ...changes }, defaults)}`;
+}
+
+export const tenantHref = (id: string, tab?: TenantTab) =>
+  `/admin/tenants/${encodeURIComponent(id)}${tab && tab !== "overview" ? `?tab=${tab}` : ""}`;
+
+export const userHref = (id: string) => `/admin/users/${encodeURIComponent(id)}`;
+
+export const auditHref = (filters: Values) => `/admin/security${toQuery(filters)}`;

@@ -4,12 +4,13 @@ import { LoaderCircle } from "lucide-react";
 import type { ButtonHTMLAttributes } from "react";
 import { useHydrated } from "@/lib/use-hydrated";
 
-type Variant = "primary" | "secondary" | "ghost";
+type Variant = "primary" | "secondary" | "ghost" | "danger";
 
 const variants: Record<Variant, string> = {
   primary: "border-teal bg-teal text-white hover:bg-teal/90",
   secondary: "border-line bg-panel text-ink hover:bg-soft",
   ghost: "border-transparent bg-transparent text-sub hover:bg-soft hover:text-ink",
+  danger: "border-red-700 bg-red-700 text-white hover:bg-red-800",
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
