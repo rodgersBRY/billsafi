@@ -104,7 +104,7 @@ export function AdminShell({ user, environment, children }: AdminShellProps) {
               aria-expanded={expanded}
               aria-label={expanded ? "Collapse navigation" : "Expand navigation"}
               title={expanded ? "Collapse navigation" : "Expand navigation"}
-              className="absolute bottom-1/4 -right-4 grid size-8 place-items-center rounded-full border border-line bg-panel text-sub shadow-sm hover:bg-soft hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="absolute bottom-1/6 -right-5 grid size-10 place-items-center rounded-full border border-line bg-panel text-sub shadow-sm hover:bg-soft hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               <ChevronLeft
                 aria-hidden
