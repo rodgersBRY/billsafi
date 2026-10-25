@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { BillingModule } from "../billing/billing.module.js";
 import { AccountAccessService } from "./account-access.service.js";
+import { AdminActionsService } from "./admin-actions.service.js";
 import { AdminAuditService } from "./admin-audit.service.js";
 import { AdminBillingService } from "./admin-billing.service.js";
 import { AdminMetricsService } from "./admin-metrics.service.js";
@@ -20,6 +21,7 @@ import { ADMIN_CACHE, TtlCache } from "./ttl-cache.js";
     AdminUsersService,
     AdminTenantsService,
     AdminAuditService,
+    AdminActionsService,
     AdminBillingService,
     AdminRoleSyncService,
     AccountAccessService,

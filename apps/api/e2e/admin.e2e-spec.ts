@@ -1,12 +1,13 @@
 import type { INestApplication } from "@nestjs/common";
 import type { AdminFunnel, AdminOverview } from "@billsafi/contracts";
 import { and, asc, type DatabaseConnection, eq, schema, sql } from "@billsafi/db";
-import { FREE_PLAN } from "@billsafi/domain";
+import { addNairobiMonths, FREE_PLAN, lifecycleStage, subscriptionStatus } from "@billsafi/domain";
 import request from "supertest";
 import { AccountAccessService } from "../src/admin/account-access.service.js";
 import { AdminBillingService } from "../src/admin/admin-billing.service.js";
 import { AdminMetricsService } from "../src/admin/admin-metrics.service.js";
 import { AdminRoleSyncService } from "../src/admin/admin-role-sync.service.js";
+import { proEndsAtSql } from "../src/admin/account-sql.js";
 import { AuditService } from "../src/audit/audit.service.js";
 import { DISABLED_ADMIN_PATHS } from "../src/auth/auth.js";
 import type { FakeMpesaProvider } from "../src/billing/mpesa/fake.provider.js";
@@ -22,7 +23,26 @@ import {
 } from "./support/app.js";
 
 const CALLBACK = "/api/v1/billing/mpesa/callback/e2e-callback-token-0123456789";
-const ROUTES = ["access", "overview", "funnel", "retention", "users", "billing"];
+const ROUTES = [
+  "access",
+  "overview",
+  "funnel",
+  "retention",
+  "tenants",
+  `tenants/${crypto.randomUUID()}`,
+  "users",
+  `users/${crypto.randomUUID()}`,
+  "billing",
+  "audit-logs",
+];
+const DAY_MS = 24 * 60 * 60 * 1000;
+// A 1x1 transparent PNG.
+const PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+  "base64",
+);
+const CHROME_MAC =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
 
 /** IDs from the developer's .env stay listed, so tests never demote a real local admin. */
 const ENV_ADMIN_IDS = (process.env.ADMIN_USER_IDS ?? "").split(",").filter(Boolean);
@@ -32,11 +52,11 @@ const ENV_ADMIN_IDS = (process.env.ADMIN_USER_IDS ?? "").split(",").filter(Boole
  * admin role and takes it from everyone else, so every app in this file must list the
  * main admin unless a test means to demote them.
  */
-async function appWithAdmins(ids: string[]) {
+async function appWithAdmins(ids: string[], options: { adminActionLimit?: number } = {}) {
   const previous = process.env.ADMIN_USER_IDS;
   process.env.ADMIN_USER_IDS = [...ENV_ADMIN_IDS, ...ids].join(",");
   try {
-    return await createTestApp({ adminRoleSync: true });
+    return await createTestApp({ adminRoleSync: true, ...options });
   } finally {
     if (previous === undefined) delete process.env.ADMIN_USER_IDS;
     else process.env.ADMIN_USER_IDS = previous;
@@ -67,6 +87,7 @@ describe("admin", () => {
   let mpesa: FakeMpesaProvider;
   let adminCookie: string;
   let adminId: string;
+  let adminEmail: string;
   let customerEmail: string;
   let limitedEmail: string;
   let receipt: string;
@@ -80,9 +101,9 @@ describe("admin", () => {
   }
 
   /** Signs up an account with one business and client, then makes `ready` invoices Ready. */
-  async function seedAccount(label: string, ready: number) {
+  async function seedAccount(label: string, ready: number, displayName = "Seeded Studio") {
     const { cookie, email } = await signUp(app, uniqueEmail(label));
-    const businessId = await createBusiness(app, cookie, { displayName: "Seeded Studio" });
+    const businessId = await createBusiness(app, cookie, { displayName });
     const clientId = await createClient(app, cookie, businessId);
     const path = `/api/v1/businesses/${businessId}/invoices`;
     const issue = async (count: number) => {
@@ -101,7 +122,7 @@ describe("admin", () => {
       }
     };
     await issue(ready);
-    return { cookie, email, issue };
+    return { cookie, email, businessId, issue };
   }
 
   /** Pays one Pro month through the fake M-Pesa callback and returns the receipt. */
@@ -146,15 +167,18 @@ describe("admin", () => {
   beforeAll(async () => {
     // A user's ID is only known after sign-up, so make the admin first.
     const setup = (await createTestApp()).app;
-    const { cookie } = await signUp(setup);
+    const { cookie, email } = await signUp(setup);
     adminCookie = cookie;
+    adminEmail = email;
     const session = await request(setup.getHttpServer())
       .get("/api/v1/auth/get-session")
       .set("Cookie", cookie)
       .expect(200);
     adminId = session.body.user.id;
     await setup.close();
-    ({ app, mpesa } = await appWithAdmins([adminId]));
+    // A high action limit so this file's many admin actions are not throttled; the
+    // limit itself is tested on an app of its own.
+    ({ app, mpesa } = await appWithAdmins([adminId], { adminActionLimit: 1000 }));
     // Seed before any admin request so the 60-second cache cannot hide it.
     customerEmail = await seedCustomer();
     // A Free account that uses its whole monthly allowance and does not pay.
@@ -502,35 +526,40 @@ describe("admin", () => {
       expect(body.cohorts[0].activeShare).toHaveLength(4);
     });
 
-    it("finds the seeded user by part of their email and shows their details", async () => {
+    it("finds the seeded user by part of their email and shows their tenant", async () => {
       const part = customerEmail.slice(0, 30).toUpperCase();
       const list = await admin(`users?search=${encodeURIComponent(part)}`).expect(200);
       expect(list.body.total).toBe(1);
       const [row] = list.body.users;
       expect(row).toMatchObject({
         email: customerEmail,
-        signInMethod: "email",
-        plan: { code: "pro" },
-        businesses: 1,
-        invoicesReady: 1,
+        signInMethods: ["email"],
+        role: "user",
+        accountStatus: "active",
+        tenantId: row.id,
       });
-      expect(row.lastActiveAt).not.toBeNull();
+      expect(row.lastLoginAt).not.toBeNull();
 
-      const detail = await admin(`users/${row.id}`).expect(200);
-      expect(detail.body.user.id).toBe(row.id);
-      expect(detail.body.businesses).toEqual([
+      const tenant = await admin(`tenants/${row.tenantId}`).expect(200);
+      expect(tenant.body.tenant).toMatchObject({
+        owner: { email: customerEmail },
+        plan: { code: "pro", label: "Pro" },
+        readyInvoices: 1,
+      });
+      expect(tenant.body.businesses).toEqual([
         expect.objectContaining({
-          name: "Seeded Studio",
+          displayName: "Seeded Studio",
           clients: 1,
           invoices: { draft: 0, ready: 1, partially_paid: 0, paid: 0, cancelled: 0 },
         }),
       ]);
-      expect(detail.body.payments).toEqual([
+      expect(tenant.body.subscription.recentPayments).toEqual([
         expect.objectContaining({
           purpose: "pro_month",
           amountKes: "500.00",
           status: "succeeded",
           receipt,
+          phone: "+2547•••••149",
         }),
       ]);
     });
@@ -568,7 +597,7 @@ describe("admin", () => {
       const { body } = await admin("users?page=1").expect(200);
       expect(body.pageSize).toBe(25);
       expect(body.users.length).toBeLessThanOrEqual(25);
-      const dates = body.users.map((user: { signedUpAt: string }) => user.signedUpAt);
+      const dates = body.users.map((user: { registeredAt: string }) => user.registeredAt);
       expect([...dates].sort().reverse()).toEqual(dates);
     });
 
@@ -576,11 +605,16 @@ describe("admin", () => {
       await admin("funnel?days=5").expect(400);
       await admin("retention?weeks=6").expect(400);
       await admin("users?page=0").expect(400);
+      await admin("tenants?lifecycle=churned").expect(400);
+      await admin("tenants?activeWithin=7&inactiveFor=30").expect(400);
+      await admin("audit-logs?from=yesterday").expect(400);
     });
 
     it("answers 404 for an unknown or malformed user id", async () => {
       await admin(`users/${crypto.randomUUID()}`).expect(404);
       await admin("users/not-a-uuid").expect(404);
+      await admin(`tenants/${crypto.randomUUID()}`).expect(404);
+      await admin("tenants/not-a-uuid").expect(404);
     });
   });
   /*
@@ -709,6 +743,775 @@ describe("admin", () => {
       expect(freeLimitHits.some((hit) => hit.userId === id)).toBe(false);
       // The plain Free account seeded earlier is still reported.
       expect(freeLimitHits.some((hit) => hit.userEmail === limitedEmail)).toBe(true);
+    });
+  });
+
+  /** Moves a Better Auth `timestamp` column, which stores UTC, to an instant. */
+  const setRegistered = (id: string, instant: Date) =>
+    db().execute(
+      sql`update users set created_at = (${instant.toISOString()}::timestamptz at time zone 'UTC') where id = ${id}`,
+    );
+  const daysAgo = (days: number) => new Date(Date.now() - days * DAY_MS);
+  const setSubscription = (id: string, anchorAt: Date, paidMonths: number) =>
+    db()
+      .insert(schema.subscriptions)
+      .values({ userId: id, anchorAt, paidMonths })
+      .onConflictDoUpdate({ target: schema.subscriptions.userId, set: { anchorAt, paidMonths } });
+  const act = (
+    path: string,
+    body: object = { reason: "Checked with the owner" },
+    cookie = adminCookie,
+  ) => api().post(`/api/v1/admin/${path}`).set("Cookie", cookie).send(body);
+  const auditFor = (targetId: string) =>
+    db()
+      .select()
+      .from(schema.auditLogs)
+      .where(eq(schema.auditLogs.targetId, targetId))
+      .orderBy(asc(schema.auditLogs.occurredAt));
+
+  describe("tenants directory", () => {
+    const tag = `tn${crypto.randomUUID().slice(0, 8)}`;
+    const labels = [
+      "registered",
+      "onboarding",
+      "activated",
+      "subscribed",
+      "ending",
+      "lapsed",
+      "inactive",
+      "suspended",
+    ] as const;
+    type Label = (typeof labels)[number];
+    const ids = {} as Record<Label, string>;
+    const labelOf = (id: string) => labels.find((label) => ids[label] === id) ?? id;
+
+    /** Seeded labels the directory returns for the tag search plus `filters`, in order. */
+    async function search(filters = ""): Promise<string[]> {
+      const { body } = await admin(`tenants?search=${tag}${filters}`).expect(200);
+      return body.tenants.map((tenant: { id: string }) => labelOf(tenant.id));
+    }
+    const sorted = (values: string[]) => [...values].sort();
+
+    beforeAll(async () => {
+      const plain = async (label: Label) => {
+        const { cookie, email } = await signUp(app, uniqueEmail(`${tag}-${label}`));
+        ids[label] = await userId(email);
+        return cookie;
+      };
+      const seeded = async (label: Label) => {
+        const account = await seedAccount(`${tag}-${label}`, 1);
+        ids[label] = await userId(account.email);
+        return account;
+      };
+
+      await plain("registered");
+      await createBusiness(app, await plain("onboarding"), {
+        displayName: `${tag}-shop Onboarding`,
+      });
+      await seeded("activated");
+      await payPro((await seeded("subscribed")).cookie);
+      // About five days left on a one-month run: Pro, ending soon.
+      await plain("ending");
+      await setSubscription(ids.ending, daysAgo(25), 1);
+      // Made an invoice Ready, then a Pro month that ended a month ago.
+      await seeded("lapsed");
+      await setSubscription(ids.lapsed, daysAgo(60), 1);
+      // Every meaningful action 40 days ago, and registered 45 days ago.
+      await seeded("inactive");
+      const old = daysAgo(40).toISOString();
+      const owned = sql`(select id from businesses where owner_user_id = ${ids.inactive})`;
+      await db().execute(
+        sql`update invoices set created_at = ${old}::timestamptz where business_id in ${owned}`,
+      );
+      await db().execute(
+        sql`update clients set created_at = ${old}::timestamptz where business_id in ${owned}`,
+      );
+      await db().execute(
+        sql`update invoice_issuances set issued_at = ${old}::timestamptz where user_id = ${ids.inactive}`,
+      );
+      await setRegistered(ids.inactive, daysAgo(45));
+      await plain("suspended");
+      await db()
+        .update(schema.users)
+        .set({ banned: true })
+        .where(eq(schema.users.id, ids.suspended));
+      // Distinct names, so sorting by name has an order to check.
+      for (const label of labels) {
+        await db()
+          .update(schema.users)
+          .set({ name: `${label} ${tag}` })
+          .where(eq(schema.users.id, ids[label]));
+      }
+    });
+
+    it("finds every seeded account by part of their email", async () => {
+      const { body } = await admin(`tenants?search=${tag.toUpperCase()}`).expect(200);
+      expect(body.total).toBe(labels.length);
+      expect(body.pageSize).toBe(25);
+      expect(sorted(body.tenants.map((tenant: { id: string }) => labelOf(tenant.id)))).toEqual(
+        sorted([...labels]),
+      );
+    });
+
+    it("shows the three statuses for each account", async () => {
+      const { body } = await admin(`tenants?search=${tag}`).expect(200);
+      const statuses = Object.fromEntries(
+        body.tenants.map(
+          (tenant: {
+            id: string;
+            accountStatus: string;
+            subscriptionStatus: string;
+            lifecycleStage: string;
+          }) => [
+            labelOf(tenant.id),
+            [tenant.accountStatus, tenant.subscriptionStatus, tenant.lifecycleStage],
+          ],
+        ),
+      );
+      expect(statuses).toEqual({
+        registered: ["active", "free", "registered"],
+        onboarding: ["active", "free", "onboarding"],
+        activated: ["active", "free", "activated"],
+        subscribed: ["active", "pro", "subscribed"],
+        ending: ["active", "pro_ending", "subscribed"],
+        lapsed: ["active", "lapsed", "activated"],
+        inactive: ["active", "free", "inactive"],
+        suspended: ["suspended", "free", "registered"],
+      });
+    });
+
+    it("shows the row columns", async () => {
+      const { body } = await admin(`tenants?search=${tag}&sort=name&dir=asc`).expect(200);
+      const subscribed = body.tenants.find(
+        (tenant: { id: string }) => tenant.id === ids.subscribed,
+      );
+      expect(subscribed).toMatchObject({
+        owner: { name: `subscribed ${tag}`, email: expect.stringContaining(`${tag}-subscribed`) },
+        businesses: { firstName: "Seeded Studio", count: 1 },
+        plan: { code: "pro", label: "Pro", proUntil: expect.any(String) },
+        readyInvoices: 1,
+      });
+      expect(Date.parse(subscribed.lastMeaningfulActivityAt)).toBeGreaterThan(Date.now() - DAY_MS);
+      const registered = body.tenants.find(
+        (tenant: { id: string }) => tenant.id === ids.registered,
+      );
+      expect(registered).toMatchObject({
+        businesses: { firstName: null, count: 0 },
+        plan: { code: "free", label: "Free", proUntil: null },
+        lastMeaningfulActivityAt: null,
+        readyInvoices: 0,
+      });
+      // A lapsed account is on Free again.
+      const lapsed = body.tenants.find((tenant: { id: string }) => tenant.id === ids.lapsed);
+      expect(lapsed.plan).toEqual({ code: "free", label: "Free", proUntil: null });
+    });
+
+    it.each([
+      ["&lifecycle=registered", ["registered", "suspended"]],
+      ["&lifecycle=onboarding", ["onboarding"]],
+      ["&lifecycle=activated", ["activated", "lapsed"]],
+      ["&lifecycle=subscribed", ["subscribed", "ending"]],
+      ["&lifecycle=inactive", ["inactive"]],
+      [
+        "&subscriptionStatus=free",
+        ["registered", "onboarding", "activated", "inactive", "suspended"],
+      ],
+      ["&subscriptionStatus=pro", ["subscribed"]],
+      ["&subscriptionStatus=pro_ending", ["ending"]],
+      ["&subscriptionStatus=lapsed", ["lapsed"]],
+      ["&accountStatus=suspended", ["suspended"]],
+      ["&accountStatus=active&lifecycle=registered", ["registered"]],
+      ["&signedUp=30", labels.filter((label) => label !== "inactive")],
+      ["&signedUp=90", [...labels]],
+      ["&activeWithin=7", ["activated", "subscribed", "lapsed"]],
+      ["&activeWithin=90", ["activated", "subscribed", "lapsed", "inactive"]],
+      ["&inactiveFor=30", ["registered", "onboarding", "ending", "inactive", "suspended"]],
+    ])("filters with %s", async (filters, expected) => {
+      expect(sorted(await search(filters))).toEqual(sorted(expected));
+    });
+
+    it("searches business names and exact account ids", async () => {
+      expect(await search("-shop")).toEqual(["onboarding"]);
+      const { body } = await admin(`tenants?search=${ids.lapsed}`).expect(200);
+      expect(body.tenants.map((tenant: { id: string }) => tenant.id)).toEqual([ids.lapsed]);
+    });
+
+    it("sorts by each column in both directions", async () => {
+      expect(await search("&sort=name&dir=asc")).toEqual(sorted([...labels]));
+      expect(await search("&sort=name&dir=desc")).toEqual(sorted([...labels]).reverse());
+      expect((await search("&sort=registered&dir=asc"))[0]).toBe("inactive");
+      expect((await search("&sort=registered"))[labels.length - 1]).toBe("inactive");
+
+      const ready = await search("&sort=readyInvoices&dir=desc");
+      expect(sorted(ready.slice(0, 4))).toEqual(
+        sorted(["activated", "subscribed", "lapsed", "inactive"]),
+      );
+
+      const { body } = await admin(`tenants?search=${tag}&sort=lastActivity&dir=desc`).expect(200);
+      const times = body.tenants.map(
+        (tenant: { lastMeaningfulActivityAt: string | null }) => tenant.lastMeaningfulActivityAt,
+      );
+      const known = times.filter((time: string | null) => time !== null);
+      expect(known).toHaveLength(4);
+      // Accounts with no activity come last, whichever the direction.
+      expect(times.slice(0, 4)).toEqual([...known].sort().reverse());
+      expect(labelOf(body.tenants[3].id)).toBe("inactive");
+      const ascending = await search("&sort=lastActivity&dir=asc");
+      expect(ascending[0]).toBe("inactive");
+    });
+
+    it("agrees with the domain status rules", async () => {
+      const { body } = await admin(`tenants?search=${tag}`).expect(200);
+      const now = new Date();
+      for (const tenant of body.tenants) {
+        const [subscription] = await db()
+          .select()
+          .from(schema.subscriptions)
+          .where(eq(schema.subscriptions.userId, tenant.id));
+        const entitlement = {
+          anchorAt: subscription?.anchorAt ?? null,
+          paidMonths: subscription?.paidMonths ?? 0,
+        };
+        const status = subscriptionStatus(entitlement, now);
+        expect(tenant.subscriptionStatus).toBe(status);
+        const businesses = await db()
+          .select()
+          .from(schema.businesses)
+          .where(eq(schema.businesses.ownerUserId, tenant.id));
+        expect(tenant.lifecycleStage).toBe(
+          lifecycleStage(
+            {
+              businesses: businesses.length,
+              readyInvoices: tenant.readyInvoices,
+              proAccess: status === "pro" || status === "pro_ending",
+              lastMeaningfulActivityAt: tenant.lastMeaningfulActivityAt
+                ? new Date(tenant.lastMeaningfulActivityAt)
+                : null,
+            },
+            now,
+          ),
+        );
+      }
+    });
+
+    it("ends Pro on the same instant as the billing code", async () => {
+      const anchors = [
+        "2026-01-30T21:30:00Z", // 31 January, 00:30 in Nairobi
+        "2027-01-28T21:00:00Z", // 29 January, before a short February
+        "2028-02-28T22:00:00Z", // 29 February in a leap year
+        "2026-10-15T07:30:00Z",
+        "2026-12-31T20:59:59Z", // the last second of the year in Nairobi
+      ];
+      for (const anchor of anchors) {
+        for (const months of [1, 2, 3, 12]) {
+          const { rows } = await db().execute(
+            sql`select to_char(${proEndsAtSql(
+              sql`${anchor}::timestamptz`,
+              sql`${months}::int`,
+            )} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as ends`,
+          );
+          expect([anchor, months, rows[0]!.ends]).toEqual([
+            anchor,
+            months,
+            addNairobiMonths(new Date(anchor), months).toISOString(),
+          ]);
+        }
+      }
+    });
+
+    it("pages 25 at a time without repeating rows", async () => {
+      const bulk = `tb${crypto.randomUUID().slice(0, 8)}`;
+      await db()
+        .insert(schema.users)
+        .values(
+          Array.from({ length: 27 }, (_, index) => ({
+            name: `Bulk ${index}`,
+            email: `${bulk}-${index}@example.test`,
+          })),
+        );
+      const first = await admin(`tenants?search=${bulk}`).expect(200);
+      const second = await admin(`tenants?search=${bulk}&page=2`).expect(200);
+      const third = await admin(`tenants?search=${bulk}&page=3`).expect(200);
+      expect([first.body.total, first.body.tenants.length, second.body.tenants.length]).toEqual([
+        27, 25, 2,
+      ]);
+      expect(third.body.tenants).toEqual([]);
+      const seen = new Set(
+        [...first.body.tenants, ...second.body.tenants].map((tenant: { id: string }) => tenant.id),
+      );
+      expect(seen.size).toBe(27);
+    });
+  });
+
+  describe("tenant details", () => {
+    it("shows identity, statuses, businesses, usage, subscription and audit", async () => {
+      const account = await seedAccount("admin-detail", 1);
+      const id = await userId(account.email);
+      const paid = await payPro(account.cookie);
+      await api()
+        .put(`/api/v1/businesses/${account.businessId}/logo`)
+        .set("Cookie", account.cookie)
+        .set("Content-Type", "image/png")
+        .send(PNG)
+        .expect(200);
+      const [client] = await db()
+        .select()
+        .from(schema.clients)
+        .where(eq(schema.clients.businessId, account.businessId));
+      const path = `/api/v1/businesses/${account.businessId}/invoices`;
+      const newDraft = () =>
+        api()
+          .post(path)
+          .set("Cookie", account.cookie)
+          .send({
+            clientId: client!.id,
+            issueDate: "2026-10-16",
+            dueDate: "2026-10-30",
+            items: [{ description: "Design work", quantity: "1", unitPrice: "1000" }],
+          })
+          .expect(201);
+      // One more Ready invoice, shared and part paid, and one left as a draft.
+      const second = await newDraft();
+      await api().post(`${path}/${second.body.id}/ready`).set("Cookie", account.cookie).expect(200);
+      await api().post(`${path}/${second.body.id}/link`).set("Cookie", account.cookie).expect(201);
+      await api()
+        .post(`${path}/${second.body.id}/payments`)
+        .set("Cookie", account.cookie)
+        .send({ amount: "100", method: "mpesa", paymentDate: "2026-10-16" })
+        .expect(201);
+      await newDraft();
+
+      const { body } = await admin(`tenants/${id}`).expect(200);
+      expect(body.tenant).toMatchObject({
+        id,
+        owner: { email: account.email },
+        businesses: { firstName: "Seeded Studio", count: 1 },
+        plan: { code: "pro", label: "Pro" },
+        accountStatus: "active",
+        subscriptionStatus: "pro",
+        lifecycleStage: "subscribed",
+        readyInvoices: 2,
+      });
+      expect(body.identity).toEqual({
+        emailVerified: false,
+        role: "user",
+        signInMethods: ["email"],
+        suspendedReason: null,
+      });
+      expect(body.businesses).toEqual([
+        {
+          id: account.businessId,
+          displayName: "Seeded Studio",
+          profileType: "individual",
+          createdAt: expect.any(String),
+          contactEmail: "hello@wanjiku.example.test",
+          phone: "+2547•••••678",
+          clients: 1,
+          invoices: { draft: 1, ready: 1, partially_paid: 1, paid: 0, cancelled: 0 },
+          hasLogo: true,
+          logoBytes: PNG.length,
+        },
+      ]);
+      expect(body.usage).toEqual({
+        // The Free invoice from before Pro is carried into the first Pro period.
+        allowance: {
+          plan: "pro",
+          used: 2,
+          limit: 100,
+          periodStart: expect.any(String),
+          periodEnd: expect.any(String),
+        },
+        credits: 0,
+        invoicesCreated: 3,
+        invoicesReady: 2,
+        clients: 1,
+        shareLinks: 1,
+        paymentsRecorded: 1,
+        storageBytes: PNG.length,
+      });
+      expect(body.subscription).toMatchObject({
+        plan: { code: "pro" },
+        status: "pro",
+        paidMonths: 1,
+        paidUntil: body.tenant.plan.proUntil,
+        cancelledAt: null,
+        recentPayments: [expect.objectContaining({ receipt: paid, phone: "+2547•••••149" })],
+      });
+      expect(body.recentAudit).toEqual([]);
+      // Phone numbers only ever leave masked.
+      expect(JSON.stringify(body)).not.toContain("712345678");
+      expect(JSON.stringify(body)).not.toContain("708374149");
+    });
+  });
+
+  describe("users directory and details", () => {
+    const tag = `us${crypto.randomUUID().slice(0, 8)}`;
+    const ids = { browser: "", google: "", silent: "" };
+
+    beforeAll(async () => {
+      // Signed up on a Mac, then signed in again from Windows over IPv6.
+      const email = uniqueEmail(`${tag}-browser`);
+      await api()
+        .post("/api/v1/auth/sign-up/email")
+        .set("Origin", WEB_ORIGIN)
+        .set("User-Agent", CHROME_MAC)
+        .set("X-Forwarded-For", "203.0.113.45")
+        .send({ name: "Wanjiku Kamau", email, password: "correct-horse-battery" })
+        .expect(200);
+      await api()
+        .post("/api/v1/auth/sign-in/email")
+        .set("Origin", WEB_ORIGIN)
+        .set(
+          "User-Agent",
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0",
+        )
+        .set("X-Forwarded-For", "2001:db8:85a3::8a2e:370:7334")
+        .send({ email, password: "correct-horse-battery" })
+        .expect(200);
+      ids.browser = await userId(email);
+
+      const google = await signUp(app, uniqueEmail(`${tag}-google`));
+      ids.google = await userId(google.email);
+      await db()
+        .insert(schema.accounts)
+        .values({
+          accountId: `google-${ids.google}`,
+          providerId: "google",
+          userId: ids.google,
+          updatedAt: new Date(),
+        });
+
+      // Never signed in: no login method and no session.
+      const [silent] = await db()
+        .insert(schema.users)
+        .values({ name: "Silent User", email: `${tag}-silent@example.test` })
+        .returning();
+      ids.silent = silent!.id;
+    });
+
+    const labelOf = (id: string) =>
+      (Object.keys(ids) as (keyof typeof ids)[]).find((key) => ids[key] === id) ?? id;
+    async function search(filters = ""): Promise<string[]> {
+      const { body } = await admin(`users?search=${tag}${filters}`).expect(200);
+      return body.users.map((user: { id: string }) => labelOf(user.id));
+    }
+
+    it("lists identity and access for each user", async () => {
+      const { body } = await admin(`users?search=${tag}&sort=registered&dir=asc`).expect(200);
+      expect(body.total).toBe(3);
+      expect(body.users).toEqual([
+        {
+          id: ids.browser,
+          name: "Wanjiku Kamau",
+          email: expect.stringContaining(`${tag}-browser`),
+          emailVerified: false,
+          role: "user",
+          accountStatus: "active",
+          signInMethods: ["email"],
+          registeredAt: expect.any(String),
+          lastLoginAt: expect.any(String),
+          tenantId: ids.browser,
+        },
+        expect.objectContaining({ id: ids.google, signInMethods: ["email", "google"] }),
+        expect.objectContaining({ id: ids.silent, signInMethods: [], lastLoginAt: null }),
+      ]);
+    });
+
+    it("filters by sign-in method, role and account status", async () => {
+      expect(await search("&signInMethod=google")).toEqual(["google"]);
+      expect((await search("&signInMethod=email")).sort()).toEqual(["browser", "google"]);
+      expect(await search("&role=admin")).toEqual([]);
+      const admins = await admin(`users?search=${encodeURIComponent(adminEmail)}&role=admin`);
+      expect(admins.body.users).toEqual([expect.objectContaining({ id: adminId, role: "admin" })]);
+      const notUsers = await admin(`users?search=${encodeURIComponent(adminEmail)}&role=user`);
+      expect(notUsers.body.total).toBe(0);
+
+      await db().update(schema.users).set({ banned: true }).where(eq(schema.users.id, ids.silent));
+      expect(await search("&accountStatus=suspended")).toEqual(["silent"]);
+      expect((await search("&accountStatus=active")).sort()).toEqual(["browser", "google"]);
+    });
+
+    it("sorts by last login with never-signed-in users last", async () => {
+      expect(await search("&sort=lastLogin&dir=desc")).toEqual(["google", "browser", "silent"]);
+      expect(await search("&sort=lastLogin&dir=asc")).toEqual(["browser", "google", "silent"]);
+    });
+
+    it("shows recent sessions with a device summary and a truncated IP", async () => {
+      const { body } = await admin(`users/${ids.browser}`).expect(200);
+      expect(body.user).toMatchObject({ id: ids.browser, tenantId: ids.browser });
+      expect(body.sessions).toEqual([
+        {
+          createdAt: expect.any(String),
+          updatedAt: expect.any(String),
+          expiresAt: expect.any(String),
+          device: { browser: "Firefox 132", os: "Windows" },
+          ipAddress: "2001:db8:85a3::/48",
+        },
+        expect.objectContaining({
+          device: { browser: "Chrome 130", os: "macOS" },
+          ipAddress: "203.0.113.0/24",
+        }),
+      ]);
+      expect(JSON.stringify(body)).not.toContain("203.0.113.45");
+      expect(JSON.stringify(body)).not.toContain("7334");
+      expect(body.recentAudit).toEqual([]);
+    });
+  });
+
+  describe("actions", () => {
+    let target: { id: string; email: string; cookie: string };
+    const signIn = (email: string) =>
+      api()
+        .post("/api/v1/auth/sign-in/email")
+        .set("Origin", WEB_ORIGIN)
+        .send({ email, password: "correct-horse-battery" });
+    const getSession = (cookie: string) =>
+      api().get("/api/v1/auth/get-session").set("Cookie", cookie).expect(200);
+
+    beforeAll(async () => {
+      const account = await signUp(app, uniqueEmail("admin-action-target"));
+      target = { ...account, id: await userId(account.email) };
+    });
+
+    it("suspends with a reason: sign-in blocked, sessions ended, audited, directory fresh", async () => {
+      const directory = `tenants?search=${encodeURIComponent(target.email)}`;
+      expect((await admin(directory).expect(200)).body.tenants[0].accountStatus).toBe("active");
+
+      const response = await act(`tenants/${target.id}/suspend`, {
+        reason: "  Chargeback fraud report  ",
+      })
+        .set("x-request-id", "e2e-suspend-1")
+        .expect(200);
+      expect(response.body).toMatchObject({ id: target.id, accountStatus: "suspended" });
+
+      await api().get("/api/v1/businesses").set("Cookie", target.cookie).expect(401);
+      expect((await signIn(target.email).expect(403)).body.code).toBe("BANNED_USER");
+      // The cached directory entry was cleared, so the change shows at once.
+      expect((await admin(directory).expect(200)).body.tenants[0].accountStatus).toBe("suspended");
+
+      const [row] = await auditFor(target.id);
+      expect(row).toMatchObject({
+        actorUserId: adminId,
+        actorRole: "admin",
+        action: "tenant.suspend",
+        targetType: "account",
+        targetId: target.id,
+        outcome: "success",
+        reason: "Chargeback fraud report",
+        changes: { banned: { from: false, to: true } },
+        requestId: "e2e-suspend-1",
+      });
+      expect(row!.ipAddress).toBeTruthy();
+
+      const detail = await admin(`tenants/${target.id}`).expect(200);
+      expect(detail.body.identity.suspendedReason).toBe("Chargeback fraud report");
+      expect(detail.body.recentAudit[0]).toMatchObject({
+        action: "tenant.suspend",
+        actor: { userId: adminId, role: "admin", email: adminEmail },
+        target: { type: "account", id: target.id },
+        outcome: "success",
+      });
+    });
+
+    it("refuses to suspend an account twice, and records the refusal", async () => {
+      const response = await act(`tenants/${target.id}/suspend`).expect(409);
+      expect(response.body).toEqual({
+        code: "ALREADY_SUSPENDED",
+        message: "This account is already suspended.",
+      });
+      expect((await auditFor(target.id)).at(-1)).toMatchObject({
+        action: "tenant.suspend",
+        outcome: "failure",
+        reason: "Checked with the owner",
+        changes: { error: { status: 409, code: "ALREADY_SUSPENDED" } },
+      });
+    });
+
+    it("reactivates, after which sign-in works, and refuses an active account", async () => {
+      const response = await act(`tenants/${target.id}/reactivate`).expect(200);
+      expect(response.body).toMatchObject({ id: target.id, accountStatus: "active" });
+      const back = await signIn(target.email).expect(200);
+      target.cookie = sessionCookie(back.headers["set-cookie"]);
+      await api().get("/api/v1/businesses").set("Cookie", target.cookie).expect(200);
+
+      const again = await act(`tenants/${target.id}/reactivate`).expect(409);
+      expect(again.body.code).toBe("NOT_SUSPENDED");
+      const rows = await auditFor(target.id);
+      expect(rows.slice(-2)).toEqual([
+        expect.objectContaining({
+          action: "tenant.reactivate",
+          outcome: "success",
+          changes: { banned: { from: true, to: false } },
+        }),
+        expect.objectContaining({ action: "tenant.reactivate", outcome: "failure" }),
+      ]);
+    });
+
+    it("refuses to suspend yourself or another admin", async () => {
+      const self = await act(`tenants/${adminId}/suspend`).expect(409);
+      expect(self.body.code).toBe("CANNOT_SUSPEND_SELF");
+      await admin("access").expect(204);
+      expect((await auditFor(adminId)).at(-1)).toMatchObject({
+        action: "tenant.suspend",
+        outcome: "failure",
+        changes: { error: { code: "CANNOT_SUSPEND_SELF" } },
+      });
+
+      const other = await signUp(app, uniqueEmail("admin-other"));
+      const otherId = await userId(other.email);
+      await db().update(schema.users).set({ role: "admin" }).where(eq(schema.users.id, otherId));
+      try {
+        const response = await act(`tenants/${otherId}/suspend`).expect(409);
+        expect(response.body.code).toBe("CANNOT_SUSPEND_ADMIN");
+        const [user] = await db().select().from(schema.users).where(eq(schema.users.id, otherId));
+        expect(user!.banned).toBe(false);
+        expect((await auditFor(otherId)).at(-1)).toMatchObject({ outcome: "failure" });
+      } finally {
+        // Back to a plain user, so the role-sync assertions see no stray admin.
+        await db().update(schema.users).set({ role: "user" }).where(eq(schema.users.id, otherId));
+      }
+    });
+
+    it("revokes every session without suspending", async () => {
+      const second = sessionCookie((await signIn(target.email).expect(200)).headers["set-cookie"]);
+      const response = await act(`users/${target.id}/revoke-sessions`).expect(200);
+      expect(response.body).toMatchObject({
+        id: target.id,
+        accountStatus: "active",
+        lastLoginAt: null,
+      });
+      await api().get("/api/v1/businesses").set("Cookie", target.cookie).expect(401);
+      await api().get("/api/v1/businesses").set("Cookie", second).expect(401);
+      await signIn(target.email).expect(200);
+      expect((await auditFor(target.id)).at(-1)).toMatchObject({
+        action: "user.revoke_sessions",
+        targetType: "user",
+        outcome: "success",
+        changes: { sessions: { from: 2, to: 0 } },
+      });
+      const detail = await admin(`users/${target.id}`).expect(200);
+      expect(detail.body.recentAudit[0]).toMatchObject({ action: "user.revoke_sessions" });
+    });
+
+    it.each(["tenants/%s/suspend", "tenants/%s/reactivate", "users/%s/revoke-sessions"])(
+      "answers 404 on %s for an unknown or malformed id, recording unknown ones",
+      async (route) => {
+        const unknown = crypto.randomUUID();
+        await act(route.replace("%s", unknown)).expect(404);
+        await act(route.replace("%s", "not-a-uuid")).expect(404);
+        expect(await auditFor(unknown)).toEqual([
+          expect.objectContaining({
+            outcome: "failure",
+            changes: { error: expect.objectContaining({ status: 404 }) },
+          }),
+        ]);
+      },
+    );
+
+    it.each(["tenants/%s/suspend", "tenants/%s/reactivate", "users/%s/revoke-sessions"])(
+      "answers 400 on %s without a reason of at least 5 characters",
+      async (route) => {
+        const path = route.replace("%s", target.id);
+        const before = (await auditFor(target.id)).length;
+        await act(path, {}).expect(400);
+        const short = await act(path, { reason: "  abc  " }).expect(400);
+        expect(short.body.issues).toEqual([expect.objectContaining({ path: "reason" })]);
+        expect(await auditFor(target.id)).toHaveLength(before);
+        const [user] = await db().select().from(schema.users).where(eq(schema.users.id, target.id));
+        expect(user!.banned).toBe(false);
+      },
+    );
+
+    it.each(["tenants/%s/suspend", "tenants/%s/reactivate", "users/%s/revoke-sessions"])(
+      "answers 404 on %s to a signed-out visitor or a non-admin",
+      async (route) => {
+        const path = route.replace("%s", target.id);
+        const { cookie } = await signUp(app);
+        await api()
+          .post(`/api/v1/admin/${path}`)
+          .send({ reason: "Checked with the owner" })
+          .expect(404);
+        await act(path, { reason: "Checked with the owner" }, cookie).expect(404);
+        const [user] = await db().select().from(schema.users).where(eq(schema.users.id, target.id));
+        expect(user!.banned).toBe(false);
+      },
+    );
+
+    it("allows 10 actions a minute per admin and answers 429 after that", async () => {
+      // An app of its own, so its limiter starts empty and this file's main app is untouched.
+      const limited = await appWithAdmins([adminId]);
+      try {
+        const post = () =>
+          request(limited.app.getHttpServer())
+            .post(`/api/v1/admin/users/${crypto.randomUUID()}/revoke-sessions`)
+            .set("Cookie", adminCookie)
+            .send({ reason: "Checked with the owner" });
+        for (let index = 0; index < 10; index++) await post().expect(404);
+        const refused = await post().expect(429);
+        expect(refused.headers["retry-after"]).toMatch(/^\d+$/);
+      } finally {
+        await limited.app.close();
+      }
+    });
+
+    it("hides a surviving session of a suspended account from get-session", async () => {
+      const { cookie, email } = await signUp(app, uniqueEmail("admin-get-session"));
+      const id = await userId(email);
+      expect((await getSession(cookie)).body.user.id).toBe(id);
+      // Banned straight in the table, so the session row survives.
+      await db().update(schema.users).set({ banned: true }).where(eq(schema.users.id, id));
+      expect((await getSession(cookie)).body).toBeNull();
+      await db().update(schema.users).set({ banned: false }).where(eq(schema.users.id, id));
+      expect((await getSession(cookie)).body.user.id).toBe(id);
+    });
+
+    describe("audit log API", () => {
+      const auditLogs = async (filters: string) =>
+        (await admin(`audit-logs?targetId=${target.id}${filters}`).expect(200)).body;
+
+      it("lists rows newest first with the actor", async () => {
+        const body = await auditLogs("");
+        expect(body.pageSize).toBe(50);
+        expect(body.total).toBe(body.entries.length);
+        const actions = body.entries.map(
+          (entry: { action: string; outcome: string }) => `${entry.action}:${entry.outcome}`,
+        );
+        expect(actions.slice(-5)).toEqual([
+          "user.revoke_sessions:success",
+          "tenant.reactivate:failure",
+          "tenant.reactivate:success",
+          "tenant.suspend:failure",
+          "tenant.suspend:success",
+        ]);
+        expect(body.entries.at(-1)).toMatchObject({
+          actor: { userId: adminId, role: "admin", email: adminEmail },
+          target: { type: "account", id: target.id },
+          reason: "Chargeback fraud report",
+          requestId: "e2e-suspend-1",
+        });
+      });
+
+      it("filters by action, outcome, target type, actor and date", async () => {
+        expect((await auditLogs("&action=tenant.suspend")).total).toBe(2);
+        expect((await auditLogs("&action=tenant.suspend&outcome=failure")).total).toBe(1);
+        expect((await auditLogs("&targetType=user")).entries).toEqual([
+          expect.objectContaining({ action: "user.revoke_sessions" }),
+        ]);
+        expect((await auditLogs(`&actorId=${adminId}`)).total).toBe((await auditLogs("")).total);
+        expect((await auditLogs(`&actorId=${crypto.randomUUID()}`)).total).toBe(0);
+
+        const today = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const yesterday = new Date(Date.now() + 3 * 60 * 60 * 1000 - DAY_MS)
+          .toISOString()
+          .slice(0, 10);
+        const all = (await auditLogs("")).total;
+        expect((await auditLogs(`&from=${today}&to=${today}`)).total).toBe(all);
+        expect((await auditLogs(`&to=${yesterday}`)).total).toBe(0);
+        expect(
+          (await admin("audit-logs?action=user.role_change&outcome=success").expect(200)).body
+            .entries[0],
+        ).toMatchObject({ actor: { userId: null, role: "system", email: null } });
+      });
     });
   });
 });

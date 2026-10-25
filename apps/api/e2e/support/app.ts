@@ -6,6 +6,7 @@ import { AppModule } from "../../src/app.module.js";
 import { configureApp } from "../../src/app.setup.js";
 import { loadRootEnvFile } from "../../src/config/env-file.js";
 import { AdminRoleSyncService } from "../../src/admin/admin-role-sync.service.js";
+import { ADMIN_ACTION_LIMITER, SlidingWindowLimiter } from "../../src/admin/rate-limit.guard.js";
 import { FakeMpesaProvider } from "../../src/billing/mpesa/fake.provider.js";
 import { MPESA_PROVIDER } from "../../src/billing/mpesa/mpesa.provider.js";
 import { MAILER } from "../../src/mail/mail.module.js";
@@ -40,7 +41,14 @@ export class CapturingMailer implements Mailer {
  * users.role globally on start. It is off unless a spec asks for it, so one file's app
  * cannot demote another file's admin mid-run.
  */
-export async function createTestApp({ adminRoleSync = false }: { adminRoleSync?: boolean } = {}) {
+export async function createTestApp({
+  adminRoleSync = false,
+  adminActionLimit,
+}: {
+  adminRoleSync?: boolean;
+  /** Admin actions allowed per minute; the app's own limit (10) when not given. */
+  adminActionLimit?: number;
+} = {}) {
   const mailer = new CapturingMailer();
   const mpesa = new FakeMpesaProvider({ autoSettleMs: null });
   let builder = Test.createTestingModule({ imports: [AppModule] })
@@ -50,6 +58,11 @@ export async function createTestApp({ adminRoleSync = false }: { adminRoleSync?:
     .useValue(mpesa);
   if (!adminRoleSync) {
     builder = builder.overrideProvider(AdminRoleSyncService).useValue({});
+  }
+  if (adminActionLimit !== undefined) {
+    builder = builder
+      .overrideProvider(ADMIN_ACTION_LIMITER)
+      .useValue(new SlidingWindowLimiter(adminActionLimit, 60_000));
   }
   const moduleRef = await builder.compile();
   const app: INestApplication = moduleRef.createNestApplication({ bodyParser: false });

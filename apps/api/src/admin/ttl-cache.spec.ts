@@ -25,4 +25,15 @@ describe("TtlCache", () => {
     await expect(cache.get("x", () => Promise.reject(new Error("down")))).rejects.toThrow("down");
     expect(await cache.get("x", async () => "ok")).toBe("ok");
   });
+
+  it("forgets entries by key prefix", async () => {
+    const cache = new TtlCache();
+    let loads = 0;
+    const load = async () => ++loads;
+    await cache.get("tenants:a", load);
+    await cache.get("users:a", load);
+    cache.invalidate("tenants:");
+    expect(await cache.get("tenants:a", load)).toBe(3);
+    expect(await cache.get("users:a", load)).toBe(2);
+  });
 });

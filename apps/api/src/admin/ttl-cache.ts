@@ -31,6 +31,13 @@ export class TtlCache {
     return value;
   }
 
+  /** Forgets every entry whose key starts with `prefix`, so the next read loads fresh data. */
+  invalidate(prefix: string): void {
+    for (const key of this.entries.keys()) {
+      if (key.startsWith(prefix)) this.entries.delete(key);
+    }
+  }
+
   /** Drops expired entries so distinct searches cannot grow the map forever. */
   private prune(time: number): void {
     for (const [key, entry] of this.entries) {
