@@ -6,8 +6,8 @@ import type {
   AdminOverview,
   AdminRetention,
   AdminRetentionWeeks,
-  AdminUserDetail,
-  AdminUsersPage,
+  AdminTenantDetail,
+  AdminTenantsPage,
 } from "@billsafi/contracts";
 import { cache } from "react";
 import { apiGet, query } from "./request";
@@ -30,12 +30,13 @@ export const getAdminRetention = cache((weeks: AdminRetentionWeeks): Promise<Adm
   apiGet<AdminRetention>(`/admin/retention${query({ weeks: String(weeks) })}`),
 );
 
-export const getAdminUsers = cache((page: number, search?: string): Promise<AdminUsersPage> =>
-  apiGet<AdminUsersPage>(`/admin/users${query({ page: String(page), search })}`),
+// The Users tab lists accounts (tenants) until the admin shell replaces it.
+export const getAdminUsers = cache((page: number, search?: string): Promise<AdminTenantsPage> =>
+  apiGet<AdminTenantsPage>(`/admin/tenants${query({ page: String(page), search })}`),
 );
 
-export const getAdminUser = cache((userId: string): Promise<AdminUserDetail> =>
-  apiGet<AdminUserDetail>(`/admin/users/${encodeURIComponent(userId)}`),
+export const getAdminUser = cache((userId: string): Promise<AdminTenantDetail> =>
+  apiGet<AdminTenantDetail>(`/admin/tenants/${encodeURIComponent(userId)}`),
 );
 
 export const getAdminBilling = cache((): Promise<AdminBilling> =>

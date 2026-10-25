@@ -1,4 +1,4 @@
-import type { AdminPlan, AdminSignInMethod } from "@billsafi/contracts";
+import type { AdminPlan, AdminRole, AdminSignInMethod } from "@billsafi/contracts";
 import { type Database, type SQL, sql } from "@billsafi/db";
 import { addNairobiMonths, proPeriodAt } from "@billsafi/domain";
 
@@ -37,16 +37,40 @@ export function hasGoogle(userId: SQL): SQL<boolean> {
   )`;
 }
 
-export function signInMethod(google: boolean): AdminSignInMethod {
-  return google ? "google" : "email";
+/** Better Auth provider ids as admin sign-in methods: "credential" is email and password. */
+export function signInMethods(providerIds: string[] | null): AdminSignInMethod[] {
+  const methods = new Set<AdminSignInMethod>();
+  for (const id of providerIds ?? []) {
+    if (id === "credential") methods.add("email");
+    if (id === "google") methods.add("google");
+  }
+  return [...methods].sort();
 }
 
 /** Pro while `proPeriodAt` finds a paid period, the one Pro rule the app uses everywhere. */
 export function planAt(anchorAt: Date | null, paidMonths: number, now: Date): AdminPlan {
   if (anchorAt && proPeriodAt(anchorAt, paidMonths, now)) {
-    return { code: "pro", proUntil: addNairobiMonths(anchorAt, paidMonths).toISOString() };
+    return proPlan(addNairobiMonths(anchorAt, paidMonths).toISOString());
   }
-  return { code: "free", proUntil: null };
+  return FREE_ADMIN_PLAN;
+}
+
+export const FREE_ADMIN_PLAN: AdminPlan = { code: "free", label: "Free", proUntil: null };
+
+export function proPlan(proUntil: string): AdminPlan {
+  return { code: "pro", label: "Pro", proUntil };
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Lets a search box match an exact id as well as text. */
+export function isUuid(value: string): boolean {
+  return UUID.test(value);
+}
+
+/** users.role is free text in the plugin schema; anything but "admin" is a plain user. */
+export function toAdminRole(role: string): AdminRole {
+  return role === "admin" ? "admin" : "user";
 }
 
 /** A ratio rounded to 4 places, or null when there is nothing to divide by. */

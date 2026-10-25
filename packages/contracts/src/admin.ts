@@ -1,3 +1,11 @@
+import {
+  type AccountStatus,
+  accountStatuses,
+  type LifecycleStage,
+  lifecycleStages,
+  type SubscriptionStatus,
+  subscriptionStatuses,
+} from "@billsafi/domain";
 import { z } from "zod";
 import type { SubscriptionPaymentStatus, SubscriptionPurpose } from "./billing.js";
 import type { InvoiceStatus } from "./invoices.js";
@@ -13,7 +21,9 @@ export type AdminFunnelDays = (typeof adminFunnelDays)[number];
 export const adminRetentionWeeks = [4, 8, 12] as const;
 export type AdminRetentionWeeks = (typeof adminRetentionWeeks)[number];
 
+export const ADMIN_TENANTS_PAGE_SIZE = 25;
 export const ADMIN_USERS_PAGE_SIZE = 25;
+export const ADMIN_AUDIT_PAGE_SIZE = 50;
 
 /** Why an admin is acting; required on every admin action and kept in the audit log. */
 export const reasonSchema = z
@@ -35,21 +45,6 @@ export const adminRetentionQuerySchema = z.object({
   weeks: z.coerce.number().pipe(z.literal(adminRetentionWeeks)).default(8),
 });
 export type AdminRetentionQuery = z.output<typeof adminRetentionQuerySchema>;
-
-export const adminUsersQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  // A blank search box means no filter.
-  search: z
-    .string()
-    .trim()
-    .max(100)
-    .transform((value) => value || undefined)
-    .optional(),
-});
-export type AdminUsersQuery = z.output<typeof adminUsersQuerySchema>;
-
-/** "google" when the account has any Google login, otherwise "email". */
-export type AdminSignInMethod = "google" | "email";
 
 export interface AdminSignupCounts {
   total: number;
@@ -138,57 +133,6 @@ export interface AdminRetention {
   generatedAt: string;
 }
 
-export interface AdminPlan {
-  code: "free" | "pro";
-  /** When Pro access ends; null on Free. */
-  proUntil: string | null;
-}
-
-export interface AdminUserRow {
-  id: string;
-  name: string;
-  email: string;
-  signInMethod: AdminSignInMethod;
-  plan: AdminPlan;
-  signedUpAt: string;
-  businesses: number;
-  invoicesReady: number;
-  /** Latest session refresh; null when the user has no session. */
-  lastActiveAt: string | null;
-}
-
-export interface AdminUsersPage {
-  page: number;
-  pageSize: number;
-  total: number;
-  users: AdminUserRow[];
-  generatedAt: string;
-}
-
-export interface AdminUserBusiness {
-  id: string;
-  name: string;
-  createdAt: string;
-  clients: number;
-  invoices: Record<InvoiceStatus, number>;
-}
-
-export interface AdminUserPayment {
-  id: string;
-  createdAt: string;
-  confirmedAt: string | null;
-  purpose: SubscriptionPurpose;
-  amountKes: string;
-  status: SubscriptionPaymentStatus;
-  receipt: string | null;
-}
-
-export interface AdminUserDetail {
-  user: AdminUserRow;
-  businesses: AdminUserBusiness[];
-  payments: AdminUserPayment[];
-}
-
 export interface AdminBillingPayment {
   id: string;
   createdAt: string;
@@ -228,5 +172,299 @@ export interface AdminBilling {
    * Free; months where the limit-th invoice went to a Pro period are left out.
    */
   freeLimitHits: AdminFreeLimitHit[];
+  generatedAt: string;
+}
+
+/*
+ * Tenants, users and the audit log (super admin phases 1 and 2). A tenant is an account:
+ * one user and the businesses they own, so a tenant id is the owner's user id.
+ * Status definitions live in @billsafi/domain (account-status.ts) and are re-exported here.
+ */
+
+export const adminAccountStatuses = accountStatuses;
+export type AdminAccountStatus = AccountStatus;
+export const adminSubscriptionStatuses = subscriptionStatuses;
+/** Not billing's SubscriptionStatus: this one adds pro_ending and lapsed for the admin. */
+export type AdminSubscriptionStatus = SubscriptionStatus;
+export const adminLifecycleStages = lifecycleStages;
+export type AdminLifecycleStage = LifecycleStage;
+
+/** Query strings arrive as text; an empty value (a cleared filter) means "not set". */
+const blankToUndefined = (value: unknown) => (value === "" ? undefined : value);
+
+const searchParam = z
+  .string()
+  .trim()
+  .max(100)
+  .transform((value) => value || undefined)
+  .optional();
+const pageParam = z.coerce.number().int().min(1).max(10_000).default(1);
+const sortDirParam = z.preprocess(blankToUndefined, z.enum(["asc", "desc"]).default("desc"));
+const optionalEnum = <const T extends readonly [string, ...string[]]>(values: T) =>
+  z.preprocess(blankToUndefined, z.enum(values).optional());
+const optionalDays = <const T extends readonly [number, ...number[]]>(values: T) =>
+  z.preprocess(blankToUndefined, z.coerce.number().pipe(z.literal(values)).optional());
+
+export const adminSortDirections = ["asc", "desc"] as const;
+export type AdminSortDirection = (typeof adminSortDirections)[number];
+
+export const adminWindowDays = [7, 30, 90] as const;
+export type AdminWindowDays = (typeof adminWindowDays)[number];
+
+export const adminTenantSorts = ["registered", "lastActivity", "readyInvoices", "name"] as const;
+export type AdminTenantSort = (typeof adminTenantSorts)[number];
+
+export const adminTenantsQuerySchema = z
+  .object({
+    page: pageParam,
+    /** Owner name or email, any business display name, or an exact account id. */
+    search: searchParam,
+    accountStatus: optionalEnum(accountStatuses),
+    subscriptionStatus: optionalEnum(subscriptionStatuses),
+    lifecycle: optionalEnum(lifecycleStages),
+    /** Registered within the last N days. */
+    signedUp: optionalDays(adminWindowDays),
+    /** A meaningful action within the last N days. */
+    activeWithin: optionalDays(adminWindowDays),
+    /** No meaningful action for N days, never-active accounts included. */
+    inactiveFor: optionalDays([30]),
+    sort: z.preprocess(blankToUndefined, z.enum(adminTenantSorts).default("registered")),
+    dir: sortDirParam,
+  })
+  .refine((query) => !(query.activeWithin && query.inactiveFor), {
+    message: "Filter by activeWithin or inactiveFor, not both",
+    path: ["inactiveFor"],
+  });
+export type AdminTenantsQuery = z.output<typeof adminTenantsQuerySchema>;
+
+export const adminRoles = ["user", "admin"] as const;
+export type AdminRole = (typeof adminRoles)[number];
+
+/** "email" is a password login, "google" a Google login; an account can have both. */
+export const adminSignInMethods = ["email", "google"] as const;
+export type AdminSignInMethod = (typeof adminSignInMethods)[number];
+
+export const adminUserSorts = ["registered", "lastLogin"] as const;
+export type AdminUserSort = (typeof adminUserSorts)[number];
+
+export const adminUsersQuerySchema = z.object({
+  page: pageParam,
+  /** Name or email, or an exact user id. */
+  search: searchParam,
+  role: optionalEnum(adminRoles),
+  accountStatus: optionalEnum(accountStatuses),
+  signInMethod: optionalEnum(adminSignInMethods),
+  sort: z.preprocess(blankToUndefined, z.enum(adminUserSorts).default("registered")),
+  dir: sortDirParam,
+});
+export type AdminUsersQuery = z.output<typeof adminUsersQuerySchema>;
+
+export const adminAuditOutcomes = ["success", "failure"] as const;
+export type AdminAuditOutcome = (typeof adminAuditOutcomes)[number];
+
+const optionalText = (max: number) =>
+  z.preprocess(blankToUndefined, z.string().trim().min(1).max(max).optional());
+/** A Nairobi calendar date, YYYY-MM-DD. */
+const optionalDate = z.preprocess(blankToUndefined, z.iso.date().optional());
+
+export const adminAuditLogsQuerySchema = z
+  .object({
+    page: pageParam,
+    /** Exact action, such as tenant.suspend. */
+    action: optionalText(100),
+    targetType: optionalText(50),
+    targetId: optionalText(100),
+    actorId: z.preprocess(blankToUndefined, z.uuid().optional()),
+    outcome: optionalEnum(adminAuditOutcomes),
+    /** From the start of this Nairobi day. */
+    from: optionalDate,
+    /** Up to the end of this Nairobi day. */
+    to: optionalDate,
+  })
+  .refine((query) => !query.from || !query.to || query.from <= query.to, {
+    message: "The start date must not be after the end date",
+    path: ["to"],
+  });
+export type AdminAuditLogsQuery = z.output<typeof adminAuditLogsQuerySchema>;
+
+export interface AdminPlan {
+  code: "free" | "pro";
+  label: "Free" | "Pro";
+  /** When Pro access ends; null on Free. */
+  proUntil: string | null;
+}
+
+export interface AdminAuditRow {
+  id: string;
+  occurredAt: string;
+  actor: {
+    /** Null for the system, such as the start-up admin role sync. */
+    userId: string | null;
+    role: string;
+    /** The actor's current email, when the user still exists. */
+    email: string | null;
+  };
+  action: string;
+  target: { type: string; id: string };
+  outcome: AdminAuditOutcome;
+  reason: string | null;
+  /** Redacted before and after values. */
+  changes: unknown;
+  requestId: string | null;
+  ipAddress: string | null;
+}
+
+export interface AdminAuditPage {
+  page: number;
+  pageSize: number;
+  total: number;
+  /** Newest first. */
+  entries: AdminAuditRow[];
+  generatedAt: string;
+}
+
+export interface AdminTenantRow {
+  /** The account id, which is the owner's user id. */
+  id: string;
+  owner: { name: string; email: string };
+  /** The first business by creation date, and how many the account has. */
+  businesses: { firstName: string | null; count: number };
+  plan: AdminPlan;
+  accountStatus: AdminAccountStatus;
+  subscriptionStatus: AdminSubscriptionStatus;
+  lifecycleStage: AdminLifecycleStage;
+  registeredAt: string;
+  /** Latest invoice created, invoice made Ready, payment recorded or client added. */
+  lastMeaningfulActivityAt: string | null;
+  readyInvoices: number;
+}
+
+export interface AdminTenantsPage {
+  page: number;
+  pageSize: number;
+  total: number;
+  tenants: AdminTenantRow[];
+  generatedAt: string;
+}
+
+export interface AdminTenantBusiness {
+  id: string;
+  displayName: string;
+  profileType: "individual" | "business";
+  createdAt: string;
+  contactEmail: string;
+  /** Middle digits hidden, like +2547•••••678. */
+  phone: string;
+  clients: number;
+  /** Every status, zero when the business has none. */
+  invoices: Record<InvoiceStatus, number>;
+  hasLogo: boolean;
+  /** Size of the current logo; null without one. */
+  logoBytes: number | null;
+}
+
+export interface AdminTenantUsage {
+  /** The allowance window in force now: the Free month or the current Pro period. */
+  allowance: {
+    plan: "free" | "pro";
+    used: number;
+    limit: number;
+    periodStart: string;
+    periodEnd: string;
+  };
+  /** Purchased invoice credits not used yet. */
+  credits: number;
+  invoicesCreated: number;
+  invoicesReady: number;
+  clients: number;
+  shareLinks: number;
+  /** Recorded payments that have not been reversed. */
+  paymentsRecorded: number;
+  /** Every stored logo upload, old ones included (they are kept for issued invoices). */
+  storageBytes: number;
+}
+
+export interface AdminTenantPayment {
+  id: string;
+  createdAt: string;
+  confirmedAt: string | null;
+  purpose: SubscriptionPurpose;
+  amountKes: string;
+  status: SubscriptionPaymentStatus;
+  /** Middle digits hidden. */
+  phone: string;
+  receipt: string | null;
+}
+
+export interface AdminTenantSubscription {
+  plan: AdminPlan;
+  status: AdminSubscriptionStatus;
+  /** Start of the latest run of paid months. */
+  anchorAt: string | null;
+  paidMonths: number;
+  /** End of the latest run of paid months, also when it has already lapsed. */
+  paidUntil: string | null;
+  /** Set while the account has asked not to continue after paid access. */
+  cancelledAt: string | null;
+  /** The 10 most recent plan payments, newest first. */
+  recentPayments: AdminTenantPayment[];
+}
+
+export interface AdminTenantDetail {
+  tenant: AdminTenantRow;
+  identity: {
+    emailVerified: boolean;
+    role: AdminRole;
+    signInMethods: AdminSignInMethod[];
+    /** The reason given when the account was suspended; null while active. */
+    suspendedReason: string | null;
+  };
+  businesses: AdminTenantBusiness[];
+  usage: AdminTenantUsage;
+  subscription: AdminTenantSubscription;
+  /** The 20 most recent audit rows about this account or its user, newest first. */
+  recentAudit: AdminAuditRow[];
+  generatedAt: string;
+}
+
+export interface AdminUserRow {
+  id: string;
+  name: string;
+  email: string;
+  emailVerified: boolean;
+  role: AdminRole;
+  accountStatus: AdminAccountStatus;
+  signInMethods: AdminSignInMethod[];
+  registeredAt: string;
+  /** Latest session sign-in or refresh; null when the user has no session. */
+  lastLoginAt: string | null;
+  /** The same id: every user is the owner of exactly one tenant (account). */
+  tenantId: string;
+}
+
+export interface AdminUsersPage {
+  page: number;
+  pageSize: number;
+  total: number;
+  users: AdminUserRow[];
+  generatedAt: string;
+}
+
+export interface AdminUserSession {
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
+  /** Summarised from the user agent; "Unknown" when it cannot be read. */
+  device: { browser: string; os: string };
+  /** Truncated to keep personal data down: the /24 for IPv4, the first 3 groups for IPv6. */
+  ipAddress: string | null;
+}
+
+export interface AdminUserDetail {
+  user: AdminUserRow;
+  /** The 10 most recently used sessions. */
+  sessions: AdminUserSession[];
+  /** The 20 most recent audit rows about this user or their account, newest first. */
+  recentAudit: AdminAuditRow[];
   generatedAt: string;
 }

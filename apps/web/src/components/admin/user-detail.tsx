@@ -1,4 +1,4 @@
-import { type AdminUserDetail, invoiceStatusLabels, invoiceStatuses } from "@billsafi/contracts";
+import { type AdminTenantDetail, invoiceStatusLabels, invoiceStatuses } from "@billsafi/contracts";
 import { ArrowLeft } from "lucide-react";
 import { formatCount, formatDay, formatInstant, formatKes, purposeLabels } from "./admin-format";
 import { AdminLink } from "./admin-link";
@@ -6,14 +6,16 @@ import { type AdminState, adminHref } from "./admin-params";
 import { EmptyRow, Panel, PaymentStatusPill, tdClass, thClass, theadClass } from "./admin-ui";
 import { lastActiveText, methodLabels, planText } from "./users-tab";
 
-export function UserDetail({ data, state }: { data: AdminUserDetail; state: AdminState }) {
-  const { user, businesses, payments } = data;
+export function UserDetail({ data, state }: { data: AdminTenantDetail; state: AdminState }) {
+  const { tenant, identity, businesses } = data;
+  const payments = data.subscription.recentPayments;
+  const user = tenant.owner;
   const facts = [
-    ["Sign-in", methodLabels[user.signInMethod]],
-    ["Plan", planText(user.plan)],
-    ["Signed up", formatDay(user.signedUpAt)],
-    ["Last active", lastActiveText(user.lastActiveAt)],
-    ["Ready invoices", formatCount(user.invoicesReady)],
+    ["Sign-in", identity.signInMethods.map((method) => methodLabels[method]).join(", ") || "None"],
+    ["Plan", planText(tenant.plan)],
+    ["Signed up", formatDay(tenant.registeredAt)],
+    ["Last active", lastActiveText(tenant.lastMeaningfulActivityAt)],
+    ["Ready invoices", formatCount(tenant.readyInvoices)],
   ];
 
   return (
@@ -65,7 +67,7 @@ export function UserDetail({ data, state }: { data: AdminUserDetail; state: Admi
             <tbody>
               {businesses.map((business) => (
                 <tr key={business.id} className="border-t border-line">
-                  <td className={`${tdClass} font-medium`}>{business.name}</td>
+                  <td className={`${tdClass} font-medium`}>{business.displayName}</td>
                   <td className={`${tdClass} text-sub`}>{formatDay(business.createdAt)}</td>
                   <td className={`${tdClass} text-right tabular-nums`}>
                     {formatCount(business.clients)}

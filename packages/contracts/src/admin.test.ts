@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   adminActionBodySchema,
+  adminAuditLogsQuerySchema,
   adminFunnelQuerySchema,
   adminRetentionQuerySchema,
+  adminTenantsQuerySchema,
   adminUsersQuerySchema,
   reasonSchema,
 } from "./admin.js";
@@ -28,8 +30,8 @@ describe("adminRetentionQuerySchema", () => {
 });
 
 describe("adminUsersQuerySchema", () => {
-  it("defaults to the first page with no search", () => {
-    expect(adminUsersQuerySchema.parse({})).toEqual({ page: 1 });
+  it("defaults to the first page, newest first, with no filters", () => {
+    expect(adminUsersQuerySchema.parse({})).toEqual({ page: 1, sort: "registered", dir: "desc" });
   });
 
   it("trims the search and drops a blank one", () => {
@@ -37,9 +39,101 @@ describe("adminUsersQuerySchema", () => {
     expect(adminUsersQuerySchema.parse({ search: "   " }).search).toBeUndefined();
   });
 
-  it("rejects page 0 and long searches", () => {
+  it("reads filters and treats empty ones as unset", () => {
+    expect(
+      adminUsersQuerySchema.parse({
+        role: "admin",
+        accountStatus: "suspended",
+        signInMethod: "google",
+        sort: "lastLogin",
+        dir: "asc",
+      }),
+    ).toMatchObject({ role: "admin", accountStatus: "suspended", signInMethod: "google" });
+    expect(adminUsersQuerySchema.parse({ role: "", sort: "", dir: "" })).toEqual({
+      page: 1,
+      sort: "registered",
+      dir: "desc",
+    });
+  });
+
+  it("rejects page 0, long searches and unknown values", () => {
     expect(adminUsersQuerySchema.safeParse({ page: "0" }).success).toBe(false);
     expect(adminUsersQuerySchema.safeParse({ search: "x".repeat(101) }).success).toBe(false);
+    expect(adminUsersQuerySchema.safeParse({ role: "owner" }).success).toBe(false);
+    expect(adminUsersQuerySchema.safeParse({ sort: "name" }).success).toBe(false);
+  });
+});
+
+describe("adminTenantsQuerySchema", () => {
+  it("defaults to registered, newest first", () => {
+    expect(adminTenantsQuerySchema.parse({})).toEqual({
+      page: 1,
+      sort: "registered",
+      dir: "desc",
+    });
+  });
+
+  it("reads every filter from query strings", () => {
+    expect(
+      adminTenantsQuerySchema.parse({
+        page: "2",
+        search: "studio",
+        accountStatus: "active",
+        subscriptionStatus: "pro_ending",
+        lifecycle: "inactive",
+        signedUp: "30",
+        activeWithin: "7",
+        sort: "readyInvoices",
+        dir: "asc",
+      }),
+    ).toEqual({
+      page: 2,
+      search: "studio",
+      accountStatus: "active",
+      subscriptionStatus: "pro_ending",
+      lifecycle: "inactive",
+      signedUp: 30,
+      activeWithin: 7,
+      sort: "readyInvoices",
+      dir: "asc",
+    });
+    expect(adminTenantsQuerySchema.parse({ inactiveFor: "30" }).inactiveFor).toBe(30);
+  });
+
+  it("rejects other windows, unknown statuses and both activity filters at once", () => {
+    expect(adminTenantsQuerySchema.safeParse({ signedUp: "14" }).success).toBe(false);
+    expect(adminTenantsQuerySchema.safeParse({ inactiveFor: "7" }).success).toBe(false);
+    expect(adminTenantsQuerySchema.safeParse({ lifecycle: "churned" }).success).toBe(false);
+    expect(
+      adminTenantsQuerySchema.safeParse({ activeWithin: "7", inactiveFor: "30" }).success,
+    ).toBe(false);
+  });
+});
+
+describe("adminAuditLogsQuerySchema", () => {
+  it("defaults to the first page with no filters", () => {
+    expect(adminAuditLogsQuerySchema.parse({})).toEqual({ page: 1 });
+  });
+
+  it("reads filters and checks dates", () => {
+    const actorId = "0196a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b";
+    expect(
+      adminAuditLogsQuerySchema.parse({
+        action: "tenant.suspend",
+        targetType: "account",
+        targetId: actorId,
+        actorId,
+        outcome: "failure",
+        from: "2026-10-01",
+        to: "2026-10-25",
+      }),
+    ).toMatchObject({ outcome: "failure", from: "2026-10-01", to: "2026-10-25" });
+    expect(
+      adminAuditLogsQuerySchema.safeParse({ from: "2026-10-26", to: "2026-10-25" }).success,
+    ).toBe(false);
+    expect(adminAuditLogsQuerySchema.safeParse({ from: "yesterday" }).success).toBe(false);
+    expect(adminAuditLogsQuerySchema.safeParse({ actorId: "system" }).success).toBe(false);
+    expect(adminAuditLogsQuerySchema.safeParse({ outcome: "maybe" }).success).toBe(false);
   });
 });
 

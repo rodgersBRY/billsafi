@@ -1,8 +1,11 @@
 import { Module } from "@nestjs/common";
+import { BillingModule } from "../billing/billing.module.js";
 import { AccountAccessService } from "./account-access.service.js";
+import { AdminAuditService } from "./admin-audit.service.js";
 import { AdminBillingService } from "./admin-billing.service.js";
 import { AdminMetricsService } from "./admin-metrics.service.js";
 import { AdminRoleSyncService } from "./admin-role-sync.service.js";
+import { AdminTenantsService } from "./admin-tenants.service.js";
 import { AdminUsersService } from "./admin-users.service.js";
 import { AdminActionsController } from "./admin-actions.controller.js";
 import { AdminController } from "./admin.controller.js";
@@ -10,10 +13,13 @@ import { ADMIN_ACTION_LIMITER, SlidingWindowLimiter } from "./rate-limit.guard.j
 import { ADMIN_CACHE, TtlCache } from "./ttl-cache.js";
 
 @Module({
+  imports: [BillingModule],
   controllers: [AdminController, AdminActionsController],
   providers: [
     AdminMetricsService,
     AdminUsersService,
+    AdminTenantsService,
+    AdminAuditService,
     AdminBillingService,
     AdminRoleSyncService,
     AccountAccessService,

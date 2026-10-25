@@ -1,4 +1,4 @@
-import type { AdminPlan, AdminSignInMethod, AdminUsersPage } from "@billsafi/contracts";
+import type { AdminPlan, AdminSignInMethod, AdminTenantsPage } from "@billsafi/contracts";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import Form from "next/form";
 import Link from "next/link";
@@ -17,7 +17,7 @@ export function planText(plan: AdminPlan): string {
 }
 
 export function lastActiveText(lastActiveAt: string | null): string {
-  return lastActiveAt ? formatDay(lastActiveAt) : "No recent session";
+  return lastActiveAt ? formatDay(lastActiveAt) : "No activity yet";
 }
 
 function UserSearch({ search }: { search?: string }) {
@@ -44,21 +44,13 @@ function UserSearch({ search }: { search?: string }) {
   );
 }
 
-const headings = [
-  "User",
-  "Sign-in",
-  "Plan",
-  "Signed up",
-  "Businesses",
-  "Ready invoices",
-  "Last active",
-];
+const headings = ["User", "Plan", "Signed up", "Businesses", "Ready invoices", "Last active"];
 
-export function UsersTab({ data, state }: { data: AdminUsersPage; state: AdminState }) {
+export function UsersTab({ data, state }: { data: AdminTenantsPage; state: AdminState }) {
   const pages = Math.max(1, Math.ceil(data.total / data.pageSize));
   // Counted from the rows returned, so a page past the end never shows a bogus range.
-  const from = data.users.length === 0 ? 0 : (data.page - 1) * data.pageSize + 1;
-  const to = from === 0 ? 0 : from + data.users.length - 1;
+  const from = data.tenants.length === 0 ? 0 : (data.page - 1) * data.pageSize + 1;
+  const to = from === 0 ? 0 : from + data.tenants.length - 1;
 
   return (
     <div className="space-y-4">
@@ -71,7 +63,7 @@ export function UsersTab({ data, state }: { data: AdminUsersPage; state: AdminSt
             : `${formatCount(data.total)} in total, newest first. Open a row for details.`
         }
       >
-        {data.users.length === 0 && data.total > 0 ? (
+        {data.tenants.length === 0 && data.total > 0 ? (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 p-5 text-sm text-sub">
             <p>No users on this page.</p>
             <AdminLink
@@ -81,7 +73,7 @@ export function UsersTab({ data, state }: { data: AdminUsersPage; state: AdminSt
               Go to page 1
             </AdminLink>
           </div>
-        ) : data.users.length === 0 ? (
+        ) : data.tenants.length === 0 ? (
           <EmptyRow text={state.search ? "No users match this search." : "No users yet."} />
         ) : (
           <table className="w-full text-sm">
@@ -95,22 +87,27 @@ export function UsersTab({ data, state }: { data: AdminUsersPage; state: AdminSt
               </tr>
             </thead>
             <tbody>
-              {data.users.map((user) => {
-                const href = adminHref(state, { user: user.id });
+              {data.tenants.map((tenant) => {
+                const href = adminHref(state, { user: tenant.id });
                 return (
-                  <ClickableRow key={user.id} href={href}>
+                  <ClickableRow key={tenant.id} href={href}>
                     <td className={tdClass}>
                       <Link href={href} className="font-medium hover:text-accent hover:underline">
-                        {user.name}
+                        {tenant.owner.name}
                       </Link>
-                      <p className="text-xs text-sub">{user.email}</p>
+                      <p className="text-xs text-sub">{tenant.owner.email}</p>
                     </td>
-                    <td className={tdClass}>{methodLabels[user.signInMethod]}</td>
-                    <td className={tdClass}>{planText(user.plan)}</td>
-                    <td className={`${tdClass} text-sub`}>{formatDay(user.signedUpAt)}</td>
-                    <td className={`${tdClass} tabular-nums`}>{formatCount(user.businesses)}</td>
-                    <td className={`${tdClass} tabular-nums`}>{formatCount(user.invoicesReady)}</td>
-                    <td className={`${tdClass} text-sub`}>{lastActiveText(user.lastActiveAt)}</td>
+                    <td className={tdClass}>{planText(tenant.plan)}</td>
+                    <td className={`${tdClass} text-sub`}>{formatDay(tenant.registeredAt)}</td>
+                    <td className={`${tdClass} tabular-nums`}>
+                      {formatCount(tenant.businesses.count)}
+                    </td>
+                    <td className={`${tdClass} tabular-nums`}>
+                      {formatCount(tenant.readyInvoices)}
+                    </td>
+                    <td className={`${tdClass} text-sub`}>
+                      {lastActiveText(tenant.lastMeaningfulActivityAt)}
+                    </td>
                   </ClickableRow>
                 );
               })}
