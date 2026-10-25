@@ -9,7 +9,7 @@ import {
   type AdminSignupCounts,
   adminFunnelSteps,
 } from "@billsafi/contracts";
-import { type DatabaseConnection, type SQL, sql } from "@billsafi/db";
+import { type DatabaseConnection, schema, type SQL, sql } from "@billsafi/db";
 import {
   nairobiCalendarMonth,
   nairobiDate,
@@ -19,9 +19,11 @@ import {
   money,
 } from "@billsafi/domain";
 import { DATABASE } from "../database/database.module.js";
+import { currentMonthSourceSql, proAccessSql } from "./account-sql.js";
 import { at, DAY_MS, fromUtc, hasGoogle, ratio, selectRows, utcAt } from "./admin-sql.js";
 
 const WEEK_MS = 7 * DAY_MS;
+const MANUAL = schema.MANUAL_PROVIDER;
 
 type Count = { total: number; google: number };
 
@@ -69,6 +71,7 @@ export class AdminMetricsService {
       totalAccounts: number;
       convertedAccounts: number;
       kesCollected: string;
+      usdCollected: string;
       succeeded30: number;
       failed30: number;
     }>(sql`
@@ -84,19 +87,27 @@ export class AdminMetricsService {
         -- Conversion counts any succeeded plan payment, Pro month or credit pack.
         (select count(distinct user_id) from subscription_payments
           where status = 'succeeded')::int as "convertedAccounts",
+        -- Money by the day it was paid: a manual payment's paid_at, else the confirmation.
         (select coalesce(sum(amount), 0)::numeric(14,2)::text from subscription_payments
-          where status = 'succeeded'
-            and confirmed_at >= ${at(month.start)} and confirmed_at < ${at(month.end)}) as "kesCollected",
-        -- Success rate is by checkout time; pending payments are left out.
+          where status = 'succeeded' and currency = 'KES'
+            and coalesce(paid_at, confirmed_at) >= ${at(month.start)}
+            and coalesce(paid_at, confirmed_at) < ${at(month.end)}) as "kesCollected",
+        -- USD is only ever taken by hand; it is reported apart, never converted.
+        (select coalesce(sum(amount), 0)::numeric(14,2)::text from subscription_payments
+          where status = 'succeeded' and currency = 'USD'
+            and coalesce(paid_at, confirmed_at) >= ${at(month.start)}
+            and coalesce(paid_at, confirmed_at) < ${at(month.end)}) as "usdCollected",
+        -- Success rate is by checkout time, M-Pesa only; pending payments are left out.
         (select count(*) from subscription_payments
-          where status = 'succeeded'
+          where status = 'succeeded' and provider <> ${MANUAL}
             and created_at >= ${at(month30)} and created_at < ${at(now)})::int as "succeeded30",
         (select count(*) from subscription_payments
-          where status = 'failed'
+          where status = 'failed' and provider <> ${MANUAL}
             and created_at >= ${at(month30)} and created_at < ${at(now)})::int as "failed30"
     `);
 
-    const paying = await this.payingAccounts(now);
+    const pro = await this.proAccounts(now);
+    const paying = pro.paid;
     const a = activity!;
     const counts = (count: Count): AdminSignupCounts => ({
       total: Number(count.total),
@@ -114,21 +125,32 @@ export class AdminMetricsService {
       invoicesReadyThisMonth: a.invoicesReady,
       totalAccounts: a.totalAccounts,
       payingAccounts: paying,
+      complimentaryProAccounts: pro.complimentary,
       conversion: ratio(a.convertedAccounts, a.totalAccounts),
       mrrUsd: money(PRO_PLAN.priceUsd).times(paying).toFixed(2),
       kesCollectedThisMonth: a.kesCollected,
+      manualUsdCollectedThisMonth: a.usdCollected,
       mpesaSuccessRate30Days: ratio(a.succeeded30, a.succeeded30 + a.failed30),
       generatedAt: now.toISOString(),
     };
   }
 
-  /** Accounts with Pro access now: anchor <= now < paid_until, as proPeriodAt decides. */
-  private async payingAccounts(now: Date): Promise<number> {
-    const [row] = await this.rows<{ total: number }>(sql`
-      select count(*)::int as total from subscriptions
-      where anchor_at <= ${at(now)} and paid_until > ${at(now)}
+  /**
+   * Accounts with Pro access now (anchor <= now < paid_until, as proPeriodAt decides),
+   * split by who paid for the current Pro month. Only paid months count towards MRR.
+   */
+  private async proAccounts(now: Date): Promise<{ paid: number; complimentary: number }> {
+    const [row] = await this.rows<{ paid: number; complimentary: number }>(sql`
+      with pro as (
+        select ${currentMonthSourceSql(sql`s.user_id`, sql`true`, now)} as source
+        from subscriptions s
+        where ${proAccessSql(sql`s.anchor_at`, sql`s.paid_until`, now)}
+      )
+      select count(*) filter (where source = 'paid')::int as paid,
+        count(*) filter (where source = 'complimentary')::int as complimentary
+      from pro
     `);
-    return row!.total;
+    return row!;
   }
 
   /**

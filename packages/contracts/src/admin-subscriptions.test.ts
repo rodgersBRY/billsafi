@@ -2,7 +2,11 @@ import { nairobiDate } from "@billsafi/domain";
 import { describe, expect, it } from "vitest";
 import {
   adminGrantSchema,
+  adminGrantsQuerySchema,
   adminOverrideSchema,
+  adminOverridesQuerySchema,
+  adminPlanPaymentsQuerySchema,
+  adminSubscriptionsQuerySchema,
   adminRecordPaymentSchema,
   idempotencyKeySchema,
 } from "./admin-subscriptions.js";
@@ -152,5 +156,63 @@ describe("adminOverrideSchema", () => {
     const result = adminOverrideSchema.safeParse({ ...base, ...change });
     expect(result.success).toBe(false);
     expect(result.error!.issues.map((issue) => issue.path.join("."))).toContain(path);
+  });
+});
+
+describe("admin subscription list queries", () => {
+  it("defaults the subscriptions directory and reads its filters", () => {
+    expect(adminSubscriptionsQuerySchema.parse({})).toEqual({
+      page: 1,
+      sort: "registered",
+      dir: "desc",
+    });
+    expect(
+      adminSubscriptionsQuerySchema.parse({
+        renewalWithin: "7",
+        lapsedWithin: "30",
+        hasOverride: "false",
+        subscriptionStatus: "pro_ending",
+        sort: "proUntil",
+        dir: "asc",
+      }),
+    ).toMatchObject({
+      renewalWithin: 7,
+      lapsedWithin: 30,
+      hasOverride: false,
+      subscriptionStatus: "pro_ending",
+      sort: "proUntil",
+      dir: "asc",
+    });
+    expect(adminSubscriptionsQuerySchema.parse({ hasOverride: "" }).hasOverride).toBeUndefined();
+  });
+
+  it.each([{ renewalWithin: "14" }, { lapsedWithin: "7" }, { hasOverride: "yes" }, { sort: "x" }])(
+    "rejects %o in the directory",
+    (query) => {
+      expect(adminSubscriptionsQuerySchema.safeParse(query).success).toBe(false);
+    },
+  );
+
+  it("filters payments by provider, status, method and Nairobi days", () => {
+    expect(
+      adminPlanPaymentsQuerySchema.parse({
+        provider: "manual",
+        status: "succeeded",
+        method: "cash",
+        from: "2026-10-01",
+        to: "2026-10-31",
+      }),
+    ).toMatchObject({ provider: "manual", method: "cash", from: "2026-10-01" });
+    expect(adminPlanPaymentsQuerySchema.safeParse({ provider: "paypal" }).success).toBe(false);
+    expect(
+      adminPlanPaymentsQuerySchema.safeParse({ from: "2026-10-10", to: "2026-10-01" }).success,
+    ).toBe(false);
+  });
+
+  it("filters grants by kind and overrides by state", () => {
+    expect(adminGrantsQuerySchema.parse({ kind: "pro_months" }).kind).toBe("pro_months");
+    expect(adminGrantsQuerySchema.safeParse({ kind: "trial" }).success).toBe(false);
+    expect(adminOverridesQuerySchema.parse({ state: "scheduled" }).state).toBe("scheduled");
+    expect(adminOverridesQuerySchema.safeParse({ state: "paused" }).success).toBe(false);
   });
 });

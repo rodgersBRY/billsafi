@@ -7,6 +7,7 @@ import { AdminBillingService } from "./admin-billing.service.js";
 import { AdminMetricsService } from "./admin-metrics.service.js";
 import { AdminRoleSyncService } from "./admin-role-sync.service.js";
 import { AdminSubscriptionActionsService } from "./admin-subscription-actions.service.js";
+import { AdminSubscriptionsService } from "./admin-subscriptions.service.js";
 import { AdminTenantsService } from "./admin-tenants.service.js";
 import { AdminUsersService } from "./admin-users.service.js";
 import { AdminActionsController } from "./admin-actions.controller.js";
@@ -24,6 +25,7 @@ import { ADMIN_CACHE, TtlCache } from "./ttl-cache.js";
     AdminAuditService,
     AdminActionsService,
     AdminSubscriptionActionsService,
+    AdminSubscriptionsService,
     AdminBillingService,
     AdminRoleSyncService,
     AccountAccessService,

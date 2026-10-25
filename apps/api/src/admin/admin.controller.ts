@@ -6,6 +6,18 @@ import {
   type AdminBilling,
   type AdminFunnel,
   type AdminFunnelQuery,
+  type AdminGrantsPage,
+  type AdminGrantsQuery,
+  adminGrantsQuerySchema,
+  type AdminOverridesPage,
+  type AdminOverridesQuery,
+  adminOverridesQuerySchema,
+  type AdminPlanPaymentsPage,
+  type AdminPlanPaymentsQuery,
+  adminPlanPaymentsQuerySchema,
+  type AdminSubscriptionsPage,
+  type AdminSubscriptionsQuery,
+  adminSubscriptionsQuerySchema,
   adminFunnelQuerySchema,
   type AdminOverview,
   type AdminRetention,
@@ -26,6 +38,7 @@ import { ZodValidationPipe } from "../common/zod-validation.pipe.js";
 import { AdminAuditService } from "./admin-audit.service.js";
 import { AdminBillingService } from "./admin-billing.service.js";
 import { AdminMetricsService } from "./admin-metrics.service.js";
+import { AdminSubscriptionsService } from "./admin-subscriptions.service.js";
 import { AdminTenantsService } from "./admin-tenants.service.js";
 import { AdminUsersService } from "./admin-users.service.js";
 import { AdminGuard } from "./admin.guard.js";
@@ -39,7 +52,7 @@ function cacheKey(query: object): string {
 /**
  * Admin read routes (GET only; actions live in AdminActionsController). Lists and metrics
  * are cached for 60 seconds per route and validated query, so page refreshes stay cheap;
- * actions clear the tenant and user directory entries. Details and the audit log are not
+ * any admin action clears the whole cache. Details and the audit log are not
  * cached, so they always show the latest state.
  */
 // OptionalAuth lets signed-out requests reach AdminGuard, so they get 404 not 401.
@@ -53,6 +66,7 @@ export class AdminController {
     private readonly tenants: AdminTenantsService,
     private readonly auditLogs: AdminAuditService,
     private readonly billingMetrics: AdminBillingService,
+    private readonly subscriptions: AdminSubscriptionsService,
     @Inject(ADMIN_CACHE) private readonly cache: TtlCache,
   ) {}
 
@@ -116,5 +130,41 @@ export class AdminController {
   @Get("billing")
   billing(): Promise<AdminBilling> {
     return this.cache.get("billing", () => this.billingMetrics.billing());
+  }
+
+  /** Accounts with their plan, who paid for this month, credits and overrides. */
+  @Get("subscriptions")
+  subscriptionList(
+    @Query(new ZodValidationPipe(adminSubscriptionsQuerySchema)) query: AdminSubscriptionsQuery,
+  ): Promise<AdminSubscriptionsPage> {
+    return this.cache.get(`subscriptions:${cacheKey(query)}`, () =>
+      this.subscriptions.subscriptions(query),
+    );
+  }
+
+  /** Every plan payment, M-Pesa and manual. */
+  @Get("subscription-payments")
+  paymentList(
+    @Query(new ZodValidationPipe(adminPlanPaymentsQuerySchema)) query: AdminPlanPaymentsQuery,
+  ): Promise<AdminPlanPaymentsPage> {
+    return this.cache.get(`subscription-payments:${cacheKey(query)}`, () =>
+      this.subscriptions.payments(query),
+    );
+  }
+
+  @Get("grants")
+  grantList(
+    @Query(new ZodValidationPipe(adminGrantsQuerySchema)) query: AdminGrantsQuery,
+  ): Promise<AdminGrantsPage> {
+    return this.cache.get(`grants:${cacheKey(query)}`, () => this.subscriptions.grants(query));
+  }
+
+  @Get("overrides")
+  overrideList(
+    @Query(new ZodValidationPipe(adminOverridesQuerySchema)) query: AdminOverridesQuery,
+  ): Promise<AdminOverridesPage> {
+    return this.cache.get(`overrides:${cacheKey(query)}`, () =>
+      this.subscriptions.overrides(query),
+    );
   }
 }

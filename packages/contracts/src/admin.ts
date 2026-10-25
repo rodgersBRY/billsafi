@@ -7,7 +7,12 @@ import {
   subscriptionStatuses,
 } from "@billsafi/domain";
 import { z } from "zod";
-import type { AdminPlanPayment } from "./admin-subscriptions.js";
+import type {
+  AdminCurrentMonthSource,
+  AdminGrantRow,
+  AdminOverrideRow,
+  AdminPlanPayment,
+} from "./admin-subscriptions.js";
 import {
   blankToUndefined,
   optionalDate,
@@ -86,13 +91,18 @@ export interface AdminOverview {
   invoicesCreatedThisMonth: number;
   invoicesReadyThisMonth: number;
   totalAccounts: number;
-  /** Accounts whose Pro access has not ended. */
+  /** Accounts on Pro whose current Pro month was paid for (not a gift). */
   payingAccounts: number;
+  /** Accounts on Pro whose current Pro month was a gift; never revenue. */
+  complimentaryProAccounts: number;
   /** Accounts with a succeeded plan payment divided by all accounts; null with no accounts. */
   conversion: number | null;
-  /** Paying accounts times the Pro price in USD. */
+  /** Paying accounts times the Pro price in USD; complimentary months are left out. */
   mrrUsd: string;
+  /** Succeeded KES plan payments this month, M-Pesa and manual, by the day paid. */
   kesCollectedThisMonth: string;
+  /** Manual USD payments this month, kept apart and never converted. */
+  manualUsdCollectedThisMonth: string;
   /**
    * Succeeded / (succeeded + failed) by checkout time over the last 30 Nairobi
    * days; pending payments are left out. Null with no settled payments.
@@ -356,8 +366,10 @@ export interface AdminTenantUsage {
     limit: number;
     periodStart: string;
     periodEnd: string;
+    /** Extra invoices from limit overrides active now, included in `limit`. */
+    extraInvoices: number;
   };
-  /** Purchased invoice credits not used yet. */
+  /** Bought and granted invoice credits not used yet. */
   credits: number;
   invoicesCreated: number;
   invoicesReady: number;
@@ -384,6 +396,11 @@ export interface AdminTenantSubscription {
   cancelledAt: string | null;
   /** Every plan payment, M-Pesa and manual, newest first. */
   payments: AdminTenantPayment[];
+  currentMonthSource: AdminCurrentMonthSource | null;
+  /** Every complimentary grant, newest first. */
+  grants: AdminGrantRow[];
+  /** Every limit override, revoked and expired ones included, newest first. */
+  overrides: AdminOverrideRow[];
 }
 
 export interface AdminTenantDetail {

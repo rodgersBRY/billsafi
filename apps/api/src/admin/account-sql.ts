@@ -79,3 +79,42 @@ export function lifecycleStageSql(
     else 'registered'
   end)`;
 }
+
+/**
+ * Who paid for the Pro month in progress: "complimentary" when the latest payment or grant
+ * whose window covers `now` is a grant, otherwise "paid" (including Pro with no covering
+ * row, which before grants existed could only come from a payment); null off Pro.
+ */
+export function currentMonthSourceSql(userId: SQL, proAccess: SQL, now: Date): SQL<string | null> {
+  return sql<string | null>`(case when ${proAccess} then
+    case when (
+      select ext.source from (
+        select 'paid' as source, coalesce(sp.confirmed_at, sp.created_at) as added_at
+        from subscription_payments sp
+        where sp.user_id = ${userId} and sp.status = 'succeeded' and sp.purpose = 'pro_month'
+          and sp.granted_from <= ${at(now)} and sp.granted_until > ${at(now)}
+        union all
+        select 'complimentary', g.created_at
+        from account_grants g
+        where g.user_id = ${userId} and g.kind = 'pro_months'
+          and g.granted_from <= ${at(now)} and g.granted_until > ${at(now)}
+      ) ext order by ext.added_at desc limit 1
+    ) = 'complimentary' then 'complimentary' else 'paid' end
+  end)`;
+}
+
+/** The credit balance as AllowanceService.credits counts it: bought + granted - used. */
+export function creditsSql(userId: SQL): SQL<number> {
+  return sql<number>`((select coalesce(sum(sp.credits_granted), 0) from subscription_payments sp
+      where sp.user_id = ${userId} and sp.status = 'succeeded')
+    + (select coalesce(sum(g.quantity), 0) from account_grants g
+      where g.user_id = ${userId} and g.kind = 'invoice_credits')
+    - (select count(*) from invoice_issuances ii
+      where ii.user_id = ${userId} and ii.source = 'credit'))::int`;
+}
+
+/** Overrides counted at `now`, by the same rule as AllowanceService.extraInvoices. */
+export function activeOverrideSql(alias: SQL, now: Date): SQL<boolean> {
+  return sql<boolean>`(${alias}.revoked_at is null and ${alias}.starts_at <= ${at(now)}
+    and ${alias}.expires_at > ${at(now)})`;
+}

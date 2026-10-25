@@ -1,7 +1,22 @@
 import { nairobiDate } from "@billsafi/domain";
 import { z } from "zod";
-import { type AdminPlan, type AdminSubscriptionStatus, reasonSchema } from "./admin.js";
+import { subscriptionStatuses } from "@billsafi/domain";
+import {
+  type AdminAccountStatus,
+  type AdminPlan,
+  type AdminSubscriptionStatus,
+  reasonSchema,
+} from "./admin.js";
 import type { SubscriptionPaymentStatus, SubscriptionPurpose } from "./billing.js";
+import {
+  blankToUndefined as blankParam,
+  optionalDate,
+  optionalDays,
+  optionalEnum,
+  pageParam,
+  searchParam,
+  sortDirParam,
+} from "./query-params.js";
 
 /*
  * Super admin phase 3: subscription actions and lists. Money is a 2dp string in the
@@ -269,4 +284,161 @@ export interface AdminOverrideResult {
   override: AdminOverrideRow;
   /** The account's allowance window right after the change. */
   allowance: { plan: "free" | "pro"; used: number; limit: number; periodEnd: string };
+}
+
+/*
+ * Admin read routes for subscriptions (GET, cached 60 seconds, cleared by any action).
+ */
+
+export const ADMIN_SUBSCRIPTIONS_PAGE_SIZE = 25;
+export const ADMIN_PLAN_PAYMENTS_PAGE_SIZE = 50;
+export const ADMIN_GRANTS_PAGE_SIZE = 50;
+export const ADMIN_OVERRIDES_PAGE_SIZE = 50;
+
+export const adminSubscriptionSorts = ["registered", "proUntil", "lastPayment", "name"] as const;
+export type AdminSubscriptionSort = (typeof adminSubscriptionSorts)[number];
+
+/** "true" or "false" in a query string; blank means either. */
+const optionalBoolean = z.preprocess(
+  blankParam,
+  z
+    .enum(["true", "false"])
+    .transform((value) => value === "true")
+    .optional(),
+);
+
+/** Nairobi days: `from` the start of one, `to` the end of another. */
+const dateRangeFields = { from: optionalDate, to: optionalDate };
+const fromBeforeTo: [
+  (query: { from?: string; to?: string }) => boolean,
+  { message: string; path: string[] },
+] = [
+  (query) => !query.from || !query.to || query.from <= query.to,
+  { message: "The start date must not be after the end date", path: ["to"] },
+];
+
+export const adminSubscriptionsQuerySchema = z.object({
+  page: pageParam,
+  /** Owner name or email, or an exact account id. */
+  search: searchParam,
+  subscriptionStatus: optionalEnum(subscriptionStatuses),
+  /** On Pro, with access ending within N days. */
+  renewalWithin: optionalDays([7, 30]),
+  /** Pro ended within the last N days. */
+  lapsedWithin: optionalDays([30]),
+  /** With (true) or without (false) a limit override active now. */
+  hasOverride: optionalBoolean,
+  sort: z.preprocess(blankParam, z.enum(adminSubscriptionSorts).default("registered")),
+  dir: sortDirParam,
+});
+export type AdminSubscriptionsQuery = z.output<typeof adminSubscriptionsQuerySchema>;
+
+/**
+ * Who paid for the Pro month in progress: the latest payment or grant whose window covers
+ * now. "paid" also when no extension row covers it (Pro set up before phase 3); null off Pro.
+ */
+export type AdminCurrentMonthSource = "paid" | "complimentary";
+
+export interface AdminSubscriptionRow {
+  /** The account id, which is the owner's user id. */
+  id: string;
+  owner: { name: string; email: string };
+  accountStatus: AdminAccountStatus;
+  plan: AdminPlan;
+  subscriptionStatus: AdminSubscriptionStatus;
+  /** End of the latest run of paid months, also once lapsed; null if never on Pro. */
+  proUntil: string | null;
+  cancelledAt: string | null;
+  currentMonthSource: AdminCurrentMonthSource | null;
+  /** The latest succeeded plan payment, dated by when it was paid. */
+  lastPayment: {
+    date: string;
+    amount: string;
+    currency: ManualPaymentCurrency;
+    provider: PlanPaymentProvider;
+  } | null;
+  /** Bought plus granted credits, minus those used. */
+  credits: number;
+  /** Overrides raising the limit now, and their extra invoices combined. */
+  activeOverrides: { count: number; extraInvoices: number };
+  registeredAt: string;
+}
+
+export interface AdminSubscriptionsPage {
+  page: number;
+  pageSize: number;
+  total: number;
+  subscriptions: AdminSubscriptionRow[];
+  generatedAt: string;
+}
+
+export const adminPlanPaymentsQuerySchema = z
+  .object({
+    page: pageParam,
+    /** Account email, or an exact account id. */
+    search: searchParam,
+    provider: optionalEnum(planPaymentProviders),
+    status: optionalEnum(["pending", "succeeded", "failed"]),
+    method: optionalEnum(manualPaymentMethods),
+    ...dateRangeFields,
+  })
+  .refine(...fromBeforeTo);
+export type AdminPlanPaymentsQuery = z.output<typeof adminPlanPaymentsQuerySchema>;
+
+export interface AdminPlanPaymentsPage {
+  page: number;
+  pageSize: number;
+  total: number;
+  /** Newest first, by when the row was created. */
+  payments: AdminPlanPayment[];
+  generatedAt: string;
+}
+
+export interface AdminGrantRow {
+  id: string;
+  userId: string;
+  userEmail: string;
+  kind: AccountGrantKind;
+  quantity: number;
+  reason: string;
+  grantedBy: { id: string; email: string | null };
+  /** For Pro: the access window this grant added. */
+  grantedFrom: string | null;
+  grantedUntil: string | null;
+  createdAt: string;
+}
+
+export const adminGrantsQuerySchema = z
+  .object({
+    page: pageParam,
+    search: searchParam,
+    kind: optionalEnum(accountGrantKinds),
+    ...dateRangeFields,
+  })
+  .refine(...fromBeforeTo);
+export type AdminGrantsQuery = z.output<typeof adminGrantsQuerySchema>;
+
+export interface AdminGrantsPage {
+  page: number;
+  pageSize: number;
+  total: number;
+  /** Newest first. */
+  grants: AdminGrantRow[];
+  generatedAt: string;
+}
+
+export const adminOverridesQuerySchema = z.object({
+  page: pageParam,
+  search: searchParam,
+  state: optionalEnum(adminOverrideStates),
+});
+export type AdminOverridesQuery = z.output<typeof adminOverridesQuerySchema>;
+
+export interface AdminOverridesPage {
+  page: number;
+  pageSize: number;
+  total: number;
+  /** Newest first. */
+  overrides: AdminOverrideRow[];
+  generatedAt: string;
 }

@@ -26,6 +26,9 @@ import {
   subscriptionStatusSql,
 } from "./account-sql.js";
 import { AdminAuditService } from "./admin-audit.service.js";
+import { selectGrants } from "./admin-grants.js";
+import { selectOverrides } from "./admin-overrides.js";
+import { AdminSubscriptionsService } from "./admin-subscriptions.service.js";
 import { planPaymentColumns, toAdminPlanPayment } from "./admin-payments.js";
 import {
   at,
@@ -78,6 +81,7 @@ export class AdminTenantsService {
     @Inject(DATABASE) private readonly connection: DatabaseConnection,
     private readonly allowance: AllowanceService,
     private readonly audit: AdminAuditService,
+    private readonly subscriptions: AdminSubscriptionsService,
   ) {}
 
   private rows<T>(query: SQL): Promise<T[]> {
@@ -269,6 +273,7 @@ export class AdminTenantsService {
     `);
 
     const allowance = await this.allowance.usage(id, now);
+    const extraInvoices = await this.allowance.extraInvoices(this.connection.db, id, now);
 
     const payments = await this.connection.db
       .select(planPaymentColumns)
@@ -300,6 +305,7 @@ export class AdminTenantsService {
           limit: allowance.limit,
           periodStart: allowance.periodStart,
           periodEnd: allowance.periodEnd,
+          extraInvoices,
         },
         credits: allowance.credits,
         ...counts!,
@@ -312,6 +318,9 @@ export class AdminTenantsService {
         paidUntil: row.proEndsAt,
         cancelledAt: row.cancelledAt,
         payments: payments.map(toAdminPlanPayment),
+        currentMonthSource: await this.subscriptions.currentMonthSource(id, now),
+        grants: await selectGrants(this.connection.db, sql`g.user_id = ${id}`),
+        overrides: await selectOverrides(this.connection.db, now, sql`o.user_id = ${id}`),
       },
       recentAudit: await this.audit.recentForAccount(id),
       generatedAt: now.toISOString(),

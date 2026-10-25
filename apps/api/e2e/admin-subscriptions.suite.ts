@@ -1,7 +1,8 @@
 import type { INestApplication } from "@nestjs/common";
-import { asc, type DatabaseConnection, eq, schema } from "@billsafi/db";
+import { asc, type DatabaseConnection, eq, schema, sql } from "@billsafi/db";
 import { addNairobiMonths, CREDIT_PACK, nairobiDate } from "@billsafi/domain";
 import request from "supertest";
+import { AdminMetricsService } from "../src/admin/admin-metrics.service.js";
 import { AuditService } from "../src/audit/audit.service.js";
 import { AllowanceService } from "../src/billing/allowance.service.js";
 import { DATABASE } from "../src/database/database.module.js";
@@ -882,5 +883,241 @@ export function subscriptionSuite(ctx: SubscriptionSuiteContext) {
       }
       expect(await overridesOf(account.id)).toEqual([]);
     });
+  });
+
+  describe("subscriptions: lists, tenant detail and revenue", () => {
+    const tag = `sb${crypto.randomUUID().slice(0, 8)}`;
+    const accounts: Record<string, { id: string; email: string; cookie: string }> = {};
+    const inDays = (days: number) => new Date(Date.now() + days * 86_400_000);
+
+    beforeAll(async () => {
+      for (const label of ["paid", "gift", "manual", "override", "ending", "lapsed", "free"]) {
+        const account = await ctx.seedAccount(`${tag}-${label}`, 0);
+        accounts[label] = { ...account, id: await ctx.userId(account.email) };
+      }
+      await ctx.payPro(accounts.paid!.cookie);
+      await post(`tenants/${accounts.gift!.id}/grants`, {
+        kind: "pro_months",
+        quantity: 1,
+        reason: "Apology for the outage",
+      }).expect(201);
+      await post(`tenants/${accounts.gift!.id}/grants`, {
+        kind: "invoice_credits",
+        quantity: 9,
+        reason: "Apology for the outage",
+      }).expect(201);
+      await post(
+        `tenants/${accounts.manual!.id}/payments`,
+        proPayment({ months: 1, amount: "4.00", currency: "USD", method: "cash" }),
+      ).expect(201);
+      await post(`tenants/${accounts.override!.id}/overrides`, {
+        extraInvoices: 15,
+        expiresAt: inDays(20).toISOString(),
+        reason: "Month-end rush",
+      }).expect(201);
+      await setRun(accounts.ending!.id, addNairobiMonths(inDays(3), -1), 1);
+      await setRun(accounts.lapsed!.id, addNairobiMonths(inDays(-3), -1), 1);
+    }, 60_000);
+
+    const directory = async (filters = "") => {
+      const { body } = await get(`subscriptions?search=${tag}${filters}`).expect(200);
+      return body;
+    };
+    const labelOf = (id: string) =>
+      Object.keys(accounts).find((label) => accounts[label]!.id === id) ?? id;
+    const labels = async (filters = "") =>
+      ((await directory(filters)).subscriptions as { id: string }[]).map((row) => labelOf(row.id));
+
+    it("shows plan, who paid for this month, last payment, credits and overrides", async () => {
+      const body = await directory("&sort=name&dir=asc");
+      expect(body).toMatchObject({ page: 1, pageSize: 25, total: 7 });
+      const row = (label: string) =>
+        body.subscriptions.find((entry: { id: string }) => entry.id === accounts[label]!.id);
+      expect(row("paid")).toMatchObject({
+        owner: { email: accounts.paid!.email },
+        plan: { code: "pro" },
+        subscriptionStatus: "pro",
+        currentMonthSource: "paid",
+        lastPayment: { amount: "500.00", currency: "KES", provider: "mpesa" },
+        credits: 0,
+        activeOverrides: { count: 0, extraInvoices: 0 },
+      });
+      expect(row("gift")).toMatchObject({
+        currentMonthSource: "complimentary",
+        lastPayment: null,
+        credits: 9,
+      });
+      expect(row("manual")).toMatchObject({
+        currentMonthSource: "paid",
+        lastPayment: {
+          amount: "4.00",
+          currency: "USD",
+          provider: "manual",
+          date: expect.any(String),
+        },
+      });
+      expect(row("override")).toMatchObject({
+        plan: { code: "free" },
+        currentMonthSource: null,
+        activeOverrides: { count: 1, extraInvoices: 15 },
+      });
+      expect(row("lapsed")).toMatchObject({
+        subscriptionStatus: "lapsed",
+        proUntil: expect.any(String),
+      });
+      expect(row("free")).toMatchObject({ subscriptionStatus: "free", proUntil: null });
+      // Credits here agree with the allowance service.
+      const usage = await ctx.app().get(AllowanceService).usage(accounts.gift!.id);
+      expect(row("gift").credits).toBe(usage.credits);
+    });
+
+    it("filters by status, renewal, lapse and override", async () => {
+      expect((await labels("&subscriptionStatus=pro_ending")).sort()).toEqual(["ending"]);
+      expect(await labels("&renewalWithin=7")).toEqual(["ending"]);
+      // One-month runs end 28 to 31 days out, so which fall within 30 days depends on the month.
+      const within30 = await labels("&renewalWithin=30");
+      expect(within30).toContain("ending");
+      expect(within30.filter((label) => ["lapsed", "free", "override"].includes(label))).toEqual(
+        [],
+      );
+      expect(await labels("&lapsedWithin=30")).toEqual(["lapsed"]);
+      expect(await labels("&hasOverride=true")).toEqual(["override"]);
+      expect((await labels("&hasOverride=false")).length).toBe(6);
+      await get("subscriptions?renewalWithin=14").expect(400);
+      await get("subscriptions?hasOverride=maybe").expect(400);
+    });
+
+    it("lists plan payments with provider, method and account filters", async () => {
+      const page = async (filters: string) =>
+        (await get(`subscription-payments?search=${tag}${filters}`).expect(200)).body;
+      const manual = await page("&provider=manual");
+      expect(manual).toMatchObject({ pageSize: 50, total: 1 });
+      expect(manual.payments[0]).toMatchObject({
+        userId: accounts.manual!.id,
+        provider: "manual",
+        method: "cash",
+        currency: "USD",
+      });
+      expect(
+        (await page("&provider=mpesa")).payments.map((p: { userId: string }) => p.userId),
+      ).toEqual([accounts.paid!.id]);
+      expect((await page("&method=bank_transfer")).total).toBe(0);
+      expect((await page(`&from=${today()}&to=${today()}`)).total).toBe(2);
+      expect((await page("&to=2020-01-01")).total).toBe(0);
+      await get("subscription-payments?provider=paypal").expect(400);
+      await get("subscription-payments?from=2026-10-10&to=2026-10-01").expect(400);
+    });
+
+    it("lists grants and overrides with filters", async () => {
+      const grants = (await get(`grants?search=${tag}`).expect(200)).body;
+      expect(grants.total).toBe(2);
+      expect(grants.grants[0]).toMatchObject({
+        userEmail: accounts.gift!.email,
+        kind: "invoice_credits",
+        quantity: 9,
+        grantedBy: { id: ctx.adminId() },
+      });
+      expect((await get(`grants?search=${tag}&kind=pro_months`).expect(200)).body.grants).toEqual([
+        expect.objectContaining({ kind: "pro_months", grantedUntil: expect.any(String) }),
+      ]);
+      const overrides = (await get(`overrides?search=${tag}&state=active`).expect(200)).body;
+      expect(overrides.overrides).toEqual([
+        expect.objectContaining({
+          userId: accounts.override!.id,
+          extraInvoices: 15,
+          state: "active",
+        }),
+      ]);
+      expect((await get(`overrides?search=${tag}&state=revoked`).expect(200)).body.total).toBe(0);
+      await get("overrides?state=paused").expect(400);
+    });
+
+    it("shows grants, overrides and the month's source in tenant detail", async () => {
+      const gift = (await get(`tenants/${accounts.gift!.id}`).expect(200)).body;
+      expect(gift.subscription.currentMonthSource).toBe("complimentary");
+      expect(gift.subscription.grants).toHaveLength(2);
+      expect(gift.subscription.overrides).toEqual([]);
+      expect(gift.usage.credits).toBe(9);
+      const override = (await get(`tenants/${accounts.override!.id}`).expect(200)).body;
+      expect(override.usage.allowance).toMatchObject({ limit: 25, extraInvoices: 15 });
+      expect(override.subscription.overrides).toEqual([
+        expect.objectContaining({ extraInvoices: 15, state: "active" }),
+      ]);
+      expect(override.subscription.currentMonthSource).toBeNull();
+    });
+
+    it("clears cached lists after an action", async () => {
+      const before = await directory("&hasOverride=true");
+      await post(`tenants/${accounts.free!.id}/overrides`, {
+        extraInvoices: 1,
+        expiresAt: inDays(2).toISOString(),
+        reason: "Quick top up",
+      }).expect(201);
+      const after = await directory("&hasOverride=true");
+      expect(after.total).toBe(before.total + 1);
+    });
+
+    it("counts only paid Pro months as MRR and keeps manual USD apart from KES", async () => {
+      // A June 2021 Nairobi month nothing else in the shared database touches.
+      const now = new Date("2021-06-15T09:00:00Z");
+      const metrics = ctx.app().get(AdminMetricsService);
+      const before = await metrics.overview(now);
+
+      const make = async (label: string) => {
+        const account = await newAccount(`${tag}-mrr-${label}`);
+        await db().execute(
+          sql`update users set created_at = '2021-05-01 00:00:00'::timestamp where id = ${account.id}`,
+        );
+        return account;
+      };
+      const paidKes = await make("kes");
+      const paidUsd = await make("usd");
+      const gift = await make("gift");
+      const credits = await make("credits");
+      await post(
+        `tenants/${paidKes.id}/payments`,
+        proPayment({ months: 1, amount: "520", currency: "KES", paidAt: "2021-06-10" }),
+      ).expect(201);
+      await post(
+        `tenants/${paidUsd.id}/payments`,
+        proPayment({ months: 1, amount: "4", currency: "USD", paidAt: "2021-06-11" }),
+      ).expect(201);
+      await post(`tenants/${credits.id}/grants`, {
+        kind: "invoice_credits",
+        quantity: 50,
+        reason: "Gifts are not revenue",
+      }).expect(201);
+      // Move the Pro runs and their windows into June 2021.
+      const anchor = new Date("2021-06-01T09:00:00Z");
+      const until = addNairobiMonths(anchor, 1);
+      for (const account of [paidKes, paidUsd]) {
+        await setRun(account.id, anchor, 1);
+        await db()
+          .update(schema.subscriptionPayments)
+          .set({ grantedFrom: anchor, grantedUntil: until })
+          .where(eq(schema.subscriptionPayments.userId, account.id));
+      }
+      await post(`tenants/${gift.id}/grants`, {
+        kind: "pro_months",
+        quantity: 1,
+        reason: "Gifts are not revenue",
+      }).expect(201);
+      await setRun(gift.id, anchor, 1);
+      await db()
+        .update(schema.accountGrants)
+        .set({ grantedFrom: anchor, grantedUntil: until })
+        .where(eq(schema.accountGrants.userId, gift.id));
+
+      const after = await metrics.overview(now);
+      expect(after.payingAccounts - before.payingAccounts).toBe(2);
+      expect(after.complimentaryProAccounts - before.complimentaryProAccounts).toBe(1);
+      expect(Number(after.mrrUsd) - Number(before.mrrUsd)).toBeCloseTo(8, 2);
+      expect(Number(after.kesCollectedThisMonth) - Number(before.kesCollectedThisMonth)).toBe(520);
+      expect(
+        Number(after.manualUsdCollectedThisMonth) - Number(before.manualUsdCollectedThisMonth),
+      ).toBe(4);
+      // Manual payments are not M-Pesa checkouts.
+      expect(after.mpesaSuccessRate30Days).toBe(before.mpesaSuccessRate30Days);
+    }, 30_000);
   });
 }

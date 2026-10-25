@@ -1218,6 +1218,7 @@ describe("admin", () => {
           limit: 100,
           periodStart: expect.any(String),
           periodEnd: expect.any(String),
+          extraInvoices: 0,
         },
         credits: 0,
         invoicesCreated: 3,

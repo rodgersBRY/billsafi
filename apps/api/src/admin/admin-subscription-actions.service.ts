@@ -176,6 +176,8 @@ export class AdminSubscriptionActionsService {
               paidAt: nairobiDayStart(body.paidAt),
               recordedBy: context.adminId,
               note: body.note ?? null,
+              // Like checkout, stamp this process's clock so rows from both paths order together.
+              createdAt: now,
             })
             .returning({ id: subscriptionPayments.id });
           paymentId = payment!.id;
