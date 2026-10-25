@@ -41,7 +41,7 @@ export function AdminToastProvider({ children }: { children: React.ReactNode }) 
             <button
               type="button"
               onClick={() => setToast(null)}
-              className="-m-1 grid size-7 place-items-center rounded-md text-sub hover:bg-soft hover:text-ink"
+              className="-m-1 grid size-11 place-items-center md:size-7 rounded-md text-sub hover:bg-soft hover:text-ink"
             >
               <X aria-hidden className="size-4" />
               <span className="sr-only">Dismiss</span>

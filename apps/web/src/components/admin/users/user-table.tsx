@@ -64,8 +64,14 @@ function UserCards({ users }: { users: AdminUserRow[] }) {
             <StatusBadge kind="account" value={user.accountStatus} labelled />
           </div>
           <p className="mt-2 text-xs text-sub">
-            Signs in with {methodsText(user.signInMethods)}. Last login{" "}
-            <LastLogin iso={user.lastLoginAt} />.
+            Signs in with {methodsText(user.signInMethods)}.{" "}
+            {user.lastLoginAt ? (
+              <>
+                Last login <LastLogin iso={user.lastLoginAt} />.
+              </>
+            ) : (
+              "No recent login."
+            )}
           </p>
           <TenantLink id={user.tenantId} name={user.name} />
         </li>

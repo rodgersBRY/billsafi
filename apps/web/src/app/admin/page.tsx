@@ -19,6 +19,8 @@ const header = (
 );
 
 async function Overview() {
+  // The counts come from the tenants list's `total`. The API has no count-only route and
+  // no page size option, so this reads one 25-row page each; both are cached for a minute.
   const [overview, billing, suspended, ending] = await Promise.all([
     getAdminOverview(),
     getAdminBilling(),
