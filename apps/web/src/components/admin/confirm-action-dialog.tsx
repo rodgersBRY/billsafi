@@ -55,6 +55,9 @@ export function ConfirmActionDialog({ action, open, onClose }: ConfirmActionDial
   const valid = length >= MIN && length <= MAX;
   const busy = submitting || refreshing;
   const reasonRef = useRef<HTMLTextAreaElement>(null);
+  // Escape is blocked while busy, but a browser can still force the dialog shut (Chrome
+  // closes on a second Escape). Then the outcome is reported in a toast instead.
+  const closedWhileBusy = useRef(false);
 
   // Start in the reason box rather than on the dialog's close button.
   useEffect(() => {
@@ -62,9 +65,11 @@ export function ConfirmActionDialog({ action, open, onClose }: ConfirmActionDial
   }, [open]);
 
   function close() {
-    if (busy) return;
-    setReason("");
-    setError("");
+    if (busy) closedWhileBusy.current = true;
+    else {
+      setReason("");
+      setError("");
+    }
     onClose();
   }
 
@@ -73,11 +78,13 @@ export function ConfirmActionDialog({ action, open, onClose }: ConfirmActionDial
     if (!valid || busy) return;
     setSubmitting(true);
     setError("");
+    closedWhileBusy.current = false;
     try {
       await apiPost(action.path, { reason: reason.trim() });
     } catch (caught) {
       setSubmitting(false);
-      setError(errorText(caught));
+      if (closedWhileBusy.current) toast({ tone: "error", message: errorText(caught) });
+      else setError(errorText(caught));
       return;
     }
     setSubmitting(false);
@@ -88,7 +95,7 @@ export function ConfirmActionDialog({ action, open, onClose }: ConfirmActionDial
   }
 
   return (
-    <Dialog open={open} onClose={close} title={action.title}>
+    <Dialog open={open} onClose={close} title={action.title} dismissible={!busy}>
       <form onSubmit={onSubmit} className="pt-4 text-left">
         <div className="rounded-panel border border-line bg-background px-3 py-2.5">
           <p className="text-sm font-medium break-words">{action.target.name}</p>

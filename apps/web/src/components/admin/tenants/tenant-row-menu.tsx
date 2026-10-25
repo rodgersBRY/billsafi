@@ -5,7 +5,7 @@ import { Ban, CircleCheck, Eye, EllipsisVertical } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { type ActionTarget, reactivateAction, suspendAction } from "../account-actions";
-import { ConfirmActionDialog } from "../confirm-action-dialog";
+import { useConfirmAction } from "../action-host";
 
 interface TenantRowMenuProps {
   target: ActionTarget;
@@ -18,11 +18,11 @@ interface TenantRowMenuProps {
 const item =
   "flex min-h-11 w-full items-center gap-2 rounded-md px-2.5 text-left text-sm hover:bg-soft focus-visible:bg-soft focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 md:min-h-9";
 
-/** The per-row overflow menu: View, and Suspend or Reactivate behind a confirm dialog. */
+/** The per-row overflow menu: View, and Suspend or Reactivate through the table's confirm dialog. */
 export function TenantRowMenu({ target, href, accountStatus, blocked }: TenantRowMenuProps) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<React.CSSProperties>({});
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const confirm = useConfirmAction();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
@@ -115,7 +115,7 @@ export function TenantRowMenu({ target, href, accountStatus, blocked }: TenantRo
             disabled={disabled}
             onClick={() => {
               setOpen(false);
-              setDialogOpen(true);
+              confirm(action, triggerRef.current);
             }}
             className={`${item} ${suspended ? "" : "text-red-700 dark:text-red-300"}`}
           >
@@ -129,16 +129,6 @@ export function TenantRowMenu({ target, href, accountStatus, blocked }: TenantRo
           {disabled && <p className="px-2.5 pt-1 pb-1.5 text-xs text-sub">{blocked}</p>}
         </div>
       )}
-      <ConfirmActionDialog
-        action={action}
-        open={dialogOpen}
-        onClose={() => {
-          setDialogOpen(false);
-          // After the dialog has closed, or the browser puts focus back on the menu item it
-          // opened from, which no longer exists.
-          setTimeout(() => triggerRef.current?.focus(), 0);
-        }}
-      />
     </div>
   );
 }

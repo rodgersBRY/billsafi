@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AdminToastProvider } from "../admin-toast";
 import { AdminDrawer } from "./admin-drawer";
-import { type AdminEnvironment, AdminHeader } from "./admin-header";
+import type { AdminEnvironment } from "./admin-environment";
+import { AdminHeader } from "./admin-header";
 import { AdminSidebar } from "./admin-sidebar";
 
 interface AdminShellProps {
@@ -30,6 +31,16 @@ export function AdminShell({ user, environment, children }: AdminShellProps) {
     setDrawerOpen(false);
   }, [pathname]);
 
+  // The drawer only exists below 768px; close it if the window grows past that.
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 768px)");
+    const onChange = () => {
+      if (query.matches) setDrawerOpen(false);
+    };
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+
   function closeDrawer() {
     setDrawerOpen(false);
     menuButtonRef.current?.focus();
@@ -38,25 +49,29 @@ export function AdminShell({ user, environment, children }: AdminShellProps) {
   return (
     <AdminToastProvider>
       <div className="flex min-h-full flex-1">
+        {/* The outer column stretches with the page so its background and border run the
+            full height; the inner block stays pinned to the viewport. */}
         <aside
-          className={`sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-line bg-panel p-3 md:flex xl:w-64 xl:p-4 ${railOpen ? "w-64" : "w-17"}`}
+          className={`hidden shrink-0 border-r border-line bg-panel md:block xl:w-64 ${railOpen ? "w-64" : "w-17"}`}
         >
-          <AdminSidebar compact={!railOpen} />
-          <button
-            type="button"
-            onClick={() => setRailOpen((open) => !open)}
-            aria-expanded={railOpen}
-            className={`mt-auto flex min-h-11 items-center gap-3 rounded-panel px-2.5 text-sm text-sub hover:bg-soft hover:text-ink xl:hidden ${railOpen ? "" : "justify-center"}`}
-          >
-            {railOpen ? (
-              <PanelLeftClose aria-hidden className="size-4.5" />
-            ) : (
-              <PanelLeftOpen aria-hidden className="size-4.5" />
-            )}
-            <span className={railOpen ? "" : "sr-only"}>
-              {railOpen ? "Collapse navigation" : "Expand navigation"}
-            </span>
-          </button>
+          <div className="sticky top-0 flex h-dvh flex-col p-3 xl:p-4">
+            <AdminSidebar compact={!railOpen} />
+            <button
+              type="button"
+              onClick={() => setRailOpen((open) => !open)}
+              aria-expanded={railOpen}
+              className={`mt-auto flex min-h-11 items-center gap-3 rounded-panel px-2.5 text-sm text-sub hover:bg-soft hover:text-ink xl:hidden ${railOpen ? "" : "justify-center"}`}
+            >
+              {railOpen ? (
+                <PanelLeftClose aria-hidden className="size-4.5" />
+              ) : (
+                <PanelLeftOpen aria-hidden className="size-4.5" />
+              )}
+              <span className={railOpen ? "" : "sr-only"}>
+                {railOpen ? "Collapse navigation" : "Expand navigation"}
+              </span>
+            </button>
+          </div>
         </aside>
         <AdminDrawer open={drawerOpen} onClose={closeDrawer}>
           {drawerOpen && <AdminSidebar />}

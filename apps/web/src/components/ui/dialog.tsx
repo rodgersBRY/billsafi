@@ -8,11 +8,20 @@ interface DialogProps {
   onClose: () => void;
   title: string;
   description?: string;
+  /** False while something is in flight: Escape and the close button do nothing. */
+  dismissible?: boolean;
   children: React.ReactNode;
 }
 
 /** Native modal dialog: focus trapping, Escape and backdrop come from the browser. */
-export function Dialog({ open, onClose, title, description, children }: DialogProps) {
+export function Dialog({
+  open,
+  onClose,
+  title,
+  description,
+  dismissible = true,
+  children,
+}: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
@@ -37,6 +46,9 @@ export function Dialog({ open, onClose, title, description, children }: DialogPr
       onClose={() => {
         if (!ref.current?.open) onClose();
       }}
+      onCancel={(event) => {
+        if (!dismissible) event.preventDefault();
+      }}
       aria-labelledby={titleId}
       className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-panel border border-line bg-panel p-0 text-ink backdrop:bg-black/40"
     >
@@ -50,7 +62,8 @@ export function Dialog({ open, onClose, title, description, children }: DialogPr
         <button
           type="button"
           onClick={onClose}
-          className="rounded-lg p-1.5 text-sub hover:bg-soft hover:text-ink"
+          disabled={!dismissible}
+          className="grid size-11 place-items-center rounded-lg text-sub hover:bg-soft hover:text-ink disabled:opacity-50 md:size-8"
         >
           <X aria-hidden className="size-4" />
           <span className="sr-only">Close</span>
