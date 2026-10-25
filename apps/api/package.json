@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "vitest run --config ./vitest.config.e2e.mts",
+    "seed:browser-admin": "node scripts/seed-browser-admin.mjs",
     "auth:generate": "auth generate --config src/auth/auth.cli.ts --output ../../packages/db/src/schema/auth.ts --yes"
   },
   "dependencies": {
