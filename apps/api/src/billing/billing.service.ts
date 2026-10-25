@@ -32,8 +32,14 @@ import { AllowanceService, type SubscriptionRow, type Transaction } from "./allo
 import { ExchangeRateService, type UsdKesRate } from "./exchange-rate.service.js";
 import { MPESA_PROVIDER, type MpesaProvider } from "./mpesa/mpesa.provider.js";
 
-const { subscriptions, subscriptionPayments, subscriptionEvents, subscriptionReminders, users } =
-  schema;
+const {
+  subscriptions,
+  subscriptionPayments,
+  subscriptionEvents,
+  subscriptionReminders,
+  users,
+  accountGrants,
+} = schema;
 
 type PaymentRow = typeof subscriptionPayments.$inferSelect;
 
@@ -85,17 +91,27 @@ export function paidThrough(subscription: SubscriptionRow): Date | null {
     : null;
 }
 
+/**
+ * A plan payment as the account sees it. A manual payment shows its method and the payer's
+ * reference as the receipt; who recorded it and the admin's note stay out.
+ */
 function toPayment(row: PaymentRow): SubscriptionPayment {
+  const manual = row.provider === schema.MANUAL_PROVIDER;
   return {
     id: row.id,
     purpose: row.purpose,
+    source: manual ? "manual" : "mpesa",
+    method: row.method,
+    quantity: row.quantity,
     amount: row.amount,
+    currency: row.currency as SubscriptionPayment["currency"],
     phone: row.phone,
     status: row.status,
-    receipt: row.receipt,
+    receipt: manual ? row.externalReference : row.receipt,
     resultDescription: row.status === "failed" ? row.resultDescription : null,
     createdAt: row.createdAt.toISOString(),
-    confirmedAt: row.confirmedAt?.toISOString() ?? null,
+    // A manual payment is dated by the day it was paid.
+    confirmedAt: (manual ? row.paidAt : row.confirmedAt)?.toISOString() ?? null,
     grantedUntil: row.grantedUntil?.toISOString() ?? null,
     creditsGranted: row.creditsGranted,
   };
@@ -133,6 +149,12 @@ export class BillingService {
       .where(eq(subscriptionPayments.userId, userId))
       .orderBy(desc(subscriptionPayments.createdAt))
       .limit(20);
+    const grants = await this.db
+      .select()
+      .from(accountGrants)
+      .where(eq(accountGrants.userId, userId))
+      .orderBy(desc(accountGrants.createdAt))
+      .limit(20);
     const until = subscription ? paidThrough(subscription) : null;
     const active = until !== null && at < until;
     const cancelled = active && subscription!.cancelledAt !== null;
@@ -149,6 +171,13 @@ export class BillingService {
       },
       pendingPayment: pending ? toPayment(pending) : null,
       payments: recent.filter((payment) => payment.status !== "pending").map(toPayment),
+      grants: grants.map((grant) => ({
+        id: grant.id,
+        kind: grant.kind,
+        quantity: grant.quantity,
+        createdAt: grant.createdAt.toISOString(),
+        grantedUntil: grant.grantedUntil?.toISOString() ?? null,
+      })),
     };
   }
 

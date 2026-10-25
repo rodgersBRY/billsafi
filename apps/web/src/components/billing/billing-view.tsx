@@ -1,6 +1,7 @@
 "use client";
 
 import type {
+  BillingGrant,
   BillingOverview,
   SubscriptionPayment,
   SubscriptionPurpose,
@@ -51,6 +52,45 @@ const purposeLabels: Record<SubscriptionPurpose, string> = {
   pro_month: "Pro, one month",
   invoice_credits: `${CREDIT_PACK.invoices} invoice credits`,
 };
+
+const methodLabels: Record<NonNullable<SubscriptionPayment["method"]>, string> = {
+  mpesa_direct: "M-Pesa",
+  bank_transfer: "Bank transfer",
+  cash: "Cash",
+  other: "Other",
+};
+
+/** What a payment bought; manual payments can cover several months or packs. */
+function paymentLabel(payment: SubscriptionPayment): string {
+  if (payment.quantity <= 1) return purposeLabels[payment.purpose];
+  return payment.purpose === "pro_month"
+    ? `Pro, ${payment.quantity} months`
+    : `${payment.quantity * CREDIT_PACK.invoices} invoice credits`;
+}
+
+function grantLabel(grant: BillingGrant): string {
+  if (grant.kind === "invoice_credits") return `${grant.quantity} complimentary invoice credits`;
+  return grant.quantity === 1
+    ? "Complimentary Pro month"
+    : `${grant.quantity} complimentary Pro months`;
+}
+
+/** Payments and gifts in one list, newest first. */
+type HistoryRow =
+  | { kind: "payment"; at: string; payment: SubscriptionPayment }
+  | { kind: "grant"; at: string; grant: BillingGrant };
+
+function historyRows(billing: BillingOverview): HistoryRow[] {
+  const rows: HistoryRow[] = [
+    ...billing.payments.map((payment): HistoryRow => ({
+      kind: "payment",
+      at: payment.confirmedAt ?? payment.createdAt,
+      payment,
+    })),
+    ...billing.grants.map((grant): HistoryRow => ({ kind: "grant", at: grant.createdAt, grant })),
+  ];
+  return rows.sort((a, b) => b.at.localeCompare(a.at));
+}
 
 /** This visit's choice, kept even when the browser blocks storage. */
 let chosenCurrency: PriceCurrency | null = null;
@@ -188,6 +228,7 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
       ? `Shared across ${businessNames.slice(0, -1).join(", ")} and ${businessNames.at(-1)}`
       : "Covers every business you add";
   const paymentPending = payment?.status === "pending";
+  const history = historyRows(billing);
   // KES prices need a rate; fall back to USD while none is available.
   const shownCurrency: PriceCurrency = currency === "KES" && prices.kes ? "KES" : "USD";
   const shownPrices = shownCurrency === "KES" ? prices.kes! : prices.usd;
@@ -515,9 +556,9 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
         <h2 id="history" className="px-5 py-4.75 text-base font-semibold">
           Payment history
         </h2>
-        {billing.payments.length === 0 ? (
+        {history.length === 0 ? (
           <p className="border-t border-line p-5 text-sm text-sub">
-            Your M-Pesa payments to BillSafi will show here.
+            Your payments to BillSafi will show here.
           </p>
         ) : (
           <table className="w-full text-sm">
@@ -538,23 +579,43 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
               </tr>
             </thead>
             <tbody>
-              {billing.payments.map((row) => (
-                <tr key={row.id} className="border-t border-line">
-                  <td className="px-5 py-3.5 text-sub">
-                    {shortFormat.format(new Date(row.confirmedAt ?? row.createdAt))}
-                  </td>
-                  <td className="px-5 py-3.5">
-                    {purposeLabels[row.purpose]}
-                    {row.status === "failed" && (
-                      <span className="block text-xs text-red-700 dark:text-red-300">
-                        Not completed
-                      </span>
-                    )}
-                  </td>
-                  <td className="hidden px-5 py-3.5 text-sub sm:table-cell">{row.receipt}</td>
-                  <td className="px-5 py-3.5 text-right tabular-nums">{formatMoney(row.amount)}</td>
-                </tr>
-              ))}
+              {history.map((row) =>
+                row.kind === "grant" ? (
+                  <tr key={`grant-${row.grant.id}`} className="border-t border-line">
+                    <td className="px-5 py-3.5 text-sub">{shortFormat.format(new Date(row.at))}</td>
+                    <td className="px-5 py-3.5">
+                      {grantLabel(row.grant)}
+                      <span className="block text-xs text-sub">From Billsafi</span>
+                    </td>
+                    <td className="hidden px-5 py-3.5 text-sub sm:table-cell" />
+                    <td className="px-5 py-3.5 text-right text-sub">No charge</td>
+                  </tr>
+                ) : (
+                  <tr key={row.payment.id} className="border-t border-line">
+                    <td className="px-5 py-3.5 text-sub">{shortFormat.format(new Date(row.at))}</td>
+                    <td className="px-5 py-3.5">
+                      {paymentLabel(row.payment)}
+                      {row.payment.source === "manual" && (
+                        <span className="block text-xs text-sub">
+                          Recorded by Billsafi
+                          {row.payment.method && ` · ${methodLabels[row.payment.method]}`}
+                        </span>
+                      )}
+                      {row.payment.status === "failed" && (
+                        <span className="block text-xs text-red-700 dark:text-red-300">
+                          Not completed
+                        </span>
+                      )}
+                    </td>
+                    <td className="hidden px-5 py-3.5 text-sub sm:table-cell">
+                      {row.payment.receipt}
+                    </td>
+                    <td className="px-5 py-3.5 text-right tabular-nums">
+                      {formatMoney(row.payment.amount, row.payment.currency)}
+                    </td>
+                  </tr>
+                ),
+              )}
             </tbody>
           </table>
         )}

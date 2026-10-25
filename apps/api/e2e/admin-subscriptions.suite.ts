@@ -1120,4 +1120,64 @@ export function subscriptionSuite(ctx: SubscriptionSuiteContext) {
       expect(after.mpesaSuccessRate30Days).toBe(before.mpesaSuccessRate30Days);
     }, 30_000);
   });
+
+  describe("subscriptions: the account's own billing history", () => {
+    it("shows manual payments and grants without the admin's identity or notes", async () => {
+      const account = await newAccount();
+      const body = proPayment({ months: 2, paidAt: today() });
+      await post(`tenants/${account.id}/payments`, body).expect(201);
+      await post(`tenants/${account.id}/grants`, {
+        kind: "invoice_credits",
+        quantity: 25,
+        reason: "Sorry about the outage",
+      }).expect(201);
+      await post(`tenants/${account.id}/grants`, {
+        kind: "pro_months",
+        quantity: 1,
+        reason: "Sorry about the outage",
+      }).expect(201);
+
+      const billing = await billingOf(account.cookie);
+      expect(billing.payments).toEqual([
+        expect.objectContaining({
+          source: "manual",
+          method: "bank_transfer",
+          purpose: "pro_month",
+          quantity: 2,
+          amount: "12.00",
+          currency: "USD",
+          phone: null,
+          status: "succeeded",
+          receipt: body.reference,
+        }),
+      ]);
+      expect(nairobiDate(new Date(billing.payments[0].confirmedAt))).toBe(body.paidAt);
+      expect(billing.grants).toEqual([
+        expect.objectContaining({
+          kind: "pro_months",
+          quantity: 1,
+          grantedUntil: billing.subscription.paidUntil,
+        }),
+        expect.objectContaining({ kind: "invoice_credits", quantity: 25, grantedUntil: null }),
+      ]);
+      expect(billing.usage.credits).toBe(25);
+      const text = JSON.stringify(billing);
+      expect(text).not.toContain(body.note);
+      expect(text).not.toContain("Sorry about the outage");
+      expect(text).not.toContain(ctx.adminId());
+    });
+
+    it("keeps M-Pesa checkouts labelled as such", async () => {
+      const account = await newAccount();
+      await ctx.payPro(account.cookie);
+      const billing = await billingOf(account.cookie);
+      expect(billing.payments[0]).toMatchObject({
+        source: "mpesa",
+        method: null,
+        quantity: 1,
+        currency: "KES",
+      });
+      expect(billing.grants).toEqual([]);
+    });
+  });
 }

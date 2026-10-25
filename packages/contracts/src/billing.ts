@@ -18,7 +18,15 @@ export type SubscriptionPaymentStatus = "pending" | "succeeded" | "failed";
 export interface SubscriptionPayment {
   id: string;
   purpose: SubscriptionPurpose;
+  /** "mpesa" for checkouts; "manual" for a payment Billsafi recorded on the account's behalf. */
+  source: "mpesa" | "manual";
+  /** How a manual payment was made; null for checkouts. */
+  method: "mpesa_direct" | "bank_transfer" | "cash" | "other" | null;
+  /** Pro months or credit packs paid for. */
+  quantity: number;
+  /** In `currency`; checkouts are always KES. */
   amount: string;
+  currency: "KES" | "USD";
   /** The M-Pesa number prompted; null for a payment Billsafi recorded by hand. */
   phone: string | null;
   status: SubscriptionPaymentStatus;
@@ -66,4 +74,17 @@ export interface BillingOverview {
   };
   pendingPayment: SubscriptionPayment | null;
   payments: SubscriptionPayment[];
+  /** Pro months and invoice credits Billsafi gave at no charge, newest first. */
+  grants: BillingGrant[];
+}
+
+/** A complimentary grant as the account sees it: no admin name, no internal reason. */
+export interface BillingGrant {
+  id: string;
+  kind: "pro_months" | "invoice_credits";
+  /** Pro months or invoice credits. */
+  quantity: number;
+  createdAt: string;
+  /** For Pro: when the access this grant added ends. */
+  grantedUntil: string | null;
 }
