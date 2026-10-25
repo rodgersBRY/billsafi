@@ -7,6 +7,11 @@ test("a signed-in user who is not an admin gets a real 404 on /admin", async ({ 
   await signUp(page, "Wanjiru Kamau", uniqueEmail("admin-no"));
   await createFirstBusiness(page);
 
+  // The account menu only offers the admin dashboard to admins.
+  await page.getByLabel("Account menu for Wanjiru Kamau").filter({ visible: true }).click();
+  await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Admin dashboard" })).toHaveCount(0);
+
   for (const path of ["/admin", "/admin/tenants", "/admin/security"]) {
     const response = await page.goto(path);
     expect(response?.status()).toBe(404);

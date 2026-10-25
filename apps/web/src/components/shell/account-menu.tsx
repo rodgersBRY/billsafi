@@ -1,6 +1,14 @@
 "use client";
 
-import { Compass, CreditCard, Ellipsis, LogOut, Settings, Sparkles } from "lucide-react";
+import {
+  Compass,
+  CreditCard,
+  Ellipsis,
+  LogOut,
+  Settings,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef } from "react";
@@ -26,6 +34,7 @@ export function AccountMenu({
   settingsHref,
   tourHref,
   isPro,
+  isAdmin = false,
 }: {
   name: string;
   email: string;
@@ -34,6 +43,8 @@ export function AccountMenu({
   /** Overview with the product tour queued (D057). */
   tourHref: string;
   isPro: boolean;
+  /** Platform admins get a link to the admin dashboard. */
+  isAdmin?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -125,6 +136,12 @@ export function AccountMenu({
           Settings
           <Settings aria-hidden className="size-4 text-sub" />
         </Link>
+        {isAdmin && (
+          <Link href="/admin" onClick={closeMenu} className={`${item} hover:bg-soft`}>
+            Admin dashboard
+            <ShieldCheck aria-hidden className="size-4 text-sub" />
+          </Link>
+        )}
         <Link href={tourHref} onClick={startTour} className={`${item} hover:bg-soft`}>
           Take the tour
           <Compass aria-hidden className="size-4 text-sub" />
