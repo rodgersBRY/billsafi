@@ -2,7 +2,9 @@ import { Inject, Injectable } from "@nestjs/common";
 import { type DatabaseConnection, schema } from "@billsafi/db";
 import { DATABASE } from "../database/database.module.js";
 import type { Executor } from "../database/transaction.js";
-import { redact } from "./redact.js";
+import { redactChanges } from "./redact.js";
+
+const MAX_REASON_LENGTH = 500;
 
 export type AuditActor = { userId: string; role: string } | "system";
 
@@ -38,8 +40,9 @@ export class AuditService {
       targetType: entry.target.type,
       targetId: entry.target.id,
       outcome: entry.outcome,
-      reason: entry.reason ?? null,
-      changes: entry.changes === undefined ? null : redact(entry.changes),
+      // The API already limits reasons; this keeps internal callers in line too.
+      reason: entry.reason?.slice(0, MAX_REASON_LENGTH) ?? null,
+      changes: entry.changes === undefined ? null : redactChanges(entry.changes),
       requestId: entry.request?.requestId ?? null,
       ipAddress: entry.request?.ip ?? null,
     });
