@@ -61,7 +61,13 @@ export function BillingPanels({
         }
       >
         {data.freeLimitHits.length === 0 ? (
-          <EmptyRow text="No one has reached the Free limit in the last 90 days." />
+          <EmptyRow
+            text={
+              thisMonthOnly
+                ? "No one has reached the Free limit this month."
+                : "No one has reached the Free limit in the last 90 days."
+            }
+          />
         ) : (
           <table className="w-full text-sm">
             <thead className={theadClass}>

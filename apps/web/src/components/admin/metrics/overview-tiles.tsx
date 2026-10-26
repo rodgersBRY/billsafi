@@ -103,17 +103,10 @@ function tiles(data: AdminOverview): Tile[] {
       value: formatCount(mpesa.current.failed),
       definition: d.mpesa,
       change: count({ current: mpesa.current.failed, previous: mpesa.previous.failed }),
-      detail: `${formatCount(mpesa.current.succeeded)} succeeded.`,
-    },
-    {
-      label: "M-Pesa success rate",
-      value: mpesa.current.successRate === null ? null : formatShare(mpesa.current.successRate),
-      definition: "Successful checkouts out of settled ones in this range.",
-      change: describeRateChange(mpesa.current.successRate, mpesa.previous.successRate),
       detail:
         mpesa.current.successRate === null
           ? "No settled M-Pesa checkouts in this range."
-          : undefined,
+          : `${formatCount(mpesa.current.succeeded)} succeeded, ${formatShare(mpesa.current.successRate)} success rate (${describeRateChange(mpesa.current.successRate, mpesa.previous.successRate).text}).`,
     },
   ];
 }
