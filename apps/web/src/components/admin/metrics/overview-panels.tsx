@@ -2,7 +2,12 @@ import type { AdminOverview } from "@billsafi/contracts";
 import { formatCount, formatKes, formatShare, formatUsd } from "../admin-format";
 import { InfoPopover } from "../info-popover";
 import type { KpiChange } from "../kpi-card";
-import { describeCompactChange, describeCompactRateChange, type MetricKey } from "./kpi-change";
+import {
+  describeCompactChange,
+  describeCompactRateChange,
+  sinceBasis,
+  type MetricKey,
+} from "./kpi-change";
 import { ChangeLine } from "./headline-row";
 
 interface Row {
@@ -51,13 +56,14 @@ function Rows({ title, id, rows }: { title: string; id: string; rows: Row[] }) {
   );
 }
 
-const count = (metric: MetricKey, pair: { current: number; previous: number }) =>
-  describeCompactChange(metric, pair.current, pair.previous);
+const count = (metric: MetricKey, pair: { current: number; previous: number }, basis?: string) =>
+  describeCompactChange(metric, pair.current, pair.previous, basis);
 const money = (metric: MetricKey, pair: { current: string; previous: string }) =>
   describeCompactChange(metric, Number(pair.current), Number(pair.previous));
 
 export function RevenuePanel({ data }: { data: AdminOverview }) {
   const { definitions: d, proChurn, mpesa } = data;
+  const since = sinceBasis(data.period.start);
   return (
     <Rows
       id="revenue-title"
@@ -79,13 +85,13 @@ export function RevenuePanel({ data }: { data: AdminOverview }) {
           label: "Paying accounts",
           value: formatCount(data.payingAccounts.current),
           definition: d.payingAccounts,
-          change: count("payingAccounts", data.payingAccounts),
+          change: count("payingAccounts", data.payingAccounts, since),
         },
         {
           label: "Complimentary Pro",
           value: formatCount(data.complimentaryProAccounts.current),
           definition: d.complimentaryProAccounts,
-          change: count("complimentaryPro", data.complimentaryProAccounts),
+          change: count("complimentaryPro", data.complimentaryProAccounts, since),
         },
         {
           label: "Pro churn",
@@ -122,6 +128,7 @@ export function RevenuePanel({ data }: { data: AdminOverview }) {
 
 export function GrowthPanel({ data }: { data: AdminOverview }) {
   const { definitions: d, signups, activation } = data;
+  const since = sinceBasis(data.period.start);
   return (
     <Rows
       id="growth-panel-title"
@@ -131,7 +138,7 @@ export function GrowthPanel({ data }: { data: AdminOverview }) {
           label: "Total accounts",
           value: formatCount(data.totalAccounts.current),
           definition: d.totalAccounts,
-          change: count("totalAccounts", data.totalAccounts),
+          change: count("totalAccounts", data.totalAccounts, since),
         },
         {
           label: "Activation rate",

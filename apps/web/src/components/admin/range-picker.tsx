@@ -51,7 +51,10 @@ export function RangePicker({
         {compact(formatDay(period.start), formatDay(period.end))}
         {previousPeriod && (
           <InfoPopover label="Which period is this compared with?">
-            Compared with {compact(formatDay(previousPeriod.start), lastDay(previousPeriod.end))}
+            The change shown under each figure compares this period with the {labels[current]}{" "}
+            before it ({compact(formatDay(previousPeriod.start), lastDay(previousPeriod.end))}).
+            Total accounts, paying accounts, complimentary Pro and MRR compare today with{" "}
+            {formatDay(period.start)}, the start of this period.
           </InfoPopover>
         )}
       </div>

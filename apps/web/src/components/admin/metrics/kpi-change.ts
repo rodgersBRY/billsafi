@@ -1,5 +1,5 @@
 import type { KpiChange } from "../kpi-card";
-import { formatShare } from "../admin-format";
+import { formatDay, formatShare } from "../admin-format";
 
 const percentFormat = new Intl.NumberFormat("en-KE", { maximumFractionDigits: 0 });
 
@@ -40,6 +40,13 @@ function toneOf(direction: KpiChange["direction"], better: Better): NonNullable<
   return direction === better ? "good" : "bad";
 }
 
+const LAST_PERIOD = "on last period";
+
+/** What a snapshot figure is compared with: its value at the start of the range, "since 27 Sept". */
+export function sinceBasis(rangeStart: string): string {
+  return `since ${formatDay(rangeStart).replace(/ \d{4}$/, "")}`;
+}
+
 const word = { up: "Up", down: "Down" } as const;
 
 /** The same movement as `describeChange`, worded short for the Overview: "Up 12% on last period". */
@@ -47,18 +54,20 @@ export function describeCompactChange(
   metric: MetricKey,
   current: number,
   previous: number,
+  basis: string = LAST_PERIOD,
 ): KpiChange {
-  const change = describeMove(current, previous);
+  const change = describeMove(current, previous, basis);
   return { ...change, tone: toneOf(change.direction, metricBetter[metric]) };
 }
 
-function describeMove(current: number, previous: number): KpiChange {
-  if (current === previous) return { direction: "flat", text: "No change on last period" };
+function describeMove(current: number, previous: number, basis: string): KpiChange {
+  if (current === previous) return { direction: "flat", text: `No change ${basis}` };
   const direction = current > previous ? "up" : "down";
-  if (previous === 0) return { direction, text: `${word[direction]} from 0 last period` };
+  if (previous === 0)
+    return { direction, text: `${word[direction]} from 0 ${basis.replace(/^on /, "")}` };
   const percent = (Math.abs(current - previous) / Math.abs(previous)) * 100;
   const size = percent < 1 ? "less than 1%" : `${percentFormat.format(percent)}%`;
-  return { direction, text: `${word[direction]} ${size} on last period` };
+  return { direction, text: `${word[direction]} ${size} ${basis}` };
 }
 
 /** A rate moving between periods, worded short: "Up 3 points on last period". */

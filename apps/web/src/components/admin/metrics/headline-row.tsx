@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, Minus } from "lucide-react";
 import { formatCount, formatUsd } from "../admin-format";
 import { InfoPopover } from "../info-popover";
 import type { KpiChange } from "../kpi-card";
-import { describeCompactChange, toneClasses } from "./kpi-change";
+import { describeCompactChange, sinceBasis, toneClasses } from "./kpi-change";
 
 const changeIcons = { up: ArrowUp, down: ArrowDown, flat: Minus };
 
@@ -63,6 +63,7 @@ function headlines(data: AdminOverview): Headline[] {
         "mrr",
         Number(data.mrrUsd.current),
         Number(data.mrrUsd.previous),
+        sinceBasis(data.period.start),
       ),
       subline: `${formatCount(data.payingAccounts.current)} paying`,
     },
