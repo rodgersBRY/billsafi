@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { AccessGate } from "@/components/admin/access-gate";
 import { adminMetadata } from "@/components/admin/admin-metadata";
 import { UpdatedAt } from "@/components/admin/admin-ui";
-import { HealthLinks, IndicatorGrid, StatusStrip } from "@/components/admin/health/health-view";
+import { HealthLinks, HealthSummary, IndicatorGrid } from "@/components/admin/health/health-view";
 import { RefreshButton } from "@/components/admin/health/refresh-button";
 import { InfoPopover } from "@/components/admin/info-popover";
 import { PageHeader } from "@/components/admin/page-header";
@@ -20,7 +20,7 @@ async function Health() {
         description="Is everything working?"
         actions={<RefreshButton />}
       />
-      <StatusStrip indicators={health.indicators} />
+      <HealthSummary indicators={health.indicators} />
       <h2 className="mb-3 flex items-center gap-1.5 text-base font-semibold">
         Checks
         <InfoPopover label="About these checks">

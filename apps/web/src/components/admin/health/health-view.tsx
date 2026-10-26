@@ -1,5 +1,14 @@
 import type { AdminHealth, AdminHealthIndicator } from "@billsafi/contracts";
-import { ArrowRight, ExternalLink, Link2, Clock } from "lucide-react";
+import {
+  ArrowRight,
+  CircleCheck,
+  CircleHelp,
+  CircleX,
+  Clock,
+  ExternalLink,
+  Link2,
+  TriangleAlert,
+} from "lucide-react";
 import Link from "next/link";
 import { formatDuration, formatInstant, formatRelative } from "../admin-format";
 import { StatusBadge } from "../status-badge";
@@ -17,23 +26,81 @@ export function isStale(indicator: AdminHealthIndicator, now: number): boolean {
   return now - new Date(indicator.checkedAt).getTime() > indicator.staleAfterSeconds * 1000;
 }
 
-/** One pill per indicator, each jumping to its card. */
-export function StatusStrip({ indicators }: { indicators: AdminHealthIndicator[] }) {
-  return (
-    <ul aria-label="Status of each check" className="mb-4 flex flex-wrap gap-2">
-      {indicators.map((indicator) => (
-        <li key={indicator.key}>
-          <a
-            href={`#health-${indicator.key}`}
-            className="inline-flex min-h-11 items-center gap-2 rounded-panel border border-line bg-panel px-3 text-sm hover:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent md:min-h-9"
-          >
-            <span className="font-medium">{indicator.label}</span>
-            <StatusBadge kind="health" value={indicator.status} />
-          </a>
-        </li>
-      ))}
-    </ul>
+const statusOrder: AdminHealthIndicator["status"][] = ["failing", "warning", "ok", "unknown"];
+
+/** Problems first: failing, then warning, then ok, then unknown. Keeps the API order within a group. */
+export function sortIndicators(indicators: AdminHealthIndicator[]): AdminHealthIndicator[] {
+  return [...indicators].sort(
+    (a, b) => statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status),
   );
+}
+
+const summaryTone: Record<AdminHealthIndicator["status"], string> = {
+  ok: "text-emerald-800 dark:text-emerald-200",
+  warning: "text-amber-900 dark:text-amber-200",
+  failing: "text-red-800 dark:text-red-200",
+  unknown: "text-sub",
+};
+
+const summaryIcon = {
+  ok: CircleCheck,
+  warning: TriangleAlert,
+  failing: CircleX,
+  unknown: CircleHelp,
+};
+
+/** The one-line wording for the whole page, and the worst status that sets its color. */
+export function summarize(indicators: AdminHealthIndicator[]): {
+  status: AdminHealthIndicator["status"];
+  text: string;
+} {
+  const count = (status: AdminHealthIndicator["status"]) =>
+    indicators.filter((indicator) => indicator.status === status).length;
+  const failing = count("failing");
+  const warning = count("warning");
+  const ok = count("ok");
+  const unknown = count("unknown");
+  const status =
+    statusOrder.find((s) => count(s) > 0 && (s !== "unknown" || ok === 0)) ?? "unknown";
+  const parts: string[] = [];
+  if (failing > 0) parts.push(`${failing} failing`);
+  if (warning > 0) parts.push(`${warning} ${warning === 1 ? "warning" : "warnings"}`);
+  if (parts.length === 0) {
+    if (unknown === 0) return { status: "ok", text: "All checks passing" };
+    if (ok === 0) return { status: "unknown", text: "Nothing recorded yet" };
+    return {
+      status: "unknown",
+      text: `${ok} ${ok === 1 ? "check" : "checks"} passing, ${unknown} not recorded yet`,
+    };
+  }
+  return { status, text: parts.join(", ") };
+}
+
+/** One line for the whole page: the worst status as an icon and words. */
+export function HealthSummary({ indicators }: { indicators: AdminHealthIndicator[] }) {
+  const { status, text } = summarize(indicators);
+  const Icon = summaryIcon[status];
+  return (
+    <p
+      role="status"
+      className={`mb-4 flex items-center gap-2 text-base font-semibold ${summaryTone[status]}`}
+    >
+      <Icon aria-hidden className="size-5 shrink-0" />
+      {text}
+    </p>
+  );
+}
+
+/** Indicators that have no data to show, by key, with the short value for each. */
+const emptyValues: Record<string, string> = {
+  mpesa: "No checkouts yet",
+  migrations: "Not available",
+};
+const notRecordedKeys = new Set(["billing_jobs", "pdf_email", "backups"]);
+
+function unknownValue(indicator: AdminHealthIndicator): string {
+  if (notRecordedKeys.has(indicator.key)) return "Not recorded yet";
+  return emptyValues[indicator.key] ?? "No data yet";
 }
 
 function IndicatorCard({ indicator, now }: { indicator: AdminHealthIndicator; now: number }) {
@@ -52,7 +119,7 @@ function IndicatorCard({ indicator, now }: { indicator: AdminHealthIndicator; no
         <p className="text-xl font-semibold tracking-tight break-words">{indicator.value}</p>
       ) : (
         <p className={unknown ? "text-sm text-sub" : "text-sm"}>
-          {unknown ? "Not recorded yet" : "No figure"}
+          {unknown ? unknownValue(indicator) : "No figure"}
         </p>
       )}
       <p className="text-sm break-words text-sub">{indicator.detail}</p>
@@ -86,7 +153,7 @@ function IndicatorCard({ indicator, now }: { indicator: AdminHealthIndicator; no
 export function IndicatorGrid({ health, now }: { health: AdminHealth; now: number }) {
   return (
     <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      {health.indicators.map((indicator) => (
+      {sortIndicators(health.indicators).map((indicator) => (
         <IndicatorCard key={indicator.key} indicator={indicator} now={now} />
       ))}
     </ul>
