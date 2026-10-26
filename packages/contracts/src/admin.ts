@@ -138,6 +138,12 @@ export interface AdminFreeLimitHit {
   paidWithin30Days: boolean;
 }
 
+export const adminBillingQuerySchema = z.object({
+  /** "this_month": only this Nairobi month's limit hits, uncapped (the Overview attention count). */
+  limitHits: optionalEnum(["this_month"]),
+});
+export type AdminBillingQuery = z.output<typeof adminBillingQuerySchema>;
+
 export interface AdminBilling {
   /** The 50 most recent plan payments, newest first. */
   recentPayments: AdminBillingPayment[];

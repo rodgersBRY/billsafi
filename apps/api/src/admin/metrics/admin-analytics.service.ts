@@ -8,8 +8,8 @@ import {
 import { type DatabaseConnection, type SQL, sql } from "@billsafi/db";
 import { addNairobiMonths, nairobiCalendarMonth } from "@billsafi/domain";
 import { DATABASE } from "../../database/database.module.js";
-import { at, fromUtc, ratio, selectRows, utcAt } from "../shared/admin-sql.js";
-import { freeLimitHitsCte } from "../shared/free-limit-hits.js";
+import { at, fromUtc, paidOnSql, ratio, selectRows, utcAt } from "../shared/admin-sql.js";
+import { freeLimitHitsCte, realFreeLimitHit } from "../shared/free-limit-hits.js";
 import { activationCounts } from "./activation.js";
 import { bucketIndexSql, bucketsSql, planRange } from "./range.js";
 
@@ -19,6 +19,8 @@ const BOUGHT_WITHIN_DAYS = 14;
 
 const round1 = (value: number | string | null) =>
   value === null ? null : Math.round(Number(value) * 10) / 10;
+
+export type AllTime = Pick<AdminAnalytics, "featureAdoption" | "planLimit">;
 
 /** Invoice volume, activation timing, feature adoption, plan limit and top accounts. */
 @Injectable()
@@ -33,7 +35,75 @@ export class AdminAnalyticsService {
     return selectRows<T>(this.db, query);
   }
 
-  async analytics(range: AdminRange, now = new Date()): Promise<AdminAnalytics> {
+  /** The figures that ignore the range, so the controller can cache them once for every range. */
+  async allTime(now = new Date()): Promise<AllTime> {
+    const [adoption] = await this.rows<Record<AdminFeatureKey | "base", number>>(sql`
+      select
+        (select count(distinct owner_user_id) from businesses)::int as base,
+        (select count(distinct b.owner_user_id) from invoices i join businesses b on b.id = i.business_id
+          where i.discount_type is not null)::int as discount,
+        (select count(distinct b.owner_user_id) from invoices i join businesses b on b.id = i.business_id
+          where i.tax_rate > 0)::int as tax,
+        (select count(distinct owner_user_id) from businesses where logo_key is not null)::int as logo,
+        (select count(distinct b.owner_user_id) from business_payment_instructions pi
+          join businesses b on b.id = pi.business_id)::int as "paymentInstructions",
+        (select count(distinct b.owner_user_id) from invoice_links l
+          join businesses b on b.id = l.business_id)::int as "shareLink",
+        (select count(distinct b.owner_user_id) from invoice_payments p
+          join businesses b on b.id = p.business_id)::int as "paymentRecorded",
+        (select count(*) from (select owner_user_id from businesses group by owner_user_id
+          having count(*) >= 2) two)::int as "secondBusiness",
+        (select count(distinct b.owner_user_id) from businesses b
+          where exists (select 1 from accounts a where a.user_id = b.owner_user_id
+            and a.provider_id = 'google'))::int as "googleSignIn"
+    `);
+
+    const firstMonth = addNairobiMonths(nairobiCalendarMonth(now).start, -(LIMIT_MONTHS - 1));
+    const limitMonths = await this.rows<{ month: string; reached: number; bought: number }>(sql`
+      with ${freeLimitHitsCte(firstMonth)},
+      real_hits as (
+        select h.*, exists (
+          select 1 from subscription_payments sp
+          where sp.user_id = h.user_id and sp.status = 'succeeded'
+            and ${paidOnSql("sp")} >= h.hit_at
+            and ${paidOnSql("sp")} < h.hit_at
+              + make_interval(days => ${BOUGHT_WITHIN_DAYS})
+        ) as bought
+        from hits h
+        where ${realFreeLimitHit(firstMonth, now)}
+      ),
+      months as (
+        select to_char(((${at(firstMonth)} at time zone 'Africa/Nairobi')
+          + make_interval(months => m)) , 'YYYY-MM') as month, m
+        from generate_series(0, ${LIMIT_MONTHS - 1}::int) as m
+      )
+      select months.month, count(real_hits.id)::int as reached,
+        count(real_hits.id) filter (where real_hits.bought)::int as bought
+      from months
+      left join real_hits on to_char(real_hits.starts_at at time zone 'Africa/Nairobi', 'YYYY-MM') = months.month
+      group by months.month, months.m order by months.m
+    `);
+
+    const base = adoption!.base;
+    return {
+      featureAdoption: {
+        base,
+        items: adminFeatureKeys.map((key) => ({
+          key,
+          count: Number(adoption![key]),
+          base,
+          share: ratio(Number(adoption![key]), base),
+        })),
+      },
+      planLimit: limitMonths.map((row) => ({
+        month: row.month,
+        reached: Number(row.reached),
+        boughtWithin14Days: Number(row.bought),
+      })),
+    };
+  }
+
+  async analytics(range: AdminRange, now = new Date(), allTime?: AllTime): Promise<AdminAnalytics> {
     const plan = planRange(range, now);
     const inRange = (column: SQL) =>
       sql`${column} >= ${at(plan.start)} and ${column} < ${at(plan.end)}`;
@@ -85,53 +155,6 @@ export class AdminAnalyticsService {
     `);
     const activation = await activationCounts(this.db, plan.start, plan.end, now);
 
-    const [adoption] = await this.rows<Record<AdminFeatureKey | "base", number>>(sql`
-      select
-        (select count(distinct owner_user_id) from businesses)::int as base,
-        (select count(distinct b.owner_user_id) from invoices i join businesses b on b.id = i.business_id
-          where i.discount_type is not null)::int as discount,
-        (select count(distinct b.owner_user_id) from invoices i join businesses b on b.id = i.business_id
-          where i.tax_rate > 0)::int as tax,
-        (select count(distinct owner_user_id) from businesses where logo_key is not null)::int as logo,
-        (select count(distinct b.owner_user_id) from business_payment_instructions pi
-          join businesses b on b.id = pi.business_id)::int as "paymentInstructions",
-        (select count(distinct b.owner_user_id) from invoice_links l
-          join businesses b on b.id = l.business_id)::int as "shareLink",
-        (select count(distinct b.owner_user_id) from invoice_payments p
-          join businesses b on b.id = p.business_id)::int as "paymentRecorded",
-        (select count(*) from (select owner_user_id from businesses group by owner_user_id
-          having count(*) >= 2) two)::int as "secondBusiness",
-        (select count(distinct b.owner_user_id) from businesses b
-          where exists (select 1 from accounts a where a.user_id = b.owner_user_id
-            and a.provider_id = 'google'))::int as "googleSignIn"
-    `);
-
-    const firstMonth = addNairobiMonths(nairobiCalendarMonth(now).start, -(LIMIT_MONTHS - 1));
-    const limitMonths = await this.rows<{ month: string; reached: number; bought: number }>(sql`
-      with ${freeLimitHitsCte(firstMonth)},
-      real_hits as (
-        select h.*, exists (
-          select 1 from subscription_payments sp
-          where sp.user_id = h.user_id and sp.status = 'succeeded'
-            and coalesce(sp.confirmed_at, sp.created_at) >= h.hit_at
-            and coalesce(sp.confirmed_at, sp.created_at) < h.hit_at
-              + make_interval(days => ${BOUGHT_WITHIN_DAYS})
-        ) as bought
-        from hits h
-        where h.hit_period_id = h.id and h.hit_at >= ${at(firstMonth)} and h.hit_at < ${at(now)}
-      ),
-      months as (
-        select to_char(((${at(firstMonth)} at time zone 'Africa/Nairobi')
-          + make_interval(months => m)) , 'YYYY-MM') as month, m
-        from generate_series(0, ${LIMIT_MONTHS - 1}::int) as m
-      )
-      select months.month, count(real_hits.id)::int as reached,
-        count(real_hits.id) filter (where real_hits.bought)::int as bought
-      from months
-      left join real_hits on to_char(real_hits.starts_at at time zone 'Africa/Nairobi', 'YYYY-MM') = months.month
-      group by months.month, months.m order by months.m
-    `);
-
     const top = await this.rows<{
       accountId: string;
       name: string;
@@ -147,7 +170,7 @@ export class AdminAnalyticsService {
       order by t.n desc, u.id
     `);
 
-    const base = adoption!.base;
+    const { featureAdoption, planLimit } = allTime ?? (await this.allTime(now));
     return {
       range,
       bucketSize: plan.bucket,
@@ -172,20 +195,8 @@ export class AdminAnalyticsService {
           base: activation.base,
         },
       },
-      featureAdoption: {
-        base,
-        items: adminFeatureKeys.map((key) => ({
-          key,
-          count: Number(adoption![key]),
-          base,
-          share: ratio(Number(adoption![key]), base),
-        })),
-      },
-      planLimit: limitMonths.map((row) => ({
-        month: row.month,
-        reached: Number(row.reached),
-        boughtWithin14Days: Number(row.bought),
-      })),
+      featureAdoption,
+      planLimit,
       topAccounts: top.map((row) => ({ ...row, readyInvoices: Number(row.readyInvoices) })),
       definitions: {
         invoiceVolume:

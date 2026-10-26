@@ -1,6 +1,8 @@
 import { Controller, Get, Inject, Query, UseGuards } from "@nestjs/common";
 import {
   type AdminBilling,
+  type AdminBillingQuery,
+  adminBillingQuerySchema,
   type AdminGrantsPage,
   type AdminGrantsQuery,
   adminGrantsQuerySchema,
@@ -35,8 +37,12 @@ export class SubscriptionsController {
   ) {}
 
   @Get("billing")
-  billing(): Promise<AdminBilling> {
-    return this.cache.get("billing", () => this.billingMetrics.billing());
+  billing(
+    @Query(new ZodValidationPipe(adminBillingQuerySchema)) query: AdminBillingQuery,
+  ): Promise<AdminBilling> {
+    return this.cache.get(`billing:${cacheKey(query)}`, () =>
+      this.billingMetrics.billing(query.limitHits),
+    );
   }
 
   /** Accounts with their plan, who paid for this month, credits and overrides. */

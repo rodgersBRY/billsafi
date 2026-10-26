@@ -1,11 +1,11 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { AdminBilling, AdminFreeLimitHit } from "@billsafi/contracts";
+import type { AdminBilling, AdminBillingQuery, AdminFreeLimitHit } from "@billsafi/contracts";
 import { and, asc, type DatabaseConnection, desc, eq, schema, type SQL, sql } from "@billsafi/db";
-import { stuckPaymentCutoff } from "@billsafi/domain";
+import { nairobiCalendarMonth, stuckPaymentCutoff } from "@billsafi/domain";
 import { DATABASE } from "../../database/database.module.js";
 import { planPaymentColumns, toAdminPlanPayment } from "./payments.js";
-import { at, DAY_MS, iso, selectRows } from "../shared/admin-sql.js";
-import { freeLimitHitsCte } from "../shared/free-limit-hits.js";
+import { at, DAY_MS, iso, paidOnSql, selectRows } from "../shared/admin-sql.js";
+import { freeLimitHitsCte, realFreeLimitHit } from "../shared/free-limit-hits.js";
 
 const { subscriptionPayments, users } = schema;
 
@@ -24,7 +24,10 @@ export class AdminBillingService {
     return this.connection.db;
   }
 
-  async billing(now = new Date()): Promise<AdminBilling> {
+  async billing(
+    limitHits?: AdminBillingQuery["limitHits"],
+    now = new Date(),
+  ): Promise<AdminBilling> {
     const recent = await this.db
       .select(planPaymentColumns)
       .from(subscriptionPayments)
@@ -47,7 +50,7 @@ export class AdminBillingService {
     return {
       recentPayments: recent.map(toAdminPlanPayment),
       stuckPayments: stuck.map(toAdminPlanPayment),
-      freeLimitHits: await this.freeLimitHits(now),
+      freeLimitHits: await this.freeLimitHits(now, limitHits === "this_month"),
       generatedAt: now.toISOString(),
     };
   }
@@ -62,8 +65,11 @@ export class AdminBillingService {
    * a succeeded plan payment from the moment of the hit until 30 days after
    * the month ended, so paying right away to keep going counts too.
    */
-  private async freeLimitHits(now: Date): Promise<AdminFreeLimitHit[]> {
-    const since = new Date(now.getTime() - LIMIT_HIT_WINDOW_DAYS * DAY_MS);
+  private async freeLimitHits(now: Date, thisMonth: boolean): Promise<AdminFreeLimitHit[]> {
+    // This month's hits are one per Free account, so that list needs no cap.
+    const since = thisMonth
+      ? nairobiCalendarMonth(now).start
+      : new Date(now.getTime() - LIMIT_HIT_WINDOW_DAYS * DAY_MS);
     const query: SQL = sql`
       with ${freeLimitHitsCte(since)}
       select
@@ -76,15 +82,14 @@ export class AdminBillingService {
         exists (
           select 1 from subscription_payments sp
           where sp.user_id = h.user_id and sp.status = 'succeeded'
-            and sp.confirmed_at >= h.hit_at
-            and sp.confirmed_at < h.ends_at + make_interval(days => ${PAID_AFTER_DAYS})
+            and ${paidOnSql("sp")} >= h.hit_at
+            and ${paidOnSql("sp")} < h.ends_at + make_interval(days => ${PAID_AFTER_DAYS})
         ) as "paidWithin30Days"
       from hits h
       join users u on u.id = h.user_id
-      where h.hit_period_id = h.id
-        and h.hit_at >= ${at(since)} and h.hit_at < ${at(now)}
+      where ${realFreeLimitHit(since, now)}
       order by h.hit_at desc
-      limit ${MAX_LIMIT_HITS}
+      ${thisMonth ? sql`` : sql`limit ${MAX_LIMIT_HITS}`}
     `;
     return selectRows<AdminFreeLimitHit>(this.db, query);
   }

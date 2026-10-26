@@ -8,7 +8,7 @@ import {
   adminRateSchema,
   adminTrendsSchema,
 } from "./admin-analytics.js";
-import { adminFunnelQuerySchema } from "./admin.js";
+import { adminBillingQuerySchema, adminFunnelQuerySchema } from "./admin.js";
 import { adminOverridesQuerySchema, adminPlanPaymentsQuerySchema } from "./admin-subscriptions.js";
 
 describe("adminRangeQuerySchema", () => {
@@ -47,6 +47,14 @@ describe("directory filters used by the attention list", () => {
     expect(adminPlanPaymentsQuerySchema.parse({}).stuck).toBeUndefined();
     expect(adminOverridesQuerySchema.parse({ endingWithin: "7" }).endingWithin).toBe(7);
     expect(adminOverridesQuerySchema.safeParse({ endingWithin: "3" }).success).toBe(false);
+  });
+
+  it("reads the billing limit hits filter", () => {
+    expect(adminBillingQuerySchema.parse({})).toEqual({});
+    expect(adminBillingQuerySchema.parse({ limitHits: "this_month" })).toEqual({
+      limitHits: "this_month",
+    });
+    expect(adminBillingQuerySchema.safeParse({ limitHits: "all" }).success).toBe(false);
   });
 
   it("lets the funnel cover a year for the 12 month range", () => {

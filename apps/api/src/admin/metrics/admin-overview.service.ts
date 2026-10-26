@@ -10,8 +10,16 @@ import { type DatabaseConnection, type SQL, sql } from "@billsafi/db";
 import { nairobiCalendarMonth, PRO_PLAN, money, stuckPaymentCutoff } from "@billsafi/domain";
 import { DATABASE } from "../../database/database.module.js";
 import { activeOverrideSql, currentMonthSourceSql, proAccessSql } from "../shared/account-sql.js";
-import { at, fromUtc, hasGoogle, ratio, selectRows, utcAt } from "../shared/admin-sql.js";
-import { freeLimitHitsCte } from "../shared/free-limit-hits.js";
+import {
+  at,
+  fromUtc,
+  hasGoogle,
+  paidOnSql,
+  ratio,
+  selectRows,
+  utcAt,
+} from "../shared/admin-sql.js";
+import { freeLimitHitsCte, realFreeLimitHit } from "../shared/free-limit-hits.js";
 import { activationCounts } from "./activation.js";
 import { proAccessCte } from "./pro-access.js";
 import { bucketIndexSql, bucketsSql, planRange, type RangePlan } from "./range.js";
@@ -65,8 +73,7 @@ export class AdminOverviewService {
     const inWindow = (column: string) =>
       sql`${sql.raw(column)} >= ${at(from)} and ${sql.raw(column)} < ${at(to)}`;
     // Money by the day it was paid: a manual payment's paid_at, else the confirmation.
-    const paidIn = sql`coalesce(paid_at, confirmed_at) >= ${at(from)}
-      and coalesce(paid_at, confirmed_at) < ${at(to)}`;
+    const paidIn = sql`${paidOnSql("sp")} >= ${at(from)} and ${paidOnSql("sp")} < ${at(to)}`;
     const [row] = await this.rows<WindowFacts>(sql`
       select
         (select count(*) from users u where ${users})::int as signups,
@@ -82,11 +89,11 @@ export class AdminOverviewService {
             where ${inWindow("c.created_at")}
         ) active)::int as active,
         (select count(*) from invoice_issuances where ${inWindow("issued_at")})::int as ready,
-        (select coalesce(sum(amount), 0)::numeric(14,2)::text from subscription_payments
-          where status = 'succeeded' and currency = 'KES' and ${paidIn}) as kes,
+        (select coalesce(sum(sp.amount), 0)::numeric(14,2)::text from subscription_payments sp
+          where sp.status = 'succeeded' and sp.currency = 'KES' and ${paidIn}) as kes,
         -- USD is only ever taken by hand; it is reported apart, never converted.
-        (select coalesce(sum(amount), 0)::numeric(14,2)::text from subscription_payments
-          where status = 'succeeded' and currency = 'USD' and ${paidIn}) as usd,
+        (select coalesce(sum(sp.amount), 0)::numeric(14,2)::text from subscription_payments sp
+          where sp.status = 'succeeded' and sp.currency = 'USD' and ${paidIn}) as usd,
         -- Checkouts by the time they started, M-Pesa only; pending ones are left out.
         (select count(*) from subscription_payments
           where status = 'succeeded' and provider <> ${MANUAL} and ${inWindow("created_at")})::int as succeeded,
@@ -201,7 +208,7 @@ export class AdminOverviewService {
     const [limit] = await this.rows<{ total: number }>(sql`
       with ${freeLimitHitsCte(monthStart)}
       select count(*)::int as total from hits h
-      where h.hit_period_id = h.id and h.hit_at >= ${at(monthStart)} and h.hit_at < ${at(now)}
+      where ${realFreeLimitHit(monthStart, now)}
     `);
     return { ...row!, freeLimitReached: limit!.total };
   }
@@ -211,7 +218,7 @@ export class AdminOverviewService {
     const bounded = (column: SQL) =>
       sql`${column} >= ${at(plan.start)} and ${column} < ${at(plan.end)}`;
     const perBucket = (instant: SQL) => bucketIndexSql(plan, instant);
-    const paidAt = sql`coalesce(sp.paid_at, sp.confirmed_at)`;
+    const paidAt = paidOnSql("sp");
     const rows = await this.rows<{
       bucketStart: string;
       signups: number;

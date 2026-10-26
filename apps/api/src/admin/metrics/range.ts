@@ -39,7 +39,8 @@ export function planRange(range: AdminRange, now: Date): RangePlan {
       bucket: "month",
       start,
       end: now,
-      previousStart: addNairobiMonths(start, -12),
+      // Same elapsed length as the current period (11 months plus the month to date).
+      previousStart: new Date(start.getTime() - (now.getTime() - start.getTime())),
       previousEnd: start,
       origin: start,
       bucketCount: 12,

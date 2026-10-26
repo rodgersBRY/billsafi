@@ -626,10 +626,10 @@ export function analyticsSuite(ctx: AnalyticsSuiteContext) {
         previousPeriod: { start: iso("2031-01-17T21:00:00Z"), end: iso(RANGE_START) },
       });
       expect((await periods("90d")).period.start).toBe(iso("2030-12-18T21:00:00Z"));
-      // Twelve calendar months ending with March; the 12 before them are the previous period.
+      // Eleven whole months plus March so far; the previous period is as long, ending at the start.
       expect(await periods("12m")).toEqual({
         period: { start: iso("2030-03-31T21:00:00Z"), end: NOW.toISOString() },
-        previousPeriod: { start: iso("2029-03-31T21:00:00Z"), end: iso("2030-03-31T21:00:00Z") },
+        previousPeriod: { start: iso("2029-04-14T09:00:00Z"), end: iso("2030-03-31T21:00:00Z") },
       });
     });
 
@@ -743,18 +743,19 @@ export function analyticsSuite(ctx: AnalyticsSuiteContext) {
           subscriptions.overrides(adminOverridesQuerySchema.parse({ endingWithin: "7" }), NOW),
         ),
       );
-      const hits = (await billing.billing(NOW)).freeLimitHits.filter(
-        (hit) => hit.month === "2031-03",
-      );
+      const hits = (await billing.billing("this_month", NOW)).freeLimitHits;
       expect(attention.freeLimitReached).toBe(hits.length);
 
       // And the figures this fixture planted: p2 and p5 end within 7 days, p1, p3 and echo
       // lapsed in the last 30 days, alpha's override ends in 4 days (the revoked, far off and
       // expired ones do not count), f2 hit its limit this month, one stuck and one suspended.
-      expect(attention.proEnding).toBe(2);
-      expect(attention.proLapsed).toBe(3);
-      expect(attention.overridesEnding).toBe(1);
-      expect(attention.freeLimitReached).toBe(1);
+      // Compared with the snapshot before seeding, so other rows cannot change them.
+      const planted = (key: keyof typeof attention) =>
+        attention[key] - before.overview.attention[key];
+      expect(planted("proEnding")).toBe(2);
+      expect(planted("proLapsed")).toBe(3);
+      expect(planted("overridesEnding")).toBe(1);
+      expect(planted("freeLimitReached")).toBe(1);
       expect(attention.stuckPayments - before.overview.attention.stuckPayments).toBe(1);
       expect(attention.suspendedAccounts - before.overview.attention.suspendedAccounts).toBe(1);
     });
@@ -1076,6 +1077,9 @@ export function analyticsSuite(ctx: AnalyticsSuiteContext) {
         await get("subscription-payments?stuck=false").expect(200);
         await get("overrides?endingWithin=7").expect(200);
         await get("overrides?endingWithin=5").expect(400);
+        const month = await get("billing?limitHits=this_month").expect(200);
+        expect(Array.isArray(month.body.freeLimitHits)).toBe(true);
+        await get("billing?limitHits=forever").expect(400);
       });
     });
   });

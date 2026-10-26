@@ -2,6 +2,11 @@ import { type SQL, sql } from "@billsafi/db";
 import { FREE_PLAN } from "@billsafi/domain";
 import { at } from "./admin-sql.js";
 
+/** Which `hits` rows count: charged to the Free period and reached in [since, now). */
+export function realFreeLimitHit(since: Date, now: Date): SQL {
+  return sql`h.hit_period_id = h.id and h.hit_at >= ${at(since)} and h.hit_at < ${at(now)}`;
+}
+
 /**
  * The `ranked` and `hits` CTEs behind "Free accounts that used their whole allowance":
  * Free months, ended after `since`, in which the account made its limit-th plan-funded

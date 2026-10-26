@@ -2,7 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import type { AdminActivity, AdminActivityItem } from "@billsafi/contracts";
 import { type DatabaseConnection, type SQL, sql } from "@billsafi/db";
 import { DATABASE } from "../../database/database.module.js";
-import { at, fromUtc, hasGoogle, iso, selectRows, utcAt } from "../shared/admin-sql.js";
+import { at, fromUtc, hasGoogle, iso, paidOnSql, selectRows, utcAt } from "../shared/admin-sql.js";
 
 /**
  * Admin actions taken from the audit log. Grants and limit overrides are read from their
@@ -49,7 +49,7 @@ export class AdminActivityService {
       ${account.id} as account_id, ${account.name} as account_name, ${summary} as summary,
       ${admin ? admin.id : sql`null::uuid`} as admin_id, ${admin ? admin.name : sql`null::text`} as admin_name`;
 
-    const paidAt = sql`coalesce(sp.paid_at, sp.confirmed_at, sp.created_at)`;
+    const paidAt = paidOnSql("sp");
     const money = sql`sp.currency || ' ' || sp.amount::text`;
     const rows = await selectRows<ActivityRow>(
       this.connection.db,

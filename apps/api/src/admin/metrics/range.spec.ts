@@ -37,7 +37,11 @@ describe("planRange", () => {
     expect(plan.bucket).toBe("month");
     expect(plan.bucketCount).toBe(12);
     expect(plan.start.toISOString()).toBe("2030-03-31T21:00:00.000Z");
-    expect(plan.previousStart.toISOString()).toBe("2029-03-31T21:00:00.000Z");
+    // Same elapsed length as the current period: 352.5 days before the start.
+    expect(plan.previousStart.toISOString()).toBe("2029-04-14T09:00:00.000Z");
+    expect(plan.start.getTime() - plan.previousStart.getTime()).toBe(
+      now.getTime() - plan.start.getTime(),
+    );
     expect(plan.previousEnd).toEqual(plan.start);
   });
 
