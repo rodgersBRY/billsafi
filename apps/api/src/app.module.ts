@@ -18,6 +18,7 @@ import { GuestInvoicesModule } from "./guest-invoices/guest-invoices.module.js";
 import { HealthModule } from "./health/health.module.js";
 import { InvoicesModule } from "./invoices/invoices.module.js";
 import { MAILER, MailModule } from "./mail/mail.module.js";
+import { PlatformModule } from "./platform/platform.module.js";
 import { ProductToursModule } from "./product-tours/product-tours.module.js";
 import type { Mailer } from "./mail/mailer.js";
 
@@ -48,6 +49,7 @@ import type { Mailer } from "./mail/mailer.js";
     GuestInvoicesModule,
     BillingModule,
     ProductToursModule,
+    PlatformModule,
     AdminModule,
   ],
   // Reports unexpected errors; HTTP errors such as 404 and 409 are not sent.

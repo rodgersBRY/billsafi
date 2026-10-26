@@ -1,13 +1,15 @@
+import { REGISTRATION_CLOSED_CODE } from "@billsafi/contracts";
 import type { Database } from "@billsafi/db";
 import { schema } from "@billsafi/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { admin } from "better-auth/plugins";
 import { defaultAc } from "better-auth/plugins/admin/access";
 import type { Env } from "../config/env.js";
 import type { Mailer } from "../mail/mailer.js";
 import { passwordResetEmail } from "../mail/templates.js";
+import { readSetting } from "../platform/platform-settings.js";
 
 export const AUTH_BASE_PATH = "/api/v1/auth";
 
@@ -81,6 +83,21 @@ export const hideBannedSessions = createAuthMiddleware(async (ctx) => {
   if (returned && typeof returned === "object" && returned.user?.banned) return ctx.json(null);
 });
 
+/**
+ * Better Auth answers an APIError from this hook with a 403 {code, message} for email
+ * sign-up, and redirects Google sign-in to the sign-in page with ?error=<code>&error_description=<message>.
+ */
+export function refuseWhenRegistrationClosed(db: Database) {
+  return async () => {
+    const registration = await readSetting(db, "registration");
+    if (registration.open) return;
+    throw new APIError("FORBIDDEN", {
+      code: REGISTRATION_CLOSED_CODE,
+      message: registration.closedMessage,
+    });
+  };
+}
+
 /** Sign-in methods the web app should offer besides email and password. */
 export function enabledSocialProviders(env: AuthDependencies["env"]) {
   return { google: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) };
@@ -124,6 +141,12 @@ export function createAuth({ db, env, mailer }: AuthDependencies) {
     // Only openid, email and profile are requested; Google confirms the email (D055).
     socialProviders: google ? { google } : {},
     databaseHooks: {
+      user: {
+        // Runs only when a user row is about to be created: email sign-up and a first-time
+        // Google sign-in. Existing users, admins included, never reach it. The setting is
+        // read fresh, so closing registration applies on the next attempt (D065).
+        create: { before: refuseWhenRegistrationClosed(db) },
+      },
       account: {
         create: { before: dropProviderTokens },
         update: { before: dropProviderTokens },
