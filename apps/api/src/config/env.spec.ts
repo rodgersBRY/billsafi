@@ -58,4 +58,22 @@ describe("loadEnv", () => {
   it("rejects an invalid web origin", () => {
     expect(() => loadEnv({ ...required, WEB_ORIGIN: "not-a-url" })).toThrow(/WEB_ORIGIN/);
   });
+
+  it("reads the optional admin link-out URLs and ignores blanks", () => {
+    expect(loadEnv(required).ADMIN_SENTRY_URL).toBeUndefined();
+    expect(
+      loadEnv({
+        ...required,
+        ADMIN_SENTRY_URL: "https://sentry.io/organizations/billsafi",
+        ADMIN_UPTIME_URL: "",
+      }),
+    ).toMatchObject({ ADMIN_SENTRY_URL: "https://sentry.io/organizations/billsafi" });
+  });
+
+  it("rejects admin link-out URLs that are not https", () => {
+    expect(() => loadEnv({ ...required, ADMIN_UPTIME_URL: "http://status.example.test" })).toThrow(
+      /ADMIN_UPTIME_URL/,
+    );
+    expect(() => loadEnv({ ...required, ADMIN_SENTRY_URL: "sentry" })).toThrow(/ADMIN_SENTRY_URL/);
+  });
 });
