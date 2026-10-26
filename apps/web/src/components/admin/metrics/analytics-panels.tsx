@@ -1,8 +1,7 @@
 import type { AdminAnalytics, AdminFeatureKey } from "@billsafi/contracts";
 import { BarList } from "../charts/bar-list";
 import { bucketFullLabel, bucketLabel } from "../charts/chart-utils";
-import { LineChart } from "../charts/line-chart";
-import { StackedBars } from "../charts/stacked-bars";
+import { GroupedBars } from "../charts/grouped-bars";
 import { formatCount, formatDuration, formatMonth, formatShare } from "../admin-format";
 import { AdminLink } from "../admin-link";
 import { tenantHref } from "../admin-params";
@@ -57,9 +56,9 @@ export function InvoiceVolume({ data }: { data: AdminAnalytics }) {
       : `Accounts that made any invoice Ready made a median of ${formatCount(v.medianReadyPerAccount)}.`;
   return (
     <Section id="volume-title" title="Invoice volume" note={data.definitions.invoiceVolume}>
-      <LineChart
+      <GroupedBars
         title="Invoices created and made Ready"
-        summary={`${formatCount(sum(created))} invoices created and ${formatCount(sum(ready))} made Ready, per ${bucketSize}. ${median}`}
+        summary={`${formatCount(sum(created))} invoices created and ${formatCount(sum(ready))} made Ready, side by side per ${bucketSize}. ${median}`}
         labels={v.points.map((p) => bucketLabel(p.bucketStart, bucketSize))}
         fullLabels={v.points.map((p) => bucketFullLabel(p.bucketStart, bucketSize))}
         series={[
@@ -146,19 +145,24 @@ export function FeatureAdoption({ data }: { data: AdminAnalytics }) {
 
 export function PlanLimit({ data }: { data: AdminAnalytics }) {
   const months = data.planLimit;
+  const reached = months.map((m) => m.reached);
   const bought = months.map((m) => m.boughtWithin14Days);
-  const rest = months.map((m) => Math.max(m.reached - m.boughtWithin14Days, 0));
+  const rate = months.map((m) =>
+    m.reached === 0 ? "No hits" : `${formatShare(m.boughtWithin14Days / m.reached)} bought`,
+  );
   return (
     <Section id="limit-title" title="Plan limit reached" note={data.definitions.planLimit}>
-      <StackedBars
+      <GroupedBars
         title="Free accounts that reached their limit"
-        summary={`${formatCount(sum(months.map((m) => m.reached)))} Free accounts used their whole allowance in the last 6 months, and ${formatCount(sum(bought))} of them bought Pro or credits within 14 days. Not affected by the range.`}
+        summary={`${formatCount(sum(reached))} Free accounts used their whole allowance in the last 6 months, and ${formatCount(sum(bought))} of them bought Pro or credits within 14 days. Each month shows hits next to buyers. Not affected by the range.`}
         labels={months.map((m) => formatMonth(m.month))}
         fullLabels={months.map((m) => formatMonth(m.month))}
         series={[
+          { name: "Reached the limit", values: reached },
           { name: "Bought within 14 days", values: bought },
-          { name: "Did not buy", values: rest },
         ]}
+        notes={rate}
+        extraColumn={{ heading: "Conversion", values: rate }}
         unit="count"
         emptyText="No Free account has reached its limit in the last 6 months."
       />
@@ -167,6 +171,7 @@ export function PlanLimit({ data }: { data: AdminAnalytics }) {
 }
 
 export function TopAccounts({ data }: { data: AdminAnalytics }) {
+  const top = Math.max(1, ...data.topAccounts.map((account) => account.readyInvoices));
   return (
     <Section id="top-title" title="Top accounts" note={data.definitions.topAccounts}>
       <Panel title="Most invoices made Ready">
@@ -200,7 +205,15 @@ export function TopAccounts({ data }: { data: AdminAnalytics }) {
                   </th>
                   <td className={`${tdClass} break-all text-sub`}>{account.email}</td>
                   <td className={`${tdClass} text-right tabular-nums`}>
-                    {formatCount(account.readyInvoices)}
+                    <div className="flex items-center justify-end gap-3">
+                      <span aria-hidden className="h-2 w-16 overflow-hidden rounded-full bg-soft">
+                        <span
+                          className="block h-full rounded-full bg-series-1"
+                          style={{ width: `${(account.readyInvoices / top) * 100}%` }}
+                        />
+                      </span>
+                      {formatCount(account.readyInvoices)}
+                    </div>
                   </td>
                 </tr>
               ))}
