@@ -1,85 +1,119 @@
-import type { AdminOverview, AdminSignupCounts } from "@billsafi/contracts";
+import type { AdminOverview } from "@billsafi/contracts";
 import { formatCount, formatKes, formatShare, formatUsd } from "../admin-format";
-import { KpiCard } from "../kpi-card";
+import { KpiCard, type KpiChange } from "../kpi-card";
+import { describeChange, describeRateChange } from "./kpi-change";
 
 interface Tile {
   label: string;
   value: string | null;
   definition: string;
+  change?: KpiChange;
+  detail?: string;
   href?: string;
 }
 
-const share = (value: number | null) => (value === null ? null : formatShare(value));
+const count = (pair: { current: number; previous: number }) =>
+  describeChange(pair.current, pair.previous, formatCount(pair.previous));
 
-function signupTile(label: string, counts: AdminSignupCounts, window: string): Tile {
-  return {
-    label,
-    value: formatCount(counts.total),
-    definition: `${window} Google ${formatCount(counts.google)}, email ${formatCount(counts.email)}.`,
-  };
-}
+const money = (pair: { current: string; previous: string }, format: (amount: string) => string) =>
+  describeChange(Number(pair.current), Number(pair.previous), format(pair.previous));
 
 function tiles(data: AdminOverview): Tile[] {
+  const { definitions: d, signups, proChurn, activation, mpesa } = data;
   return [
-    signupTile("Sign-ups today", data.signups.today, "Since midnight Nairobi time."),
-    signupTile("Sign-ups, 7 days", data.signups.last7Days, "Today and the 6 days before."),
-    signupTile("Sign-ups, 30 days", data.signups.last30Days, "Today and the 29 days before."),
-    {
-      label: "Active businesses",
-      value: formatCount(data.activeBusinesses),
-      definition: "Businesses with an invoice made Ready in the last 30 days.",
-    },
-    {
-      label: "Invoices created",
-      value: formatCount(data.invoicesCreatedThisMonth),
-      definition: "Invoices started this calendar month.",
-    },
-    {
-      label: "Invoices made Ready",
-      value: formatCount(data.invoicesReadyThisMonth),
-      definition: "Invoices made Ready this calendar month.",
-    },
     {
       label: "Total accounts",
-      value: formatCount(data.totalAccounts),
-      definition: "Every account that has signed up.",
+      value: formatCount(data.totalAccounts.current),
+      definition: d.totalAccounts,
+      change: count(data.totalAccounts),
       href: "/admin/tenants",
     },
     {
+      label: "New sign-ups",
+      value: formatCount(signups.current.total),
+      definition: d.signups,
+      change: count({ current: signups.current.total, previous: signups.previous.total }),
+      detail: `Google ${formatCount(signups.current.google)}, email ${formatCount(signups.current.email)}.`,
+    },
+    {
+      label: "Active accounts",
+      value: formatCount(data.activeAccounts.current),
+      definition: d.activeAccounts,
+      change: count(data.activeAccounts),
+    },
+    {
+      label: "Activation rate",
+      value: activation.current.rate === null ? null : formatShare(activation.current.rate),
+      definition: d.activation,
+      change: describeRateChange(activation.current.rate, activation.previous.rate),
+      detail:
+        activation.current.rate === null
+          ? "No sign-ups in this range are 7 days old yet."
+          : `${formatCount(activation.current.count)} of ${formatCount(activation.current.base)} sign-ups.`,
+    },
+    {
       label: "Paying accounts",
-      value: formatCount(data.payingAccounts),
-      definition: "Accounts on Pro with the current month paid for.",
+      value: formatCount(data.payingAccounts.current),
+      definition: d.payingAccounts,
+      change: count(data.payingAccounts),
       href: "/admin/subscriptions",
     },
     {
-      label: "Conversion",
-      value: share(data.conversion),
-      definition: "Accounts that ever paid for a plan, out of all accounts.",
+      label: "Complimentary Pro",
+      value: formatCount(data.complimentaryProAccounts.current),
+      definition: d.complimentaryProAccounts,
+      change: count(data.complimentaryProAccounts),
     },
     {
       label: "MRR",
-      value: formatUsd(data.mrrUsd),
-      definition: "Paying accounts times the Pro price in USD. Gifts left out.",
+      value: formatUsd(data.mrrUsd.current),
+      definition: d.mrrUsd,
+      change: money(data.mrrUsd, formatUsd),
     },
     {
-      label: "KES collected this month",
-      value: formatKes(data.kesCollectedThisMonth),
-      definition: "Plan payments in KES this calendar month, M-Pesa and manual, by the day paid.",
+      label: "Pro churn",
+      value: proChurn.current.rate === null ? null : formatShare(proChurn.current.rate),
+      definition: d.proChurn,
+      change: describeRateChange(proChurn.current.rate, proChurn.previous.rate),
+      detail:
+        proChurn.current.rate === null
+          ? "No accounts had Pro at the start of this range."
+          : `${formatCount(proChurn.current.count)} of ${formatCount(proChurn.current.base)} Pro accounts.`,
     },
     {
-      label: "USD collected this month",
-      value: formatUsd(data.manualUsdCollectedThisMonth),
-      definition: "Manual payments in USD this calendar month. Never converted to KES.",
+      label: "Invoices made Ready",
+      value: formatCount(data.invoicesReady.current),
+      definition: d.invoicesReady,
+      change: count(data.invoicesReady),
     },
     {
-      label: "Complimentary Pro",
-      value: formatCount(data.complimentaryProAccounts),
-      definition: "Accounts on Pro with the current month a gift. Never revenue.",
+      label: "KES collected",
+      value: formatKes(data.collected.kes.current),
+      definition: d.collected,
+      change: money(data.collected.kes, formatKes),
+    },
+    {
+      label: "USD collected",
+      value: formatUsd(data.collected.usd.current),
+      definition: "Manual payments in USD, by the day paid. Never converted to KES.",
+      change: money(data.collected.usd, formatUsd),
+    },
+    {
+      label: "Failed M-Pesa checkouts",
+      value: formatCount(mpesa.current.failed),
+      definition: d.mpesa,
+      change: count({ current: mpesa.current.failed, previous: mpesa.previous.failed }),
+      detail: `${formatCount(mpesa.current.succeeded)} succeeded.`,
     },
     {
       label: "M-Pesa success rate",
-      value: share(data.mpesaSuccessRate30Days),
-      definition: "Successful checkouts out of settled ones in the last 30 days.",
+      value: mpesa.current.successRate === null ? null : formatShare(mpesa.current.successRate),
+      definition: "Successful checkouts out of settled ones in this range.",
+      change: describeRateChange(mpesa.current.successRate, mpesa.previous.successRate),
+      detail:
+        mpesa.current.successRate === null
+          ? "No settled M-Pesa checkouts in this range."
+          : undefined,
     },
   ];
 }

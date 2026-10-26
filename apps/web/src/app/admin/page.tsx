@@ -1,12 +1,20 @@
-import { CalendarClock } from "lucide-react";
 import { Suspense } from "react";
 import { adminMetadata } from "@/components/admin/admin-metadata";
+import { parseRangeParams } from "@/components/admin/admin-params";
 import { UpdatedAt } from "@/components/admin/admin-ui";
+import { ActivityFeed } from "@/components/admin/metrics/activity-feed";
 import { NeedsAttention } from "@/components/admin/metrics/needs-attention";
 import { OverviewTiles } from "@/components/admin/metrics/overview-tiles";
+import {
+  ActivationChart,
+  GrowthChart,
+  RevenueCharts,
+  SubscriptionMix,
+} from "@/components/admin/metrics/trend-charts";
 import { PageHeader } from "@/components/admin/page-header";
 import { PageSkeleton } from "@/components/admin/page-skeleton";
-import { getAdminBilling, getAdminOverview, getAdminTenants } from "@/lib/server-api/admin";
+import { RangePicker } from "@/components/admin/range-picker";
+import { getAdminActivity, getAdminOverview, getAdminTrends } from "@/lib/server-api/admin";
 
 export const generateMetadata = () => adminMetadata("Overview");
 
@@ -14,63 +22,82 @@ export const generateMetadata = () => adminMetadata("Overview");
 const header = (
   <PageHeader
     title="Overview"
-    description="Sign-ups, invoicing and BillSafi's own revenue at a glance. Times are Nairobi time."
+    description="Sign-ups, invoicing and BillSafi's own revenue for the range you pick, next to the period before it. Times are Nairobi time."
   />
 );
 
-async function Overview() {
-  // The counts come from the tenants list's `total`. The API has no count-only route and
-  // no page size option, so this reads one 25-row page each; both are cached for a minute.
-  const [overview, billing, suspended, ending] = await Promise.all([
-    getAdminOverview(),
-    getAdminBilling(),
-    getAdminTenants("?accountStatus=suspended"),
-    getAdminTenants("?subscriptionStatus=pro_ending"),
+async function Overview({ searchParams }: PageProps<"/admin">) {
+  const { range } = parseRangeParams(await searchParams);
+  const [overview, trends, activity] = await Promise.all([
+    getAdminOverview(range),
+    getAdminTrends(range),
+    getAdminActivity(20),
   ]);
+  const { attention: a } = overview;
 
   return (
     <>
       {header}
+      <RangePicker
+        path="/admin"
+        current={range}
+        period={overview.period}
+        previousPeriod={overview.previousPeriod}
+      />
       <div className="space-y-6">
         <OverviewTiles data={overview} />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <GrowthChart data={trends} />
+          <ActivationChart data={trends} />
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <SubscriptionMix data={trends} />
+          <div className="grid min-w-0 gap-4">
+            <RevenueCharts data={trends} />
+          </div>
+        </div>
         <div className="grid gap-4 lg:grid-cols-2">
           <NeedsAttention
             items={[
               {
                 label: "Stuck payments",
-                count: billing.stuckPayments.length,
+                count: a.stuckPayments,
                 help: "M-Pesa checkouts still pending more than 10 minutes after they started.",
-                href: "/admin/subscriptions?tab=payments#stuck-payments",
+                href: "/admin/subscriptions?tab=payments&stuck=true",
               },
               {
                 label: "Suspended accounts",
-                count: suspended.total,
+                count: a.suspendedAccounts,
                 help: "Accounts that can't sign in right now.",
                 href: "/admin/tenants?accountStatus=suspended",
               },
               {
                 label: "Pro ending soon",
-                count: ending.total,
+                count: a.proEnding,
                 help: "Pro access that ends within 7 days.",
-                href: "/admin/tenants?subscriptionStatus=pro_ending",
+                href: "/admin/subscriptions?renewalWithin=7",
+              },
+              {
+                label: "Pro lapsed",
+                count: a.proLapsed,
+                help: "Pro that ended in the last 30 days and has not come back.",
+                href: "/admin/subscriptions?lapsedWithin=30",
+              },
+              {
+                label: "Free limit reached",
+                count: a.freeLimitReached,
+                help: "Free accounts that used all their invoices this month.",
+                href: "/admin/subscriptions?tab=payments&limitHits=this_month#free-limit-hits",
+              },
+              {
+                label: "Overrides ending",
+                count: a.overridesEnding,
+                help: "Limit overrides that end within 7 days.",
+                href: "/admin/subscriptions?tab=overrides&endingWithin=7",
               },
             ]}
           />
-          <section className="rounded-panel border border-dashed border-line bg-panel p-4">
-            <h2 className="flex items-center gap-2 text-base font-semibold">
-              <CalendarClock aria-hidden className="size-4.5 text-accent" />
-              Coming in phase 4
-            </h2>
-            <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-sub">
-              <li>Tenant growth and subscription mix charts.</li>
-              <li>A recent platform activity feed.</li>
-              <li>Churn, renewals due and overdue subscriptions.</li>
-              <li>A date range that applies to every figure on this page.</li>
-            </ul>
-            <p className="mt-3 text-xs text-sub">
-              These need queries that are not built yet, so nothing is shown for them here.
-            </p>
-          </section>
+          <ActivityFeed items={activity.items} now={Date.parse(activity.generatedAt)} />
         </div>
         <UpdatedAt iso={overview.generatedAt} />
       </div>
@@ -78,10 +105,10 @@ async function Overview() {
   );
 }
 
-export default function OverviewPage() {
+export default function OverviewPage(props: PageProps<"/admin">) {
   return (
     <Suspense fallback={<PageSkeleton label="Loading overview" />}>
-      <Overview />
+      <Overview {...props} />
     </Suspense>
   );
 }

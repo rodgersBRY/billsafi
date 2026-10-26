@@ -1,11 +1,6 @@
-import {
-  type AdminFunnel,
-  type AdminFunnelStep,
-  type AdminFunnelStepKey,
-  adminFunnelDays,
-} from "@billsafi/contracts";
+import type { AdminFunnel, AdminFunnelStep, AdminFunnelStepKey } from "@billsafi/contracts";
 import { formatCount, formatDay, formatDuration, formatShare } from "../admin-format";
-import { PeriodSwitch, UpdatedAt } from "../admin-ui";
+import { UpdatedAt } from "../admin-ui";
 
 const stepLabels: Record<AdminFunnelStepKey, string> = {
   signed_up: "Signed up",
@@ -47,13 +42,7 @@ function StepRow({ step }: { step: AdminFunnelStep }) {
   );
 }
 
-interface FunnelPanelProps {
-  data: AdminFunnel;
-  /** Link to the same page with another sign-up window. */
-  hrefFor: (days: (typeof adminFunnelDays)[number]) => string;
-}
-
-export function FunnelPanel({ data, hrefFor }: FunnelPanelProps) {
+export function FunnelPanel({ data }: { data: AdminFunnel }) {
   return (
     <section aria-labelledby="funnel-title" className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -63,14 +52,6 @@ export function FunnelPanel({ data, hrefFor }: FunnelPanelProps) {
           </h2>
           <p className="text-sm text-sub">People who signed up since {formatDay(data.since)}.</p>
         </div>
-        <PeriodSwitch
-          label="Sign-up window"
-          options={adminFunnelDays.map((days) => ({
-            label: `${days} days`,
-            href: hrefFor(days),
-            current: days === data.days,
-          }))}
-        />
       </div>
       <section className="rounded-panel border border-line bg-panel p-4 sm:p-5">
         <ol className="space-y-5">

@@ -15,7 +15,7 @@ export function NeedsAttention({ items }: { items: AttentionItem[] }) {
   return (
     <section
       aria-labelledby="attention-title"
-      className="rounded-panel border border-line bg-panel"
+      className="min-w-0 rounded-panel border border-line bg-panel"
     >
       <h2 id="attention-title" className="px-4 pt-4 text-base font-semibold">
         Needs attention

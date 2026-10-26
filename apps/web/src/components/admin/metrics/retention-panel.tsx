@@ -1,7 +1,7 @@
-import { type AdminRetention, adminRetentionWeeks } from "@billsafi/contracts";
+import type { AdminRetention } from "@billsafi/contracts";
 import { formatDate } from "@/lib/format";
 import { formatCount, formatShare } from "../admin-format";
-import { EmptyRow, Panel, PeriodSwitch, UpdatedAt } from "../admin-ui";
+import { EmptyRow, Panel, UpdatedAt } from "../admin-ui";
 import { tdNowrapClass, thClass, theadClass } from "../table-classes";
 
 /*
@@ -19,13 +19,7 @@ function shade(share: number): React.CSSProperties | undefined {
   };
 }
 
-interface RetentionPanelProps {
-  data: AdminRetention;
-  /** Link to the same page with another number of cohorts. */
-  hrefFor: (weeks: (typeof adminRetentionWeeks)[number]) => string;
-}
-
-export function RetentionPanel({ data, hrefFor }: RetentionPanelProps) {
+export function RetentionPanel({ data }: { data: AdminRetention }) {
   const columns = Math.max(0, ...data.cohorts.map((cohort) => cohort.activeShare.length));
 
   return (
@@ -39,14 +33,6 @@ export function RetentionPanel({ data, hrefFor }: RetentionPanelProps) {
             Share of each sign-up week with an invoice made Ready in the weeks after.
           </p>
         </div>
-        <PeriodSwitch
-          label="Cohorts shown"
-          options={adminRetentionWeeks.map((weeks) => ({
-            label: `${weeks} weeks`,
-            href: hrefFor(weeks),
-            current: weeks === data.weeks,
-          }))}
-        />
       </div>
       <Panel
         title="Weekly cohorts"
