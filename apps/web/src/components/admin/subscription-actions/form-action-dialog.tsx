@@ -21,6 +21,8 @@ export interface FormActionDialogProps<R> {
   path: string;
   /** Send an Idempotency-Key, made once per opening, so a retry replays instead of repeating. */
   idempotent?: boolean;
+  /** HTTP method; POST unless the route replaces (PUT) or edits (PATCH). */
+  method?: "POST" | "PATCH" | "PUT";
   submitLabel: string;
   destructive?: boolean;
   /**
@@ -86,7 +88,7 @@ export function FormActionDialog<R>(props: FormActionDialogProps<R>) {
     let response: R;
     try {
       response = await apiRequest<R>(props.path, {
-        method: "POST",
+        method: props.method ?? "POST",
         body: JSON.stringify({ ...body, reason: reasonCheck.data }),
         headers: props.idempotent ? { "Idempotency-Key": key } : undefined,
       });

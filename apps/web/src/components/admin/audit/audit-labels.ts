@@ -5,11 +5,19 @@ export const auditActionLabels: Record<string, string> = {
   "tenant.reactivate": "Reactivated account",
   "user.revoke_sessions": "Revoked sessions",
   "user.role_change": "Changed role",
+  "support.case_create": "Opened a support case",
+  "support.case_update": "Changed a support case",
+  "support.case_resolve": "Resolved a support case",
+  "support.case_reopen": "Reopened a support case",
+  "support.note_add": "Added a support note",
+  "settings.update": "Changed a setting",
 };
 
 export const auditTargetLabels: Record<string, string> = {
   account: "Account",
   user: "User",
+  support_case: "Support case",
+  setting: "Setting",
 };
 
 export function actionLabel(action: string): string {
