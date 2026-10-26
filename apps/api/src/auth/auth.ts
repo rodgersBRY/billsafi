@@ -9,7 +9,7 @@ import { defaultAc } from "better-auth/plugins/admin/access";
 import type { Env } from "../config/env.js";
 import type { Mailer } from "../mail/mailer.js";
 import { passwordResetEmail } from "../mail/templates.js";
-import { readSetting } from "../platform/platform-settings.js";
+import { readRegistrationForEnforcement } from "../platform/platform-settings.js";
 
 export const AUTH_BASE_PATH = "/api/v1/auth";
 
@@ -89,7 +89,7 @@ export const hideBannedSessions = createAuthMiddleware(async (ctx) => {
  */
 export function refuseWhenRegistrationClosed(db: Database) {
   return async () => {
-    const registration = await readSetting(db, "registration");
+    const registration = await readRegistrationForEnforcement(db);
     if (registration.open) return;
     throw new APIError("FORBIDDEN", {
       code: REGISTRATION_CLOSED_CODE,

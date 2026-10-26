@@ -31,3 +31,24 @@ export async function readSetting<K extends PlatformSettingKey>(
     .where(eq(schema.platformSettings.key, key));
   return parseSetting(key, row?.value);
 }
+
+/**
+ * Registration for the sign-up hook. A missing row is the default (open), but a row that is
+ * there and no longer validates counts as closed: failing open would let sign-ups through
+ * on a value nobody can read. The warning says so in the API log.
+ */
+export async function readRegistrationForEnforcement(
+  db: Database,
+): Promise<PlatformSettingValues["registration"]> {
+  const [row] = await db
+    .select({ value: schema.platformSettings.value })
+    .from(schema.platformSettings)
+    .where(eq(schema.platformSettings.key, "registration"));
+  if (!row) return platformSettingDefaults.registration;
+  const parsed = platformSettingSchemas.registration.safeParse(row.value);
+  if (parsed.success) return parsed.data;
+  console.warn(
+    "The stored registration setting is not valid; treating registration as closed until it is saved again.",
+  );
+  return { open: false, closedMessage: platformSettingDefaults.registration.closedMessage };
+}
