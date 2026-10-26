@@ -129,7 +129,7 @@ export function FeatureAdoption({ data }: { data: AdminAnalytics }) {
     <Section id="adoption-title" title="Feature adoption" note={data.definitions.featureAdoption}>
       <BarList
         title="Accounts that have used each feature"
-        summary={`Out of ${formatCount(base)} accounts with a business, ever, not only in this range.`}
+        summary={`Out of ${formatCount(base)} accounts with a business, ever, not only in this range. PDF downloads and link opens need event tracking.`}
         items={items.map((item) => ({
           label: featureLabels[item.key],
           value: item.share ?? 0,

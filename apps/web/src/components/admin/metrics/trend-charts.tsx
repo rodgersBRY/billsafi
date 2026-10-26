@@ -23,14 +23,13 @@ export function GrowthChart({ data }: { data: AdminTrends }) {
   const signups = data.points.map((p) => p.signups);
   return (
     <BarsAndLine
-      title="Tenant growth"
+      title="Account growth"
       summary={`${formatCount(accounts.at(-1) ?? 0)} accounts in total after ${formatCount(sum(signups))} new sign-ups in this range. Bars are new sign-ups per ${unitWord[data.bucketSize]} (left axis) and the line is the total at the end of each ${unitWord[data.bucketSize]} (right axis).`}
       {...axis(data)}
       series={[
         { name: "New sign-ups", values: signups },
         { name: "Total accounts", values: accounts },
       ]}
-      axisTitles={["New sign-ups", "Total accounts"]}
       unit="count"
       emptyText="No accounts yet. Growth shows here once people sign up."
     />

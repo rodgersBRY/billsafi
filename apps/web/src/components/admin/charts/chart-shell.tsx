@@ -36,8 +36,6 @@ export interface ChartProps {
   notes?: string[];
   /** An extra table column, one text per period (for example a conversion rate). */
   extraColumn?: { heading: string; values: string[] };
-  /** Combo charts only: titles for the left (bars) and right (line) axes. */
-  axisTitles?: [string, string];
 }
 
 type Mode = "line" | "bars" | "grouped" | "combo";
@@ -45,7 +43,6 @@ type Mode = "line" | "bars" | "grouped" | "combo";
 type Row = Record<string, string | number>;
 
 const axisText = { fill: "var(--sub)", fontSize: 12 } as const;
-const axisLabel = { style: { fill: "var(--sub)", fontSize: 12, textAnchor: "middle" } } as const;
 const colorOf = (index: number) => seriesColors[index] ?? seriesColors[0];
 
 /** Hover card in the theme's panel colours: the full date, then one line per series. */
@@ -88,14 +85,14 @@ function TipCard({
 /** A line chart or stacked bar chart over time, drawn by Recharts at the width it has. */
 export function ChartShell({ mode, ...props }: ChartProps & { mode: Mode }) {
   const { title, summary, labels, fullLabels, series, unit, emptyText } = props;
-  const { notes, extraColumn, axisTitles } = props;
+  const { notes, extraColumn } = props;
   const mounted = useHydrated();
   const animate = useMotionOk();
 
   const empty = series.every((s) => s.values.every((v) => v === 0));
   const many = series.length > 1;
   // Fixed from the props alone, so the placeholder and the chart are the same size.
-  const height = (many ? 260 : 220) + (mode === "combo" ? 10 : 0);
+  const height = many ? 260 : 220;
 
   const data: Row[] = labels.map((label, i) => {
     const row: Row = { label, full: fullLabels[i] ?? label, note: notes?.[i] ?? "" };
@@ -120,7 +117,7 @@ export function ChartShell({ mode, ...props }: ChartProps & { mode: Mode }) {
 
   const common = {
     data,
-    margin: { top: 8, right: mode === "combo" ? 4 : 12, bottom: 0, left: 0 },
+    margin: { top: 8, right: 12, bottom: 0, left: 0 },
     accessibilityLayer: false,
   };
   const parts = [
@@ -138,18 +135,13 @@ export function ChartShell({ mode, ...props }: ChartProps & { mode: Mode }) {
     <YAxis
       key="y"
       width="auto"
-      tick={axisText}
       tickLine={false}
       axisLine={false}
       yAxisId="left"
+      tick={mode === "combo" ? { ...axisText, fill: colorOf(0) } : axisText}
       allowDecimals={unit !== "count"}
       domain={[0, "auto"]}
       tickFormatter={(value: number) => formatTick(value)}
-      label={
-        mode === "combo" && axisTitles
-          ? { value: axisTitles[0], angle: -90, position: "insideLeft", ...axisLabel }
-          : undefined
-      }
     />,
     mode === "combo" ? (
       <YAxis
@@ -157,17 +149,12 @@ export function ChartShell({ mode, ...props }: ChartProps & { mode: Mode }) {
         yAxisId="right"
         orientation="right"
         width="auto"
-        tick={axisText}
+        tick={{ ...axisText, fill: colorOf(1) }}
         tickLine={false}
         axisLine={false}
         allowDecimals={false}
         domain={[0, "auto"]}
         tickFormatter={(value: number) => formatTick(value)}
-        label={
-          axisTitles
-            ? { value: axisTitles[1], angle: 90, position: "insideRight", ...axisLabel }
-            : undefined
-        }
       />
     ) : null,
     <Tooltip
