@@ -24,10 +24,7 @@ export const generateMetadata = () => adminMetadata("Analytics");
 
 /** Rendered with the data, after the API has confirmed admin access. */
 const header = (
-  <PageHeader
-    title="Analytics"
-    description="How new accounts get going, whether they keep invoicing and which features they use. PDF downloads and link opens come with event tracking."
-  />
+  <PageHeader title="Analytics" description="How new accounts get going and what they use." />
 );
 
 async function Analytics({ searchParams }: PageProps<"/admin/analytics">) {

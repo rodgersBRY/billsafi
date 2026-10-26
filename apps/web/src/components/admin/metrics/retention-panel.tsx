@@ -37,7 +37,7 @@ export function RetentionPanel({ data }: { data: AdminRetention }) {
       </div>
       <Panel
         title="Weekly cohorts"
-        description="Weeks start on Monday, Nairobi time. Week 0 is the sign-up week. Darker cells mean a larger share."
+        description="Weeks start on Monday. Week 0 is the sign-up week. Darker cells mean a larger share."
       >
         {data.cohorts.length === 0 ? (
           <EmptyRow text="No sign-ups in this period." />

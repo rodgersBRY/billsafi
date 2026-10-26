@@ -151,7 +151,7 @@ export function RecordPaymentDialog({
           hint="M-Pesa code, bank reference or receipt number"
         />
         <TextField
-          label="Date paid (Nairobi)"
+          label="Date paid"
           type="date"
           max={today}
           value={paidAt}

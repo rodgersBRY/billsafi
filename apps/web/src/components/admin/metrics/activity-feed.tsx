@@ -62,7 +62,7 @@ export function ActivityFeed({ items, now }: { items: AdminActivityItem[]; now: 
                   )}
                   <p className="break-words">{item.summary}</p>
                   <p className="mt-0.5 text-xs text-sub">
-                    <time dateTime={item.at} title={`${formatInstant(item.at)} Nairobi time`}>
+                    <time dateTime={item.at} title={formatInstant(item.at)}>
                       {formatRelative(item.at, now)}
                     </time>
                     {item.admin && ` by ${item.admin.name}`}

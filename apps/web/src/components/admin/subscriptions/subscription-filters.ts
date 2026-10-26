@@ -16,8 +16,8 @@ const search = (placeholder: string): FilterField => ({
   placeholder,
 });
 const dateRange: FilterField[] = [
-  { type: "date", name: "from", label: "From (Nairobi date)" },
-  { type: "date", name: "to", label: "To (Nairobi date)" },
+  { type: "date", name: "from", label: "From" },
+  { type: "date", name: "to", label: "To" },
 ];
 
 export const subscriptionFilters: FilterField[] = [

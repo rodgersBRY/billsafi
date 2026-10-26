@@ -1,5 +1,6 @@
 import { type AdminRange, adminRanges } from "@billsafi/contracts";
 import { formatDay } from "./admin-format";
+import { InfoPopover } from "./info-popover";
 import { PeriodSwitch } from "./admin-ui";
 import { rangeDefaults, toQuery } from "./admin-params";
 
@@ -18,6 +19,12 @@ interface RangePickerProps {
   keep?: Record<string, string | undefined>;
   period: { start: string; end: string };
   previousPeriod?: { start: string; end: string };
+}
+
+/** "27 Sept 2026" and "26 Oct 2026" as "27 Sept - 26 Oct 2026": the year is said once when it is shared. */
+function compact(start: string, end: string): string {
+  const year = end.slice(-4);
+  return `${start.endsWith(year) ? start.slice(0, -5) : start} - ${end}`;
 }
 
 const lastDay = (end: string) => formatDay(new Date(Date.parse(end) - 1).toISOString());
@@ -40,12 +47,14 @@ export function RangePicker({
           current: range === current,
         }))}
       />
-      <p className="text-sm text-sub">
-        {formatDay(period.start)} to {formatDay(period.end)}
-        {previousPeriod &&
-          `, compared with ${formatDay(previousPeriod.start)} to ${lastDay(previousPeriod.end)}`}
-        . Nairobi time.
-      </p>
+      <div className="flex items-center gap-1 text-sm text-sub">
+        {compact(formatDay(period.start), formatDay(period.end))}
+        {previousPeriod && (
+          <InfoPopover label="Which period is this compared with?">
+            Compared with {compact(formatDay(previousPeriod.start), lastDay(previousPeriod.end))}
+          </InfoPopover>
+        )}
+      </div>
     </div>
   );
 }
