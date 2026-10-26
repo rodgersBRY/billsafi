@@ -158,9 +158,9 @@ test.describe("as an admin", () => {
       "aria-current",
       "page",
     );
-    // Every tile says how it moved from the period before, in words.
-    await expect(page.getByText(/(up|down|no change)( .*)? from /).first()).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Tenant growth" })).toBeVisible();
+    // Every headline figure says how it moved from the period before, in words.
+    await expect(page.getByText(/(up|down|no change).*last period/i).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Account growth" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Needs attention" })).toBeVisible();
 
     await page.goto("/admin/analytics?range=90d");

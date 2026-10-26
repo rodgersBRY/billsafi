@@ -5,6 +5,8 @@ export interface KpiChange {
   direction: "up" | "down" | "flat";
   /** The change in words, such as "up 12% from 41". */
   text: string;
+  /** Colour by meaning (good, bad, mixed, none), set by the Overview helpers. */
+  tone?: "good" | "bad" | "warn" | "none";
 }
 
 interface KpiCardProps {
