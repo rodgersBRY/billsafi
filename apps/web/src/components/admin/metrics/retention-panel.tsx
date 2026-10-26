@@ -1,8 +1,9 @@
+import { Fragment } from "react";
 import type { AdminRetention } from "@billsafi/contracts";
 import { formatDate } from "@/lib/format";
 import { formatCount, formatShare } from "../admin-format";
 import { EmptyRow, Panel, UpdatedAt } from "../admin-ui";
-import { tdNowrapClass, thClass, theadClass } from "../table-classes";
+import { DataTable } from "../charts/chart-card";
 
 /*
  * The accent colour at a strength that follows the share. A 10% floor keeps
@@ -36,54 +37,79 @@ export function RetentionPanel({ data }: { data: AdminRetention }) {
       </div>
       <Panel
         title="Weekly cohorts"
-        description="Weeks start on Monday, Nairobi time. Week 0 is the sign-up week."
+        description="Weeks start on Monday, Nairobi time. Week 0 is the sign-up week. Darker cells mean a larger share."
       >
         {data.cohorts.length === 0 ? (
           <EmptyRow text="No sign-ups in this period." />
         ) : (
-          <table className="w-full text-sm">
-            <thead className={theadClass}>
-              <tr>
-                <th scope="col" className={thClass}>
-                  Sign-up week
-                </th>
-                <th scope="col" className={`${thClass} text-right`}>
-                  Users
-                </th>
+          <>
+            <div
+              role="img"
+              aria-label="Retention heatmap. Each row is a sign-up week and each cell the share of its users with an invoice made Ready that many weeks later. The figures are in the table below."
+              className="overflow-x-auto"
+            >
+              <div
+                aria-hidden
+                className="grid w-max gap-0.5 text-xs"
+                style={{
+                  gridTemplateColumns: `6.5rem 3rem repeat(${columns}, 3.25rem)`,
+                }}
+              >
+                <span className="px-1 pb-1 text-sub">Sign-up week</span>
+                <span className="px-1 pb-1 text-right text-sub">Users</span>
                 {Array.from({ length: columns }, (_, week) => (
-                  <th key={week} scope="col" className={`${thClass} text-center`}>
-                    Week {week}
-                  </th>
+                  <span key={week} className="pb-1 text-center whitespace-nowrap text-sub">
+                    Wk {week}
+                  </span>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {data.cohorts.map((cohort) => (
-                <tr key={cohort.weekStart} className="border-t border-line">
-                  <th scope="row" className={`${tdNowrapClass} text-left font-normal`}>
-                    {formatDate(cohort.weekStart)}
-                  </th>
-                  <td className={`${tdNowrapClass} text-right tabular-nums`}>
-                    {formatCount(cohort.users)}
-                  </td>
-                  {Array.from({ length: columns }, (_, week) => {
+                {data.cohorts.map((cohort) => (
+                  <Fragment key={cohort.weekStart}>
+                    <span className="flex items-center px-1 whitespace-nowrap">
+                      {formatDate(cohort.weekStart)}
+                    </span>
+                    <span className="flex items-center justify-end px-1 tabular-nums">
+                      {formatCount(cohort.users)}
+                    </span>
+                    {Array.from({ length: columns }, (_, week) => {
+                      const share = cohort.activeShare[week];
+                      return share === undefined || share === null ? (
+                        <span
+                          key={week}
+                          className="h-8 rounded-sm border border-dashed border-line"
+                        />
+                      ) : (
+                        <span
+                          key={week}
+                          className={`${shadeClass} flex h-8 items-center justify-center rounded-sm border border-line text-ink tabular-nums`}
+                          style={shade(share)}
+                        >
+                          {formatShare(share)}
+                        </span>
+                      );
+                    })}
+                  </Fragment>
+                ))}
+              </div>
+            </div>
+            <DataTable
+              title="Weekly cohorts"
+              table={{
+                columns: [
+                  "Sign-up week",
+                  "Users",
+                  ...Array.from({ length: columns }, (_, week) => `Week ${week}`),
+                ],
+                rows: data.cohorts.map((cohort) => [
+                  formatDate(cohort.weekStart),
+                  formatCount(cohort.users),
+                  ...Array.from({ length: columns }, (_, week) => {
                     const share = cohort.activeShare[week];
-                    return share === undefined || share === null ? (
-                      <td key={week} className={tdNowrapClass} />
-                    ) : (
-                      <td
-                        key={week}
-                        className={`${tdNowrapClass} ${shadeClass} text-center tabular-nums`}
-                        style={shade(share)}
-                      >
-                        {formatShare(share)}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    return share === undefined || share === null ? "" : formatShare(share);
+                  }),
+                ]),
+              }}
+            />
+          </>
         )}
       </Panel>
       <UpdatedAt iso={data.generatedAt} />
