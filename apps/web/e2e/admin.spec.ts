@@ -161,7 +161,12 @@ test.describe("as an admin", () => {
     // Every headline figure says how it moved from the period before, in words.
     await expect(page.getByText(/(up|down|no change).*last period/i).first()).toBeVisible();
     await expect(page.getByRole("heading", { name: "Account growth" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Needs attention" })).toBeVisible();
+    // Items show under a heading; with nothing to do there is one quiet line instead.
+    await expect(
+      page
+        .getByRole("heading", { name: "Needs attention" })
+        .or(page.getByText("Nothing needs you right now.")),
+    ).toBeVisible();
 
     await page.goto("/admin/analytics?range=90d");
     await expect(page.getByRole("heading", { name: "Analytics", level: 1 })).toBeVisible();
