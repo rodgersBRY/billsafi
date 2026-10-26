@@ -42,6 +42,11 @@ const ROUTES = [
   `users/${crypto.randomUUID()}`,
   "billing",
   "audit-logs",
+  "health",
+  "support/cases",
+  `support/cases/${crypto.randomUUID()}`,
+  `support/accounts/${crypto.randomUUID()}`,
+  "settings",
 ];
 const DAY_MS = 24 * 60 * 60 * 1000;
 // A 1x1 transparent PNG.
