@@ -5,11 +5,11 @@ import {
   BarChart,
   CartesianGrid,
   ComposedChart,
-  Legend,
   Line,
   LineChart as RechartsLine,
   ResponsiveContainer,
   Tooltip,
+  usePlotArea,
   XAxis,
   YAxis,
 } from "recharts";
@@ -82,6 +82,37 @@ function TipCard({
   );
 }
 
+/** Room above the tallest value, so the legend floating in the top corner covers no data. */
+const headroom = (max: number) => {
+  if (max <= 0) return 1;
+  const raw = max * 1.3;
+  const magnitude = 10 ** Math.floor(Math.log10(raw));
+  const factor = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find((f) => f * magnitude >= raw) ?? 10;
+  return Math.max(Math.ceil(factor * magnitude), 1);
+};
+
+/** The legend, floating inside the plot at its top left on a soft panel so gridlines do not clash. */
+function FloatingLegend({ names }: { names: string[] }) {
+  const area = usePlotArea();
+  if (!area) return null;
+  return (
+    <foreignObject x={area.x + 6} y={area.y + 4} width={Math.max(area.width - 12, 0)} height={56}>
+      <ul className="pointer-events-none flex w-fit max-w-full flex-wrap gap-x-3 gap-y-0.5 rounded-panel border border-line bg-panel/90 px-2 py-1 text-xs text-ink">
+        {names.map((name, index) => (
+          <li key={name} className="flex items-center gap-1.5">
+            <span
+              aria-hidden
+              className="size-2 shrink-0 rounded-full"
+              style={{ backgroundColor: colorOf(index) }}
+            />
+            {name}
+          </li>
+        ))}
+      </ul>
+    </foreignObject>
+  );
+}
+
 /** A line chart or stacked bar chart over time, drawn by Recharts at the width it has. */
 export function ChartShell({ mode, ...props }: ChartProps & { mode: Mode }) {
   const { title, summary, labels, fullLabels, series, unit, emptyText } = props;
@@ -92,7 +123,7 @@ export function ChartShell({ mode, ...props }: ChartProps & { mode: Mode }) {
   const empty = series.every((s) => s.values.every((v) => v === 0));
   const many = series.length > 1;
   // Fixed from the props alone, so the placeholder and the chart are the same size.
-  const height = many ? 260 : 220;
+  const height = many ? 240 : 220;
 
   const data: Row[] = labels.map((label, i) => {
     const row: Row = { label, full: fullLabels[i] ?? label, note: notes?.[i] ?? "" };
@@ -140,7 +171,7 @@ export function ChartShell({ mode, ...props }: ChartProps & { mode: Mode }) {
       yAxisId="left"
       tick={mode === "combo" ? { ...axisText, fill: colorOf(0) } : axisText}
       allowDecimals={unit !== "count"}
-      domain={[0, "auto"]}
+      domain={[0, headroom]}
       tickFormatter={(value: number) => formatTick(value)}
     />,
     mode === "combo" ? (
@@ -153,7 +184,7 @@ export function ChartShell({ mode, ...props }: ChartProps & { mode: Mode }) {
         tickLine={false}
         axisLine={false}
         allowDecimals={false}
-        domain={[0, "auto"]}
+        domain={[0, headroom]}
         tickFormatter={(value: number) => formatTick(value)}
       />
     ) : null,
@@ -167,18 +198,7 @@ export function ChartShell({ mode, ...props }: ChartProps & { mode: Mode }) {
       }
       content={<TipCard series={series} unit={unit} />}
     />,
-    many ? (
-      <Legend
-        key="legend"
-        verticalAlign="top"
-        align="left"
-        itemSorter={null}
-        iconType="circle"
-        iconSize={10}
-        wrapperStyle={{ paddingBottom: 8, fontSize: 12 }}
-        formatter={(value: string) => <span className="text-ink">{value}</span>}
-      />
-    ) : null,
+    many ? <FloatingLegend key="legend" names={series.map((item) => item.name)} /> : null,
   ];
 
   return (
