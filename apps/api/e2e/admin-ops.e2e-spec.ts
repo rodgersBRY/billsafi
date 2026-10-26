@@ -90,10 +90,17 @@ describe("admin ops", () => {
     const url = new URL(ORIGINAL_URL);
     url.pathname = `/${DB_NAME}`;
     process.env.DATABASE_URL = url.toString();
-    execFileSync("pnpm", ["--filter", "@billsafi/db", "db:migrate"], {
-      env: { ...process.env, DATABASE_URL: url.toString() },
-      stdio: "ignore",
-    });
+    try {
+      execFileSync("pnpm", ["--filter", "@billsafi/db", "db:migrate"], {
+        env: { ...process.env, DATABASE_URL: url.toString() },
+        stdio: "pipe",
+      });
+    } catch (error) {
+      const failed = error as { stdout?: Buffer; stderr?: Buffer };
+      throw new Error(
+        `Migrating the throwaway database failed:\n${failed.stderr?.toString() ?? ""}${failed.stdout?.toString() ?? ""}`,
+      );
+    }
     ({ app } = await createTestApp({ adminActionLimit: 1000 }));
     ({ cookie: adminCookie, id: adminId, email: adminEmail } = await makeAdmin("ops-admin"));
     ({ cookie: admin2Cookie, id: admin2Id } = await makeAdmin("ops-admin-two"));
@@ -111,11 +118,17 @@ describe("admin ops", () => {
   });
 
   afterAll(async () => {
-    vi.restoreAllMocks();
-    await app.close();
-    process.env.DATABASE_URL = ORIGINAL_URL;
-    await adminConnection.pool.query(`drop database "${DB_NAME}" with (force)`);
-    await adminConnection.pool.end();
+    try {
+      vi.restoreAllMocks();
+      await app?.close();
+    } finally {
+      process.env.DATABASE_URL = ORIGINAL_URL;
+      try {
+        await adminConnection?.pool.query(`drop database if exists "${DB_NAME}" with (force)`);
+      } finally {
+        await adminConnection?.pool.end();
+      }
+    }
   });
 
   describe("access", () => {
@@ -466,16 +479,24 @@ describe("admin ops", () => {
         body: "Loose note",
       }).expect(201);
       expect(response.body).toMatchObject({ caseId: null, accountId });
-      await expect(
-        db()
-          .update(schema.supportNotes)
-          .set({ body: "edited" })
-          .where(eq(schema.supportNotes.id, response.body.id)),
-      ).rejects.toThrow();
-      await expect(
-        db().delete(schema.supportNotes).where(eq(schema.supportNotes.id, response.body.id)),
-      ).rejects.toThrow();
-      await expect(db().execute(sql`truncate support_notes`)).rejects.toThrow();
+      const failure = (attempt: PromiseLike<unknown>) =>
+        Promise.resolve(attempt).then(
+          () => {
+            throw new Error("expected the statement to be refused");
+          },
+          (error: Error & { cause?: Error }) => error.cause ?? error,
+        );
+      const noteId = eq(schema.supportNotes.id, response.body.id);
+      expect(
+        (await failure(db().update(schema.supportNotes).set({ body: "edited" }).where(noteId)))
+          .message,
+      ).toMatch(/append-only: UPDATE/);
+      expect((await failure(db().delete(schema.supportNotes).where(noteId))).message).toMatch(
+        /append-only: DELETE/,
+      );
+      expect((await failure(db().execute(sql`truncate support_notes`))).message).toMatch(
+        /append-only: TRUNCATE/,
+      );
     });
 
     it("refuses a note with no text and a note on an unknown case or account", async () => {
@@ -720,20 +741,33 @@ describe("admin ops", () => {
       expect(listed.settings.find((s) => s.key === "registration")!.isDefault).toBe(true);
     });
 
+    it("refuses a save that changes nothing with 409 NO_CHANGE and no audit row", async () => {
+      const value = { email: "same@billsafi.test" };
+      await setSetting("support_contact", value).expect(200);
+      const before = (await auditRows("settings.update", "support_contact")).length;
+      const response = await setSetting("support_contact", value).expect(409);
+      expect(response.body.code).toBe("NO_CHANGE");
+      // The effective default counts too: nothing is stored for announcement yet.
+      await setSetting("announcement", platformSettingDefaults.announcement).expect(409);
+      expect(await auditRows("settings.update", "support_contact")).toHaveLength(before);
+      expect(await auditRows("settings.update", "announcement")).toHaveLength(0);
+    });
+
     it("limits settings changes to the admin action rate", async () => {
       const limited = (await createTestApp({ adminActionLimit: 2 })).app;
       try {
-        const put = () =>
+        const put = (hours: string) =>
           request(limited.getHttpServer())
-            .put("/api/v1/admin/settings/announcement")
+            .put("/api/v1/admin/settings/support_contact")
             .set("Cookie", admin2Cookie)
-            .send({ value: platformSettingDefaults.announcement, reason: REASON });
-        await put().expect(200);
-        await put().expect(200);
-        await put().expect(429);
+            .send({ value: { email: "rate@billsafi.test", hours }, reason: REASON });
+        await put("one").expect(200);
+        await put("two").expect(200);
+        await put("three").expect(429);
       } finally {
         await limited.close();
       }
+      await setSetting("support_contact", platformSettingDefaults.support_contact).expect(200);
     });
   });
 
@@ -899,6 +933,52 @@ describe("admin ops", () => {
       expect(location.searchParams.get("error_description")).toBe(CLOSED);
       const found = await db().select().from(schema.users).where(eq(schema.users.email, email));
       expect(found).toHaveLength(0);
+    });
+
+    it("keeps account_not_linked for a Google email that already has a password user", async () => {
+      const { location, session } = await finishGoogleSignIn(googleUser(existing.email));
+      expect(session).toBeUndefined();
+      expect(location.pathname).toBe("/sign-in");
+      expect(location.searchParams.get("error")).toBe("account_not_linked");
+      const found = await db()
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.email, existing.email));
+      expect(found).toHaveLength(1);
+    });
+
+    it("treats a stored registration value that no longer validates as closed", async () => {
+      await db()
+        .delete(schema.platformSettings)
+        .where(eq(schema.platformSettings.key, "registration"));
+      await db()
+        .insert(schema.platformSettings)
+        .values({ key: "registration", value: { open: "yes" } });
+      try {
+        const email = uniqueEmail("corrupt");
+        const response = await signUpEmail(email).expect(403);
+        expect(response.body.code).toBe(REGISTRATION_CLOSED_CODE);
+        expect(
+          await db().select().from(schema.users).where(eq(schema.users.email, email)),
+        ).toHaveLength(0);
+        // Existing users still sign in.
+        await api()
+          .post("/api/v1/auth/sign-in/email")
+          .set("Origin", WEB_ORIGIN)
+          .send({ email: existing.email, password: "correct-horse-battery" })
+          .expect(200);
+      } finally {
+        await db()
+          .delete(schema.platformSettings)
+          .where(eq(schema.platformSettings.key, "registration"));
+        await setSetting("registration", { open: false, closedMessage: CLOSED }).expect(200);
+      }
+      // A missing row is the default, which is open.
+      await db()
+        .delete(schema.platformSettings)
+        .where(eq(schema.platformSettings.key, "registration"));
+      await signUpEmail(uniqueEmail("no-row")).expect(200);
+      await setSetting("registration", { open: false, closedMessage: CLOSED }).expect(200);
     });
 
     it("still signs in existing users, by password and by Google, and keeps admins in", async () => {

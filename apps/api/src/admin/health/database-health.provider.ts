@@ -14,7 +14,11 @@ export class DatabaseHealthProvider implements HealthIndicatorProvider {
 
   async check(): Promise<HealthReading> {
     const started = performance.now();
-    await this.connection.db.execute(sql`select 1`);
+    // A hung database must not leave queries piling up behind every Refresh.
+    await this.connection.db.transaction(async (tx) => {
+      await tx.execute(sql`set local statement_timeout = 3000`);
+      await tx.execute(sql`select 1`);
+    });
     const ms = Math.round(performance.now() - started);
     const slow = ms > DATABASE_SLOW_MS;
     return {

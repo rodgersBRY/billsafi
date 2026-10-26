@@ -13,7 +13,11 @@ import { type DatabaseConnection, eq, schema } from "@billsafi/db";
 import { DATABASE } from "../../database/database.module.js";
 import { PLATFORM_CACHE } from "../../platform/platform-cache.js";
 import { parseSetting } from "../../platform/platform-settings.js";
-import { type AdminActionContext, AdminActionRunner } from "../shared/admin-action-runner.js";
+import {
+  type AdminActionContext,
+  AdminActionRunner,
+  UnauditedRefusal,
+} from "../shared/admin-action-runner.js";
 import type { TtlCache } from "../shared/ttl-cache.js";
 
 const { platformSettings, users } = schema;
@@ -94,6 +98,10 @@ export class AdminSettingsService {
           .where(eq(platformSettings.key, key))
           .for("update");
         const before = parseSetting(key, current?.value);
+        if (canonical(before) === canonical(body.value)) {
+          // Nothing to record: no audit row, no cache clear.
+          throw new UnauditedRefusal({ code: "NO_CHANGE", message: "Nothing changed." });
+        }
         const now = new Date();
         await tx
           .insert(platformSettings)

@@ -33,7 +33,11 @@ export class SupportActionsService {
 
   /** Locks the case row; 404 when unknown. */
   private async lockCase(tx: Transaction, id: string) {
-    const [row] = await tx.select().from(supportCases).where(eq(supportCases.id, id)).for("update");
+    const [row] = await tx
+      .select()
+      .from(supportCases)
+      .where(eq(supportCases.id, id))
+      .for("no key update");
     if (!row) throw new NotFoundException("Case not found");
     return row;
   }
