@@ -1,7 +1,8 @@
 import type { AdminTrends } from "@billsafi/contracts";
 import { BarList } from "../charts/bar-list";
 import { bucketFullLabel, bucketLabel } from "../charts/chart-utils";
-import { LineChart } from "../charts/line-chart";
+import { BarsAndLine } from "../charts/bars-and-line";
+import { GroupedBars } from "../charts/grouped-bars";
 import { StackedBars } from "../charts/stacked-bars";
 import { formatCount, formatKes, formatShare, formatUsd } from "../admin-format";
 
@@ -16,16 +17,20 @@ function axis(data: AdminTrends) {
 
 const unitWord = { day: "day", week: "week", month: "month" } as const;
 
-/** Total accounts over the range. */
+/** New sign-ups as bars, with the running total of accounts as a line on its own axis. */
 export function GrowthChart({ data }: { data: AdminTrends }) {
   const accounts = data.points.map((p) => p.accountsTotal);
-  const signups = sum(data.points.map((p) => p.signups));
+  const signups = data.points.map((p) => p.signups);
   return (
-    <LineChart
+    <BarsAndLine
       title="Tenant growth"
-      summary={`${formatCount(accounts.at(-1) ?? 0)} accounts in total after ${formatCount(signups)} new sign-ups in this range, counted at the end of each ${unitWord[data.bucketSize]}.`}
+      summary={`${formatCount(accounts.at(-1) ?? 0)} accounts in total after ${formatCount(sum(signups))} new sign-ups in this range. Bars are new sign-ups per ${unitWord[data.bucketSize]} (left axis) and the line is the total at the end of each ${unitWord[data.bucketSize]} (right axis).`}
       {...axis(data)}
-      series={[{ name: "Total accounts", values: accounts }]}
+      series={[
+        { name: "New sign-ups", values: signups },
+        { name: "Total accounts", values: accounts },
+      ]}
+      axisTitles={["New sign-ups", "Total accounts"]}
       unit="count"
       emptyText="No accounts yet. Growth shows here once people sign up."
     />
@@ -37,9 +42,9 @@ export function ActivationChart({ data }: { data: AdminTrends }) {
   const signups = data.points.map((p) => p.signups);
   const firsts = data.points.map((p) => p.firstInvoices);
   return (
-    <LineChart
+    <GroupedBars
       title="Sign-ups and first invoices"
-      summary={`${formatCount(sum(signups))} sign-ups and ${formatCount(sum(firsts))} accounts that made their first invoice Ready, per ${unitWord[data.bucketSize]}.`}
+      summary={`${formatCount(sum(signups))} sign-ups next to ${formatCount(sum(firsts))} accounts that made their first invoice Ready, per ${unitWord[data.bucketSize]}.`}
       {...axis(data)}
       series={[
         { name: "Sign-ups", values: signups },
