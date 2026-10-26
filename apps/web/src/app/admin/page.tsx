@@ -41,7 +41,7 @@ async function Overview({ searchParams }: PageProps<"/admin">) {
         previousPeriod={overview.previousPeriod}
       />
       <div className="space-y-6">
-        <HeadlineRow data={overview} />
+        <HeadlineRow data={overview} trends={trends} />
         <NeedsAttention
           items={[
             {

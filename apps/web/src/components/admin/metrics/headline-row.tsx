@@ -1,5 +1,7 @@
-import type { AdminOverview } from "@billsafi/contracts";
+import type { AdminOverview, AdminTrends } from "@billsafi/contracts";
 import { ArrowDown, ArrowUp, Minus } from "lucide-react";
+import { bucketFullLabel } from "../charts/chart-utils";
+import { Sparkline } from "../charts/sparkline";
 import { formatCount, formatUsd } from "../admin-format";
 import { InfoPopover } from "../info-popover";
 import type { KpiChange } from "../kpi-card";
@@ -24,16 +26,23 @@ interface Headline {
   definition: string;
   change: KpiChange;
   subline?: string;
+  /** The figure in each bucket of the range, oldest first. */
+  trend: number[];
+  unit: "count" | "usd";
 }
 
-function headlines(data: AdminOverview): Headline[] {
+function headlines(data: AdminOverview, trends: AdminTrends): Headline[] {
   const { definitions: d, signups } = data;
+  const series = (pick: (point: AdminTrends["points"][number]) => number) =>
+    trends.points.map(pick);
   return [
     {
       label: "New sign-ups",
       value: formatCount(signups.current.total),
       definition: d.signups,
       change: describeCompactChange("signups", signups.current.total, signups.previous.total),
+      trend: series((p) => p.signups),
+      unit: "count",
     },
     {
       label: "Active accounts",
@@ -44,6 +53,8 @@ function headlines(data: AdminOverview): Headline[] {
         data.activeAccounts.current,
         data.activeAccounts.previous,
       ),
+      trend: series((p) => p.activeAccounts),
+      unit: "count",
     },
     {
       label: "Invoices made Ready",
@@ -54,6 +65,8 @@ function headlines(data: AdminOverview): Headline[] {
         data.invoicesReady.current,
         data.invoicesReady.previous,
       ),
+      trend: series((p) => p.invoicesReady),
+      unit: "count",
     },
     {
       label: "MRR",
@@ -66,15 +79,18 @@ function headlines(data: AdminOverview): Headline[] {
         sinceBasis(data.period.start),
       ),
       subline: `${formatCount(data.payingAccounts.current)} paying`,
+      trend: series((p) => Number(p.mrrUsd)),
+      unit: "usd",
     },
   ];
 }
 
 /** The four figures that matter most: 2 columns on a phone, 4 in a row on a wide screen. */
-export function HeadlineRow({ data }: { data: AdminOverview }) {
+export function HeadlineRow({ data, trends }: { data: AdminOverview; trends: AdminTrends }) {
+  const labels = trends.points.map((p) => bucketFullLabel(p.bucketStart, trends.bucketSize));
   return (
     <ul className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-      {headlines(data).map((item) => (
+      {headlines(data, trends).map((item) => (
         <li
           key={item.label}
           className="flex min-w-0 flex-col rounded-panel border border-line bg-panel p-4"
@@ -88,6 +104,7 @@ export function HeadlineRow({ data }: { data: AdminOverview }) {
           </p>
           {item.subline && <p className="mt-0.5 text-xs text-sub">{item.subline}</p>}
           <ChangeLine change={item.change} className="mt-2 text-xs font-medium" />
+          <Sparkline values={item.trend} labels={labels} unit={item.unit} />
         </li>
       ))}
     </ul>
