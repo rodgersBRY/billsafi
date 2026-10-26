@@ -1,0 +1,331 @@
+import { Inject, Injectable } from "@nestjs/common";
+import type {
+  AdminAttention,
+  AdminOverview,
+  AdminRange,
+  AdminSubscriptionMix,
+  AdminTrends,
+} from "@billsafi/contracts";
+import { type DatabaseConnection, type SQL, sql } from "@billsafi/db";
+import { nairobiCalendarMonth, PRO_PLAN, money, stuckPaymentCutoff } from "@billsafi/domain";
+import { DATABASE } from "../../database/database.module.js";
+import { activeOverrideSql, currentMonthSourceSql, proAccessSql } from "../shared/account-sql.js";
+import { at, fromUtc, hasGoogle, ratio, selectRows, utcAt } from "../shared/admin-sql.js";
+import { freeLimitHitsCte } from "../shared/free-limit-hits.js";
+import { activationCounts } from "./activation.js";
+import { proAccessCte } from "./pro-access.js";
+import { bucketIndexSql, bucketsSql, planRange, type RangePlan } from "./range.js";
+
+const MANUAL = "manual";
+const ENDING_DAYS = 7;
+const LAPSED_DAYS = 30;
+
+/** What one window [from, to) holds, counted the same way for the range and the one before. */
+interface WindowFacts {
+  signups: number;
+  google: number;
+  active: number;
+  ready: number;
+  kes: string;
+  usd: string;
+  succeeded: number;
+  failed: number;
+}
+
+interface ProSnapshots {
+  payingNow: number;
+  complimentaryNow: number;
+  payingStart: number;
+  complimentaryStart: number;
+  baseCurrent: number;
+  churnedCurrent: number;
+  basePrevious: number;
+  churnedPrevious: number;
+}
+
+const usd = (paying: number) => money(PRO_PLAN.priceUsd).times(paying).toFixed(2);
+const pair = <T>(current: T, previous: T) => ({ current, previous });
+const rate = (count: number, base: number) => ({ rate: ratio(count, base), count, base });
+
+/** Overview tiles, trend series and the attention counts, all over one date range. */
+@Injectable()
+export class AdminOverviewService {
+  constructor(@Inject(DATABASE) private readonly connection: DatabaseConnection) {}
+
+  private get db() {
+    return this.connection.db;
+  }
+
+  private rows<T>(query: SQL): Promise<T[]> {
+    return selectRows<T>(this.db, query);
+  }
+
+  private async windowFacts(from: Date, to: Date): Promise<WindowFacts> {
+    const users = sql`u.created_at >= ${utcAt(from)} and u.created_at < ${utcAt(to)}`;
+    const inWindow = (column: string) =>
+      sql`${sql.raw(column)} >= ${at(from)} and ${sql.raw(column)} < ${at(to)}`;
+    // Money by the day it was paid: a manual payment's paid_at, else the confirmation.
+    const paidIn = sql`coalesce(paid_at, confirmed_at) >= ${at(from)}
+      and coalesce(paid_at, confirmed_at) < ${at(to)}`;
+    const [row] = await this.rows<WindowFacts>(sql`
+      select
+        (select count(*) from users u where ${users})::int as signups,
+        (select count(*) from users u where ${users} and ${hasGoogle(sql`u.id`)})::int as google,
+        -- Meaningful actions: an invoice created, an invoice made Ready, a payment recorded or a client added.
+        (select count(*) from (
+          select b.owner_user_id from invoices i join businesses b on b.id = i.business_id
+            where ${inWindow("i.created_at")}
+          union select ii.user_id from invoice_issuances ii where ${inWindow("ii.issued_at")}
+          union select b.owner_user_id from invoice_payments p join businesses b on b.id = p.business_id
+            where ${inWindow("p.created_at")}
+          union select b.owner_user_id from clients c join businesses b on b.id = c.business_id
+            where ${inWindow("c.created_at")}
+        ) active)::int as active,
+        (select count(*) from invoice_issuances where ${inWindow("issued_at")})::int as ready,
+        (select coalesce(sum(amount), 0)::numeric(14,2)::text from subscription_payments
+          where status = 'succeeded' and currency = 'KES' and ${paidIn}) as kes,
+        -- USD is only ever taken by hand; it is reported apart, never converted.
+        (select coalesce(sum(amount), 0)::numeric(14,2)::text from subscription_payments
+          where status = 'succeeded' and currency = 'USD' and ${paidIn}) as usd,
+        -- Checkouts by the time they started, M-Pesa only; pending ones are left out.
+        (select count(*) from subscription_payments
+          where status = 'succeeded' and provider <> ${MANUAL} and ${inWindow("created_at")})::int as succeeded,
+        (select count(*) from subscription_payments
+          where status = 'failed' and provider <> ${MANUAL} and ${inWindow("created_at")})::int as failed
+    `);
+    return row!;
+  }
+
+  /** Pro accounts now and at the range start, and who lost Pro inside each period. */
+  private async proSnapshots(plan: RangePlan): Promise<ProSnapshots> {
+    const [row] = await this.rows<ProSnapshots>(sql`
+      with ${proAccessCte("now_set", plan.end)},
+        ${proAccessCte("start_set", plan.start)},
+        ${proAccessCte("previous_set", plan.previousStart)}
+      select
+        (select count(*) from now_set where source = 'paid')::int as "payingNow",
+        (select count(*) from now_set where source = 'complimentary')::int as "complimentaryNow",
+        (select count(*) from start_set where source = 'paid')::int as "payingStart",
+        (select count(*) from start_set where source = 'complimentary')::int as "complimentaryStart",
+        -- Pro at the start of the range that is gone by its end: churn.
+        (select count(*) from start_set)::int as "baseCurrent",
+        (select count(*) from start_set s
+          where not exists (select 1 from now_set n where n.user_id = s.user_id))::int as "churnedCurrent",
+        (select count(*) from previous_set)::int as "basePrevious",
+        (select count(*) from previous_set p
+          where not exists (select 1 from start_set s where s.user_id = p.user_id))::int as "churnedPrevious"
+    `);
+    return row!;
+  }
+
+  private async totalAccounts(instant: Date): Promise<number> {
+    const [row] = await this.rows<{ total: number }>(
+      sql`select count(*)::int as total from users where created_at < ${utcAt(instant)}`,
+    );
+    return row!.total;
+  }
+
+  async overview(range: AdminRange, now = new Date()): Promise<AdminOverview> {
+    const plan = planRange(range, now);
+    const current = await this.windowFacts(plan.start, plan.end);
+    const previous = await this.windowFacts(plan.previousStart, plan.previousEnd);
+    const pro = await this.proSnapshots(plan);
+    const activation = {
+      current: await activationCounts(this.db, plan.start, plan.end, now),
+      previous: await activationCounts(this.db, plan.previousStart, plan.previousEnd, now),
+    };
+    const split = (facts: WindowFacts) => ({
+      total: facts.signups,
+      google: facts.google,
+      email: facts.signups - facts.google,
+    });
+    const mpesa = (facts: WindowFacts) => ({
+      succeeded: facts.succeeded,
+      failed: facts.failed,
+      successRate: ratio(facts.succeeded, facts.succeeded + facts.failed),
+    });
+
+    return {
+      range,
+      period: { start: plan.start.toISOString(), end: plan.end.toISOString() },
+      previousPeriod: {
+        start: plan.previousStart.toISOString(),
+        end: plan.previousEnd.toISOString(),
+      },
+      totalAccounts: pair(await this.totalAccounts(plan.end), await this.totalAccounts(plan.start)),
+      signups: pair(split(current), split(previous)),
+      activeAccounts: pair(current.active, previous.active),
+      payingAccounts: pair(pro.payingNow, pro.payingStart),
+      complimentaryProAccounts: pair(pro.complimentaryNow, pro.complimentaryStart),
+      mrrUsd: pair(usd(pro.payingNow), usd(pro.payingStart)),
+      proChurn: pair(
+        rate(pro.churnedCurrent, pro.baseCurrent),
+        rate(pro.churnedPrevious, pro.basePrevious),
+      ),
+      invoicesReady: pair(current.ready, previous.ready),
+      collected: {
+        kes: pair(current.kes, previous.kes),
+        usd: pair(current.usd, previous.usd),
+      },
+      mpesa: pair(mpesa(current), mpesa(previous)),
+      activation: pair(
+        rate(activation.current.activated, activation.current.base),
+        rate(activation.previous.activated, activation.previous.base),
+      ),
+      attention: await this.attention(now),
+      definitions: definitions(),
+      generatedAt: now.toISOString(),
+    };
+  }
+
+  /**
+   * Counts that equal the totals of the matching directory queries (see
+   * adminAttentionSchema), using the same predicates as those directories.
+   */
+  async attention(now: Date): Promise<AdminAttention> {
+    const soon = sql`${at(now)} + make_interval(hours => ${24 * ENDING_DAYS})`;
+    const monthStart = nairobiCalendarMonth(now).start;
+    const [row] = await this.rows<Omit<AdminAttention, "freeLimitReached">>(sql`
+      select
+        (select count(*) from subscription_payments
+          where status = 'pending' and created_at < ${at(stuckPaymentCutoff(now))})::int as "stuckPayments",
+        (select count(*) from users where banned)::int as "suspendedAccounts",
+        (select count(*) from subscriptions s
+          where ${proAccessSql(sql`s.anchor_at`, sql`s.paid_until`, now)} and s.paid_until <= ${soon})::int as "proEnding",
+        (select count(*) from subscriptions s
+          where s.paid_until <= ${at(now)}
+            and s.paid_until > ${at(now)} - make_interval(hours => ${24 * LAPSED_DAYS}))::int as "proLapsed",
+        (select count(*) from allowance_overrides o
+          where ${activeOverrideSql(sql`o`, now)} and o.expires_at <= ${soon})::int as "overridesEnding"
+    `);
+    const [limit] = await this.rows<{ total: number }>(sql`
+      with ${freeLimitHitsCte(monthStart)}
+      select count(*)::int as total from hits h
+      where h.hit_period_id = h.id and h.hit_at >= ${at(monthStart)} and h.hit_at < ${at(now)}
+    `);
+    return { ...row!, freeLimitReached: limit!.total };
+  }
+
+  async trends(range: AdminRange, now = new Date()): Promise<AdminTrends> {
+    const plan = planRange(range, now);
+    const bounded = (column: SQL) =>
+      sql`${column} >= ${at(plan.start)} and ${column} < ${at(plan.end)}`;
+    const perBucket = (instant: SQL) => bucketIndexSql(plan, instant);
+    const paidAt = sql`coalesce(sp.paid_at, sp.confirmed_at)`;
+    const rows = await this.rows<{
+      bucketStart: string;
+      signups: number;
+      accountsTotal: number;
+      firstInvoices: number;
+      invoicesReady: number;
+      kesCollected: string;
+      usdCollected: string;
+    }>(sql`
+      with b as (${bucketsSql(plan)}),
+      signups as (
+        select ${perBucket(fromUtc(sql`u.created_at`))} as i, count(*)::int as n from users u
+        where u.created_at >= ${utcAt(plan.start)} and u.created_at < ${utcAt(plan.end)} group by 1
+      ),
+      firsts as (
+        select ${perBucket(sql`f.first_at`)} as i, count(*)::int as n from (
+          select min(issued_at) as first_at from invoice_issuances group by user_id
+        ) f where ${bounded(sql`f.first_at`)} group by 1
+      ),
+      ready as (
+        select ${perBucket(sql`ii.issued_at`)} as i, count(*)::int as n from invoice_issuances ii
+        where ${bounded(sql`ii.issued_at`)} group by 1
+      ),
+      paid as (
+        select ${perBucket(paidAt)} as i,
+          coalesce(sum(sp.amount) filter (where sp.currency = 'KES'), 0)::numeric(14,2)::text as kes,
+          coalesce(sum(sp.amount) filter (where sp.currency = 'USD'), 0)::numeric(14,2)::text as usd
+        from subscription_payments sp
+        where sp.status = 'succeeded' and ${bounded(paidAt)} group by 1
+      ),
+      before as (select count(*)::int as n from users where created_at < ${utcAt(plan.start)})
+      select
+        to_char(b.bucket_start at time zone 'Africa/Nairobi', 'YYYY-MM-DD') as "bucketStart",
+        coalesce(signups.n, 0) as signups,
+        ((select n from before) + sum(coalesce(signups.n, 0)) over (order by b.i))::int as "accountsTotal",
+        coalesce(firsts.n, 0) as "firstInvoices",
+        coalesce(ready.n, 0) as "invoicesReady",
+        coalesce(paid.kes, '0.00') as "kesCollected",
+        coalesce(paid.usd, '0.00') as "usdCollected"
+      from b
+      left join signups on signups.i = b.i
+      left join firsts on firsts.i = b.i
+      left join ready on ready.i = b.i
+      left join paid on paid.i = b.i
+      order by b.i
+    `);
+    return {
+      range,
+      bucketSize: plan.bucket,
+      period: { start: plan.start.toISOString(), end: plan.end.toISOString() },
+      points: rows.map((row) => ({
+        ...row,
+        signups: Number(row.signups),
+        accountsTotal: Number(row.accountsTotal),
+        firstInvoices: Number(row.firstInvoices),
+        invoicesReady: Number(row.invoicesReady),
+      })),
+      subscriptionMix: await this.subscriptionMix(now),
+      generatedAt: now.toISOString(),
+    };
+  }
+
+  /** Every account now, in parts that add up to the total. */
+  private async subscriptionMix(now: Date): Promise<AdminSubscriptionMix> {
+    const access = proAccessSql(sql`s.anchor_at`, sql`s.paid_until`, now);
+    const soon = sql`${at(now)} + make_interval(hours => ${24 * ENDING_DAYS})`;
+    const [row] = await this.rows<AdminSubscriptionMix>(sql`
+      with accounts as (
+        select ${access} as pro, s.paid_until,
+          ${currentMonthSourceSql(sql`u.id`, access, now)} as source
+        from users u left join subscriptions s on s.user_id = u.id
+        where u.created_at < ${utcAt(now)}
+      )
+      select
+        count(*)::int as total,
+        count(*) filter (where pro and paid_until <= ${soon})::int as "proEnding",
+        count(*) filter (where pro and paid_until > ${soon} and source = 'paid')::int as "proPaid",
+        count(*) filter (where pro and paid_until > ${soon} and source = 'complimentary')::int
+          as "proComplimentary",
+        count(*) filter (where not coalesce(pro, false) and paid_until <= ${at(now)}
+          and paid_until > ${at(now)} - make_interval(hours => ${24 * LAPSED_DAYS}))::int as lapsed
+      from accounts
+    `);
+    const mix = row!;
+    return {
+      ...mix,
+      free: mix.total - mix.proEnding - mix.proPaid - mix.proComplimentary - mix.lapsed,
+    };
+  }
+}
+
+function definitions(): AdminOverview["definitions"] {
+  return {
+    totalAccounts:
+      "All accounts that exist at the end of the range, and at its start for the comparison.",
+    signups:
+      "Accounts created in the range. Google means the account has a Google login, email means it does not.",
+    activeAccounts:
+      "Accounts that did at least one meaningful thing in the range: created an invoice, made an invoice Ready, recorded a payment or added a client.",
+    payingAccounts:
+      "Accounts with Pro access whose current Pro month was paid for, now and at the start of the range.",
+    complimentaryProAccounts:
+      "Accounts with Pro access whose current Pro month was a gift. They never count as revenue.",
+    mrrUsd:
+      "Paying accounts times the Pro price in USD. Gifted Pro months are left out. It is not converted from KES.",
+    proChurn:
+      "Of the accounts with Pro at the start of the range, the share that had no Pro at the end of it. Ending Pro by hand counts as churn. A lapse that renewed before the end does not. Gifted Pro is included. Pro history comes from the payments and gifts that covered each moment.",
+    invoicesReady:
+      "Invoices made Ready in the range. Each invoice is counted once, the first time.",
+    collected:
+      "Plan payments that succeeded, by the day they were paid, including payments recorded by hand. KES and USD are never added together.",
+    mpesa:
+      "M-Pesa plan checkouts that succeeded or failed in the range, by the time they started. Pending checkouts are not counted. Only M-Pesa failures are recorded for now.",
+    activation:
+      "Of the accounts that signed up in the range, the share that made an invoice Ready within 7 days of signing up. Accounts younger than 7 days are left out until their week is over.",
+  };
+}

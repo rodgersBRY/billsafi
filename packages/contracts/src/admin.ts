@@ -30,7 +30,8 @@ import type { InvoiceStatus } from "./invoices.js";
  * from 0 to 1, money is a 2dp string, dates are ISO instants unless noted.
  */
 
-export const adminFunnelDays = [7, 30, 90] as const;
+/** 365 backs the 12 month range on the Analytics page. */
+export const adminFunnelDays = [7, 30, 90, 365] as const;
 export type AdminFunnelDays = (typeof adminFunnelDays)[number];
 
 export const adminRetentionWeeks = [4, 8, 12] as const;
@@ -68,48 +69,6 @@ export const adminRetentionQuerySchema = z.object({
   weeks: z.coerce.number().pipe(z.literal(adminRetentionWeeks)).default(8),
 });
 export type AdminRetentionQuery = z.output<typeof adminRetentionQuerySchema>;
-
-export interface AdminSignupCounts {
-  total: number;
-  google: number;
-  email: number;
-}
-
-/**
- * Windows end at the moment of the request. "Last 7/30 days" are today plus
- * the 6/29 Nairobi calendar days before it, the same for every tile.
- */
-export interface AdminOverview {
-  signups: {
-    today: AdminSignupCounts;
-    last7Days: AdminSignupCounts;
-    last30Days: AdminSignupCounts;
-  };
-  /** Businesses with at least one invoice made Ready in the last 30 Nairobi days. */
-  activeBusinesses: number;
-  /** This Nairobi calendar month. */
-  invoicesCreatedThisMonth: number;
-  invoicesReadyThisMonth: number;
-  totalAccounts: number;
-  /** Accounts on Pro whose current Pro month was paid for (not a gift). */
-  payingAccounts: number;
-  /** Accounts on Pro whose current Pro month was a gift; never revenue. */
-  complimentaryProAccounts: number;
-  /** Accounts with a succeeded plan payment divided by all accounts; null with no accounts. */
-  conversion: number | null;
-  /** Paying accounts times the Pro price in USD; complimentary months are left out. */
-  mrrUsd: string;
-  /** Succeeded KES plan payments this month, M-Pesa and manual, by the day paid. */
-  kesCollectedThisMonth: string;
-  /** Manual USD payments this month, kept apart and never converted. */
-  manualUsdCollectedThisMonth: string;
-  /**
-   * Succeeded / (succeeded + failed) by checkout time over the last 30 Nairobi
-   * days; pending payments are left out. Null with no settled payments.
-   */
-  mpesaSuccessRate30Days: number | null;
-  generatedAt: string;
-}
 
 export const adminFunnelSteps = [
   "signed_up",
