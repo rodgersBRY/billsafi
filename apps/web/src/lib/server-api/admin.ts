@@ -1,6 +1,11 @@
 import "server-only";
 import type {
   AdminGrantsPage,
+  AdminHealth,
+  AdminSettings,
+  AdminSupportAccount,
+  AdminSupportCaseDetail,
+  AdminSupportCasesPage,
   AdminOverridesPage,
   AdminPlanPaymentsPage,
   AdminSubscriptionsPage,
@@ -100,4 +105,25 @@ export const getAdminGrants = cache((queryString: string): Promise<AdminGrantsPa
 
 export const getAdminOverrides = cache((queryString: string): Promise<AdminOverridesPage> =>
   apiGet<AdminOverridesPage>(`/admin/overrides${queryString}`),
+);
+
+/** Never cached by the API: a refresh should read the databases again. */
+export const getAdminHealth = cache((): Promise<AdminHealth> =>
+  apiGet<AdminHealth>("/admin/health"),
+);
+
+export const getAdminSupportCases = cache((queryString: string): Promise<AdminSupportCasesPage> =>
+  apiGet<AdminSupportCasesPage>(`/admin/support/cases${queryString}`),
+);
+
+export const getAdminSupportCase = cache((id: string): Promise<AdminSupportCaseDetail> =>
+  apiGet<AdminSupportCaseDetail>(`/admin/support/cases/${encodeURIComponent(id)}`),
+);
+
+export const getAdminSupportAccount = cache((accountId: string): Promise<AdminSupportAccount> =>
+  apiGet<AdminSupportAccount>(`/admin/support/accounts/${encodeURIComponent(accountId)}`),
+);
+
+export const getAdminSettings = cache((): Promise<AdminSettings> =>
+  apiGet<AdminSettings>("/admin/settings"),
 );
