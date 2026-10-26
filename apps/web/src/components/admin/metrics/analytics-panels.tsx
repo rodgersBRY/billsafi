@@ -1,12 +1,12 @@
 import type { AdminAnalytics, AdminFeatureKey } from "@billsafi/contracts";
 import { BarList } from "../charts/bar-list";
 import { bucketFullLabel, bucketLabel } from "../charts/chart-utils";
+import { FirstInvoiceChart, type FirstInvoiceBar } from "../charts/first-invoice-chart";
 import { GroupedBars } from "../charts/grouped-bars";
 import { formatCount, formatDuration, formatMonth, formatShare } from "../admin-format";
 import { AdminLink } from "../admin-link";
 import { tenantHref } from "../admin-params";
 import { EmptyRow, Panel } from "../admin-ui";
-import { KpiCard } from "../kpi-card";
 import { tdClass, thClass, theadClass } from "../table-classes";
 
 const featureLabels: Record<AdminFeatureKey, string> = {
@@ -30,7 +30,7 @@ function Section({
 }: {
   id: string;
   title: string;
-  note: string;
+  note?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -39,7 +39,7 @@ function Section({
         <h2 id={id} className="text-lg font-semibold">
           {title}
         </h2>
-        <p className="text-sm text-sub">{note}</p>
+        {note && <p className="text-sm text-sub">{note}</p>}
       </div>
       {children}
     </section>
@@ -72,53 +72,52 @@ export function InvoiceVolume({ data }: { data: AdminAnalytics }) {
   );
 }
 
+const firstInvoiceLabels = {
+  under_1h: "Under 1 hour",
+  "1_to_24h": "1 to 24 hours",
+  "1_to_7d": "1 to 7 days",
+  over_7d: "Over 7 days",
+  not_yet: "Not yet",
+  too_new: "Too new to tell",
+} as const;
+
 export function TimeToFirstInvoice({ data }: { data: AdminAnalytics }) {
   const t = data.timeToFirstInvoice;
+  const { base, buckets } = t.distribution;
   const hours = (value: number | null) => (value === null ? null : formatDuration(value * 3600));
-  const none =
-    t.signups === 0
-      ? "No sign-ups in this range."
-      : "No sign-up in this range has made an invoice Ready yet.";
+  const bars: FirstInvoiceBar[] = buckets.map((bucket) => ({
+    label: firstInvoiceLabels[bucket.key],
+    count: bucket.count,
+    shareText: bucket.share === null ? "" : formatShare(bucket.share),
+    note:
+      bucket.key === "too_new"
+        ? "Signed up under 7 days ago, not counted yet"
+        : bucket.key === "not_yet"
+          ? "No invoice made Ready so far"
+          : "Time from sign-up to first Ready invoice",
+    kind: bucket.key === "too_new" ? "too_new" : bucket.key === "not_yet" ? "not_yet" : "reached",
+  }));
+  const summaryLine =
+    t.medianHours === null
+      ? t.signups === 0
+        ? "No sign-ups in this range."
+        : "No sign-up in this range has made an invoice Ready yet."
+      : `Median ${hours(t.medianHours)}, 75th percentile ${hours(t.p75Hours)}, among the ${formatCount(t.reached)} of ${formatCount(t.signups)} sign-ups that got there.`;
   return (
-    <Section
-      id="first-invoice-title"
-      title="Time to first invoice"
-      note={data.definitions.timeToFirstInvoice}
-    >
-      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <li>
-          <KpiCard
-            label="Median time"
-            value={hours(t.medianHours)}
-            definition="Half of the accounts that got there took less than this."
-            detail={
-              t.medianHours === null
-                ? none
-                : `${formatCount(t.reached)} of ${formatCount(t.signups)} sign-ups so far.`
-            }
-          />
-        </li>
-        <li>
-          <KpiCard
-            label="75th percentile"
-            value={hours(t.p75Hours)}
-            definition="Three quarters of the accounts that got there took less than this."
-            detail={t.p75Hours === null ? none : undefined}
-          />
-        </li>
-        <li>
-          <KpiCard
-            label="Activation within 7 days"
-            value={t.activation.rate === null ? null : formatShare(t.activation.rate)}
-            definition="Sign-ups that made an invoice Ready within 7 days."
-            detail={
-              t.activation.rate === null
-                ? "No sign-ups in this range are 7 days old yet."
-                : `${formatCount(t.activation.count)} of ${formatCount(t.activation.base)} sign-ups.`
-            }
-          />
-        </li>
-      </ul>
+    <Section id="first-invoice-title" title="Time to first invoice">
+      <FirstInvoiceChart
+        title="Sign-ups by time to first invoice"
+        summary={`${data.definitions.timeToFirstInvoice} Percentages are of the ${formatCount(base)} sign-ups that are old enough.`}
+        bars={bars}
+        base={base}
+        emptyText="No sign-ups in this range."
+      />
+      <p className="text-sm text-sub">
+        {summaryLine}{" "}
+        {t.activation.rate === null
+          ? "No sign-ups in this range are 7 days old yet."
+          : `Activation within 7 days: ${formatShare(t.activation.rate)} (${formatCount(t.activation.count)} of ${formatCount(t.activation.base)}).`}
+      </p>
     </Section>
   );
 }
