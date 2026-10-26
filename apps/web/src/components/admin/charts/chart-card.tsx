@@ -1,5 +1,3 @@
-import { seriesClasses } from "./chart-utils";
-
 export interface ChartTable {
   columns: string[];
   rows: string[][];
@@ -9,8 +7,6 @@ interface ChartCardProps {
   title: string;
   /** One sentence saying what the chart shows. */
   summary: string;
-  /** Series names for the legend; shown when there are two or more. */
-  legend?: string[];
   /** Replaces the plot when there is nothing to draw. */
   emptyText?: string;
   table: ChartTable;
@@ -18,24 +14,11 @@ interface ChartCardProps {
 }
 
 /** Title, summary, legend, plot and a "Show data" table: the frame every chart sits in. */
-export function ChartCard({ title, summary, legend, emptyText, table, children }: ChartCardProps) {
+export function ChartCard({ title, summary, emptyText, table, children }: ChartCardProps) {
   return (
     <section className="min-w-0 rounded-panel border border-line bg-panel p-4">
       <h2 className="text-base font-semibold">{title}</h2>
       <p className="mt-1 text-sm text-sub">{summary}</p>
-      {legend && legend.length > 1 && (
-        <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-          {legend.map((name, index) => (
-            <li key={name} className="flex items-center gap-1.5">
-              <span
-                aria-hidden
-                className={`size-2.5 rounded-full ${seriesClasses[index]?.bg ?? ""}`}
-              />
-              {name}
-            </li>
-          ))}
-        </ul>
-      )}
       <div className="mt-3">
         {emptyText ? (
           <p className="rounded-panel border border-dashed border-line px-4 py-8 text-center text-sm text-sub">

@@ -1,15 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { ChartCard } from "./chart-card";
 import {
-  type ChartUnit,
-  formatTick,
-  formatValue,
-  labelIndexes,
-  niceScale,
-  seriesClasses,
-} from "./chart-utils";
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart as RechartsLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { useHydrated } from "@/lib/use-hydrated";
+import { ChartCard } from "./chart-card";
+import { type ChartUnit, formatTick, formatValue, seriesColors } from "./chart-utils";
+import { useMotionOk } from "./use-motion-ok";
 
 export interface ChartSeries {
   name: string;
@@ -27,62 +33,65 @@ export interface ChartProps {
   emptyText: string;
 }
 
-const HEIGHT = 220;
-const TOP = 12;
-const BOTTOM = 28;
-const RIGHT = 8;
-const LABEL_WIDTH = 64;
+type Row = Record<string, string | number>;
 
-/** The width the plot can use, kept up to date as the window or the layout changes. */
-function useWidth(): [React.RefObject<HTMLDivElement | null>, number] {
-  const ref = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(560);
-  useEffect(() => {
-    const node = ref.current;
-    if (!node) return;
-    const observer = new ResizeObserver(([entry]) => {
-      if (entry) setWidth(Math.floor(entry.contentRect.width));
-    });
-    observer.observe(node);
-    setWidth(Math.floor(node.getBoundingClientRect().width));
-    return () => observer.disconnect();
-  }, []);
-  return [ref, width];
+const axisText = { fill: "var(--sub)", fontSize: 12 } as const;
+const colorOf = (index: number) => seriesColors[index] ?? seriesColors[0];
+
+/** Hover card in the theme's panel colours: the full date, then one line per series. */
+function TipCard({
+  active,
+  payload,
+  series,
+  unit,
+}: {
+  active?: boolean;
+  payload?: ReadonlyArray<{ payload?: Row }>;
+  series: ChartSeries[];
+  unit: ChartUnit;
+}) {
+  const row = payload?.[0]?.payload;
+  if (!active || !row) return null;
+  return (
+    <div className="rounded-panel border border-line bg-panel px-2.5 py-1.5 text-xs text-ink shadow-sm">
+      <p className="font-medium whitespace-nowrap">{row.full}</p>
+      <ul className="mt-1 space-y-0.5">
+        {series.map((s, index) => (
+          <li key={s.name} className="flex items-center gap-1.5 whitespace-nowrap">
+            <span
+              aria-hidden
+              className="size-2 rounded-full"
+              style={{ backgroundColor: colorOf(index) }}
+            />
+            <span className="text-sub">{s.name}</span>
+            <span className="ml-auto pl-3 tabular-nums">
+              {formatValue(Number(row[`s${index}`] ?? 0), unit)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
-/** A line chart or stacked bar chart over time, drawn as SVG at the width it has. */
+/** A line chart or stacked bar chart over time, drawn by Recharts at the width it has. */
 export function ChartShell({ mode, ...props }: ChartProps & { mode: "line" | "bars" }) {
   const { title, summary, labels, fullLabels, series, unit, emptyText } = props;
-  const [ref, width] = useWidth();
-  const [active, setActive] = useState<number | null>(null);
+  const mounted = useHydrated();
+  const animate = useMotionOk();
 
-  const count = labels.length;
   const empty = series.every((s) => s.values.every((v) => v === 0));
-  const totals = labels.map((_, i) =>
-    mode === "bars"
-      ? series.reduce((sum, s) => sum + (s.values[i] ?? 0), 0)
-      : Math.max(...series.map((s) => s.values[i] ?? 0)),
-  );
-  const { top, ticks } = niceScale(Math.max(0, ...totals), unit);
+  const many = series.length > 1;
+  // Fixed from the props alone, so the placeholder and the chart are the same size.
+  const height = many ? 260 : 220;
 
-  const left = Math.max(...ticks.map((t) => formatTick(t).length)) * 6.5 + 14;
-  const plotW = Math.max(width - left - RIGHT, 40);
-  const plotH = HEIGHT - TOP - BOTTOM;
-  const y = (value: number) => TOP + plotH - (value / top) * plotH;
-  const band = plotW / Math.max(count, 1);
-  const x = (index: number) =>
-    mode === "bars" || count === 1
-      ? left + band * (index + 0.5)
-      : left + (plotW * index) / (count - 1);
-  const shown = labelIndexes(count, plotW, LABEL_WIDTH);
-
-  const move = (event: React.PointerEvent<SVGRectElement>) => {
-    const box = event.currentTarget.getBoundingClientRect();
-    const offset = event.clientX - box.left;
-    const index =
-      mode === "bars" ? Math.floor(offset / band) : Math.round((offset / plotW) * (count - 1));
-    setActive(Math.min(Math.max(index, 0), count - 1));
-  };
+  const data: Row[] = labels.map((label, i) => {
+    const row: Row = { label, full: fullLabels[i] ?? label };
+    series.forEach((s, si) => {
+      row[`s${si}`] = s.values[i] ?? 0;
+    });
+    return row;
+  });
 
   const table = {
     columns: ["Period", ...series.map((s) => s.name)],
@@ -92,179 +101,112 @@ export function ChartShell({ mode, ...props }: ChartProps & { mode: "line" | "ba
     ]),
   };
 
-  const tipLeft = active === null ? 0 : x(active);
-  const flip = tipLeft > width * 0.6;
+  const common = {
+    data,
+    margin: { top: 8, right: 12, bottom: 0, left: 0 },
+    accessibilityLayer: false,
+  };
+  const parts = [
+    <CartesianGrid key="grid" vertical={false} stroke="var(--line)" />,
+    <XAxis
+      key="x"
+      dataKey="label"
+      tick={axisText}
+      tickLine={false}
+      axisLine={{ stroke: "var(--sub)" }}
+      interval="preserveStartEnd"
+      minTickGap={24}
+      tickMargin={6}
+    />,
+    <YAxis
+      key="y"
+      width="auto"
+      tick={axisText}
+      tickLine={false}
+      axisLine={false}
+      allowDecimals={unit !== "count"}
+      domain={[0, "auto"]}
+      tickFormatter={(value: number) => formatTick(value)}
+    />,
+    <Tooltip
+      key="tip"
+      isAnimationActive={false}
+      cursor={
+        mode === "line"
+          ? { stroke: "var(--sub)", strokeDasharray: "3 3" }
+          : { fill: "var(--soft)", fillOpacity: 0.7 }
+      }
+      content={<TipCard series={series} unit={unit} />}
+    />,
+    many ? (
+      <Legend
+        key="legend"
+        verticalAlign="top"
+        align="left"
+        iconType="circle"
+        iconSize={10}
+        wrapperStyle={{ paddingBottom: 8, fontSize: 12 }}
+        formatter={(value: string) => <span className="text-ink">{value}</span>}
+      />
+    ) : null,
+  ];
 
   return (
     <ChartCard
       title={title}
       summary={summary}
-      legend={series.map((s) => s.name)}
       emptyText={empty ? emptyText : undefined}
       table={table}
     >
-      <div ref={ref} className="relative w-full overflow-hidden">
-        <svg
-          width={width}
-          height={HEIGHT}
-          role="img"
-          aria-label={`${title}. ${summary} The data is in the table below.`}
-          className="block max-w-full select-none"
-        >
-          {ticks.map((tick) => (
-            <g key={tick}>
-              <line
-                x1={left}
-                x2={left + plotW}
-                y1={y(tick)}
-                y2={y(tick)}
-                className={tick === 0 ? "stroke-sub" : "stroke-line"}
-                strokeWidth={1}
-              />
-              <text
-                x={left - 8}
-                y={y(tick)}
-                textAnchor="end"
-                dominantBaseline="middle"
-                className="fill-sub text-xs"
-              >
-                {formatTick(tick)}
-              </text>
-            </g>
-          ))}
-          {labels.map((label, i) =>
-            shown.has(i) ? (
-              <text
-                key={i}
-                x={x(i)}
-                y={HEIGHT - 8}
-                textAnchor={
-                  i === 0 && mode === "line"
-                    ? "start"
-                    : i === count - 1 && mode === "line"
-                      ? "end"
-                      : "middle"
-                }
-                className="fill-sub text-xs"
-              >
-                {label}
-              </text>
-            ) : null,
-          )}
-
-          {mode === "line" ? (
-            <>
-              {active !== null && (
-                <line
-                  x1={x(active)}
-                  x2={x(active)}
-                  y1={TOP}
-                  y2={TOP + plotH}
-                  className="stroke-sub"
-                  strokeDasharray="3 3"
-                />
-              )}
-              {series.map((s, si) => {
-                const cls = seriesClasses[si] ?? seriesClasses[0];
-                const points = s.values.map((v, i) => `${x(i)},${y(v)}`).join(" ");
-                return (
-                  <g key={s.name}>
-                    <polyline
-                      points={points}
-                      fill="none"
-                      className={cls.stroke}
-                      strokeWidth={2}
-                      strokeLinejoin="round"
-                      strokeLinecap="round"
-                    />
-                    {s.values.map((v, i) =>
-                      count <= 14 || i === active ? (
-                        <circle
-                          key={i}
-                          cx={x(i)}
-                          cy={y(v)}
-                          r={4}
-                          className={`${cls.fill} stroke-panel`}
-                          strokeWidth={2}
-                        />
-                      ) : null,
-                    )}
-                  </g>
-                );
-              })}
-            </>
-          ) : (
-            <>
-              {active !== null && (
-                <rect
-                  x={left + band * active}
-                  y={TOP}
-                  width={band}
-                  height={plotH}
-                  className="fill-soft"
-                />
-              )}
-              {labels.map((_, i) => {
-                const barW = Math.min(band * 0.72, 40);
-                let base = 0;
-                return series.map((s, si) => {
-                  const v = s.values[i] ?? 0;
-                  const start = base;
-                  base += v;
-                  if (v === 0) return null;
-                  const cls = seriesClasses[si] ?? seriesClasses[0];
-                  const segTop = y(start + v);
-                  const segBottom = y(start) - (start > 0 ? 2 : 0);
-                  const height = Math.max(segBottom - segTop, 1);
-                  return (
-                    <rect
-                      key={`${i}-${s.name}`}
-                      x={x(i) - barW / 2}
-                      y={segBottom - height}
-                      width={barW}
-                      height={height}
-                      rx={2}
-                      className={cls.fill}
-                    />
-                  );
-                });
-              })}
-            </>
-          )}
-
-          <rect
-            x={left}
-            y={TOP}
-            width={plotW}
-            height={plotH}
-            fill="transparent"
-            onPointerMove={move}
-            onPointerDown={move}
-            onPointerLeave={() => setActive(null)}
-          />
-        </svg>
-        {active !== null && (
-          <div
-            role="presentation"
-            className="pointer-events-none absolute top-2 z-10 rounded-panel border border-line bg-panel px-2.5 py-1.5 text-xs shadow-sm"
-            style={flip ? { right: width - tipLeft + 10 } : { left: tipLeft + 10 }}
-          >
-            <p className="font-medium whitespace-nowrap">{fullLabels[active]}</p>
-            <ul className="mt-1 space-y-0.5">
-              {series.map((s, si) => (
-                <li key={s.name} className="flex items-center gap-1.5 whitespace-nowrap">
-                  <span
-                    aria-hidden
-                    className={`size-2 rounded-full ${seriesClasses[si]?.bg ?? ""}`}
+      <div
+        role="img"
+        aria-label={`${title}. ${summary} The data is in the table below.`}
+        className="w-full"
+        style={{ height }}
+      >
+        {mounted && (
+          <ResponsiveContainer width="100%" height="100%">
+            {mode === "line" ? (
+              <RechartsLine {...common}>
+                {parts}
+                {series.map((s, si) => (
+                  <Line
+                    key={s.name}
+                    name={s.name}
+                    dataKey={`s${si}`}
+                    type="linear"
+                    stroke={colorOf(si)}
+                    strokeWidth={2}
+                    dot={
+                      labels.length <= 14
+                        ? { r: 4, fill: colorOf(si), stroke: "var(--panel)", strokeWidth: 2 }
+                        : false
+                    }
+                    activeDot={{ r: 4, fill: colorOf(si), stroke: "var(--panel)", strokeWidth: 2 }}
+                    isAnimationActive={animate}
                   />
-                  <span className="text-sub">{s.name}</span>
-                  <span className="ml-auto pl-3 tabular-nums">
-                    {formatValue(s.values[active] ?? 0, unit)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
+                ))}
+              </RechartsLine>
+            ) : (
+              <BarChart {...common}>
+                {parts}
+                {series.map((s, si) => (
+                  <Bar
+                    key={s.name}
+                    name={s.name}
+                    dataKey={`s${si}`}
+                    stackId="total"
+                    fill={colorOf(si)}
+                    stroke="var(--panel)"
+                    strokeWidth={1}
+                    maxBarSize={40}
+                    radius={si === series.length - 1 ? [4, 4, 0, 0] : 0}
+                    isAnimationActive={animate}
+                  />
+                ))}
+              </BarChart>
+            )}
+          </ResponsiveContainer>
         )}
       </div>
     </ChartCard>
