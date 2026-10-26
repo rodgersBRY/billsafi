@@ -1,8 +1,11 @@
-import type { AdminSupportNote, AdminSupportTimelineEntry } from "@billsafi/contracts";
+import type {
+  AdminSupportNote,
+  AdminSupportPerson,
+  AdminSupportTimelineEntry,
+} from "@billsafi/contracts";
 import { History, StickyNote } from "lucide-react";
 import { formatInstant, formatRelative } from "../admin-format";
 import { EmptyState } from "../admin-ui";
-import { actorLabel } from "../audit/audit-labels";
 import { categoryLabels, severityLabels, supportStatusLabels } from "../status-badge";
 import { changeFieldLabels, timelineActionLabels } from "./support-text";
 
@@ -39,14 +42,31 @@ function changeLines(changes: unknown): string[] {
   return lines;
 }
 
+/**
+ * Audit rows carry only an email, but notes and the assignee carry names. Join them by user
+ * id or email so every actor shows as a name, and use the email only when no name is known.
+ */
+function actorName(entry: AdminSupportTimelineEntry, people: AdminSupportPerson[]): string {
+  const { userId, email } = entry.actor;
+  if (!userId) return "System";
+  const person = people.find(
+    (p) => p.id === userId || (email !== null && p.email.toLowerCase() === email.toLowerCase()),
+  );
+  return person?.name || email || "a removed user";
+}
+
 /** Notes and case changes in one list, newest first. */
 export function CaseTimeline({
   notes,
   timeline,
+  people,
 }: {
   notes: AdminSupportNote[];
   timeline: AdminSupportTimelineEntry[];
+  /** Admins whose names are known: the signed-in admin and the assignee. */
+  people: AdminSupportPerson[];
 }) {
+  const known = [...people, ...notes.flatMap((note) => (note.author ? [note.author] : []))];
   const items: Item[] = [
     ...notes.map((note) => ({ kind: "note" as const, at: note.createdAt, id: note.id, note })),
     ...timeline.map((entry) => ({
@@ -86,7 +106,7 @@ export function CaseTimeline({
                   {timelineActionLabels[item.entry.action] ?? item.entry.action}
                   <span className="font-normal break-all text-sub">
                     {" by "}
-                    {actorLabel(item.entry.actor)}
+                    {actorName(item.entry, known)}
                   </span>
                 </p>
                 {changeLines(item.entry.changes).map((line) => (

@@ -91,7 +91,14 @@ async function CaseDetail({ params }: PageProps<"/admin/support/[id]">) {
             <NoteBox path={`/admin/support/cases/${encodeURIComponent(row.id)}/notes`} />
           </section>
           <Panel title="Timeline">
-            <CaseTimeline notes={data.notes} timeline={data.timeline} />
+            <CaseTimeline
+              notes={data.notes}
+              timeline={data.timeline}
+              people={[
+                { id: self.id, name: self.name, email: self.email },
+                ...(row.assignedTo ? [row.assignedTo] : []),
+              ]}
+            />
           </Panel>
         </div>
         <Panel title="Account facts">
