@@ -1,5 +1,6 @@
 "use client";
 
+import { REGISTRATION_CLOSED_CODE } from "@billsafi/contracts";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { FcGoogle } from "react-icons/fc";
@@ -18,6 +19,9 @@ function googleErrorMessage(code: string | null): string {
       return "";
     case "account_not_linked":
       return "This email already has a BillSafi account with a password. Sign in with your password instead.";
+    case REGISTRATION_CLOSED_CODE:
+      // Shown as a notice by the sign-in page, with the admin's message.
+      return "";
     case "access_denied":
       return "Google sign-in was cancelled.";
     default:

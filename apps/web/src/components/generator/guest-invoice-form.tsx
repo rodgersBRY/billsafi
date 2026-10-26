@@ -32,7 +32,14 @@ const DEFAULT_TERMS_DAYS = 14;
 const SAVE_DELAY_MS = 300;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-export function GuestInvoiceForm({ google }: { google: ReactNode }) {
+export function GuestInvoiceForm({
+  google,
+  closedMessage = null,
+}: {
+  google: ReactNode;
+  /** The admin's message while sign-ups are closed; null when they are open. */
+  closedMessage?: string | null;
+}) {
   const [form, setForm] = useState<GuestForm>(emptyGuestForm);
   const [restored, setRestored] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
@@ -225,7 +232,12 @@ export function GuestInvoiceForm({ google }: { google: ReactNode }) {
         </div>
       </div>
 
-      <GuestAuthDialog open={authOpen} onClose={() => setAuthOpen(false)} google={google} />
+      <GuestAuthDialog
+        open={authOpen}
+        onClose={() => setAuthOpen(false)}
+        google={google}
+        closedMessage={closedMessage}
+      />
     </>
   );
 }

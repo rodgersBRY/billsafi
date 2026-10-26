@@ -1,5 +1,6 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
+import { getPlatformInfo } from "@/lib/server-api/platform";
 import { BrandMark } from "@/components/ui/brand-mark";
 import { LEGAL } from "./legal-info";
 
@@ -67,19 +68,37 @@ export function LegalPage({
         <Link href="/privacy" className="hover:text-accent hover:underline">
           Privacy Policy
         </Link>
-        <a href={`mailto:${LEGAL.contactEmail}`} className="hover:text-accent hover:underline">
-          {LEGAL.contactEmail}
-        </a>
+        <SupportEmail className="hover:text-accent hover:underline" />
       </footer>
     </div>
   );
 }
 
-/** Mail link to the legal contact address. */
-export function ContactEmail() {
+/** The support email from the platform settings, falling back to the built-in address. */
+async function LiveSupportEmail({ className }: { className: string }) {
+  const { supportContact } = await getPlatformInfo();
   return (
-    <a href={`mailto:${LEGAL.contactEmail}`} className="font-medium text-accent hover:underline">
-      {LEGAL.contactEmail}
+    <a href={`mailto:${supportContact.email}`} className={className}>
+      {supportContact.email}
     </a>
   );
+}
+
+function SupportEmail({ className }: { className: string }) {
+  return (
+    <Suspense
+      fallback={
+        <a href={`mailto:${LEGAL.contactEmail}`} className={className}>
+          {LEGAL.contactEmail}
+        </a>
+      }
+    >
+      <LiveSupportEmail className={className} />
+    </Suspense>
+  );
+}
+
+/** Mail link to the support address. */
+export function ContactEmail() {
+  return <SupportEmail className="font-medium text-accent hover:underline" />;
 }

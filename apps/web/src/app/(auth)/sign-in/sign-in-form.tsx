@@ -14,7 +14,13 @@ import { SUSPENDED_ACCOUNT_MESSAGE, isBannedError } from "@/lib/suspended-accoun
 import { useNavigationPending } from "@/lib/use-navigation-pending";
 
 /** `google` is the server-rendered "Continue with Google" block, when available. */
-export function SignInForm({ google }: { google?: React.ReactNode }) {
+export function SignInForm({
+  google,
+  notice,
+}: {
+  google?: React.ReactNode;
+  notice?: React.ReactNode;
+}) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [pending, setPending] = useNavigationPending();
@@ -57,6 +63,7 @@ export function SignInForm({ google }: { google?: React.ReactNode }) {
   return (
     <form method="post" onSubmit={onSubmit}>
       <AuthHeading title="Welcome back" description="Sign in to manage your invoices." />
+      {notice}
       {google}
       <TextField label="Email address" name="email" type="email" autoComplete="email" required />
       <PasswordField label="Password" name="password" autoComplete="current-password" required />
