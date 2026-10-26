@@ -206,7 +206,7 @@ export class AdminAnalyticsService {
         featureAdoption:
           "Of accounts with at least one business, how many have ever used each feature. These are all time figures and do not follow the range.",
         planLimit:
-          "Free accounts that used their whole monthly allowance, extra invoices from limit overrides included, in each of the last 6 Nairobi months. Bought means a Pro or credit payment that succeeded within 14 days of reaching the limit. These figures do not follow the range.",
+          "Free accounts that used their whole monthly allowance, extra invoices from limit overrides included, in each of the last 6 months. Bought means a Pro or credit payment that succeeded within 14 days of reaching the limit. These figures do not follow the range.",
         topAccounts:
           "The 10 accounts with the most invoices made Ready in the range. Ties are listed by account id.",
       },
