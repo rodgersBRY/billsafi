@@ -64,6 +64,7 @@ export const paymentFilters: FilterField[] = [
     "Any method",
     manualPaymentMethods.map((value) => [value, methodLabels[value]] as const),
   ),
+  selectField("stuck", "Pending", "Any pending time", [["true", "Stuck for over 10 minutes"]]),
   ...dateRange,
 ];
 
@@ -86,4 +87,5 @@ export const overrideFilters: FilterField[] = [
     "Any state",
     adminOverrideStates.map((value) => [value, overrideStateLabels[value]] as const),
   ),
+  selectField("endingWithin", "Ending", "Any time", [["7", "Ending within 7 days"]]),
 ];
