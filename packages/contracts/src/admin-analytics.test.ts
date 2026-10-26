@@ -152,6 +152,8 @@ describe("adminTrendsSchema", () => {
     invoicesReady: 1,
     kesCollected: "100.00",
     usdCollected: "0.00",
+    activeAccounts: 2,
+    mrrUsd: "8.00",
   };
   const trends = {
     range: "30d",
@@ -176,6 +178,11 @@ describe("adminTrendsSchema", () => {
       adminTrendsSchema.safeParse({ ...trends, points: [{ ...point, kesCollected: "100" }] })
         .success,
     ).toBe(false);
+    expect(
+      adminTrendsSchema.safeParse({ ...trends, points: [{ ...point, mrrUsd: "8" }] }).success,
+    ).toBe(false);
+    const { activeAccounts: _omitted, ...withoutActive } = point;
+    expect(adminTrendsSchema.safeParse({ ...trends, points: [withoutActive] }).success).toBe(false);
   });
 });
 
@@ -205,6 +212,18 @@ describe("adminActivitySchema", () => {
   });
 });
 
+const distribution = {
+  base: 7,
+  buckets: [
+    { key: "under_1h", count: 1, share: 0.1429 },
+    { key: "1_to_24h", count: 1, share: 0.1429 },
+    { key: "1_to_7d", count: 1, share: 0.1429 },
+    { key: "over_7d", count: 1, share: 0.1429 },
+    { key: "not_yet", count: 3, share: 0.4286 },
+    { key: "too_new", count: 1, share: null },
+  ],
+};
+
 describe("adminAnalyticsSchema", () => {
   const analytics = {
     range: "90d",
@@ -221,6 +240,7 @@ describe("adminAnalyticsSchema", () => {
       medianHours: 3,
       p75Hours: 25,
       activation: rate,
+      distribution,
     },
     featureAdoption: {
       base: 9,
@@ -249,10 +269,26 @@ describe("adminAnalyticsSchema", () => {
         medianHours: null,
         p75Hours: null,
         activation: { rate: null, count: 0, base: 0 },
+        distribution: {
+          base: 0,
+          buckets: distribution.buckets.map((bucket) => ({ ...bucket, count: 0, share: null })),
+        },
       },
       featureAdoption: { base: 0, items: [{ key: "logo", count: 0, base: 0, share: null }] },
     };
     expect(adminAnalyticsSchema.parse(empty)).toEqual(empty);
+  });
+
+  it("rejects an unknown time to first invoice bucket", () => {
+    expect(
+      adminAnalyticsSchema.safeParse({
+        ...analytics,
+        timeToFirstInvoice: {
+          ...analytics.timeToFirstInvoice,
+          distribution: { base: 1, buckets: [{ key: "soon", count: 1, share: 1 }] },
+        },
+      }).success,
+    ).toBe(false);
   });
 
   it("rejects an unknown feature and a bad month", () => {

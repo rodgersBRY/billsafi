@@ -131,6 +131,10 @@ export const adminTrendPointSchema = z.object({
   invoicesReady: count,
   kesCollected: moneyString,
   usdCollected: moneyString,
+  /** Distinct accounts with a meaningful action in the bucket, as in the Active accounts figure. */
+  activeAccounts: count,
+  /** Paying accounts at the end of the bucket (now, for the last) times the Pro price in USD. */
+  mrrUsd: moneyString,
 });
 export type AdminTrendPoint = z.infer<typeof adminTrendPointSchema>;
 
@@ -236,6 +240,23 @@ export const adminTopAccountSchema = z.object({
   readyInvoices: count,
 });
 
+export const adminFirstInvoiceBucketKeys = [
+  "under_1h",
+  "1_to_24h",
+  "1_to_7d",
+  "over_7d",
+  "not_yet",
+  "too_new",
+] as const;
+
+export const adminFirstInvoiceBucketSchema = z.object({
+  key: z.enum(adminFirstInvoiceBucketKeys),
+  count,
+  /** Share of the decided sign-ups; null for "too_new", which is outside that base. */
+  share: z.number().nullable(),
+});
+export type AdminFirstInvoiceBucket = z.infer<typeof adminFirstInvoiceBucketSchema>;
+
 export const adminAnalyticsSchema = z.object({
   range: z.enum(adminRanges),
   bucketSize: z.enum(adminBucketSizes),
@@ -256,6 +277,16 @@ export const adminAnalyticsSchema = z.object({
     medianHours: z.number().nullable(),
     p75Hours: z.number().nullable(),
     activation: adminRateSchema,
+    /**
+     * Sign-ups at least 7 days old, by time to the first Ready invoice (the first three
+     * buckets add up to the activation count), plus "not_yet" (no Ready invoice) and
+     * "too_new" (sign-ups under 7 days old, outside the base). Always the six keys, in order.
+     */
+    distribution: z.object({
+      /** Sign-ups at least 7 days old: the sum of every bucket except "too_new". */
+      base: count,
+      buckets: z.array(adminFirstInvoiceBucketSchema),
+    }),
   }),
   featureAdoption: z.object({
     /** Accounts with at least one business; the base of every item. */

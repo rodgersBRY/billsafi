@@ -8,9 +8,9 @@ import {
 import { type DatabaseConnection, type SQL, sql } from "@billsafi/db";
 import { addNairobiMonths, nairobiCalendarMonth } from "@billsafi/domain";
 import { DATABASE } from "../../database/database.module.js";
-import { at, fromUtc, paidOnSql, ratio, selectRows, utcAt } from "../shared/admin-sql.js";
+import { at, DAY_MS, fromUtc, paidOnSql, ratio, selectRows, utcAt } from "../shared/admin-sql.js";
 import { freeLimitHitsCte, realFreeLimitHit } from "../shared/free-limit-hits.js";
-import { activationCounts } from "./activation.js";
+import { ACTIVATION_DAYS, activationCounts } from "./activation.js";
 import { bucketIndexSql, bucketsSql, planRange } from "./range.js";
 
 const TOP_ACCOUNTS = 10;
@@ -103,6 +103,46 @@ export class AdminAnalyticsService {
     };
   }
 
+  /**
+   * Sign-ups in [from, to) by time to their first Ready invoice. Only sign-ups at least 7
+   * days old are placed (so the first three buckets add up to the activation count);
+   * younger ones are "too_new" whatever they have done so far.
+   */
+  private async firstInvoiceDistribution(from: Date, to: Date, now: Date) {
+    const oldEnough = new Date(now.getTime() - ACTIVATION_DAYS * DAY_MS);
+    const [row] = await this.rows<Record<string, number>>(sql`
+      with firsts as (
+        select u.created_at <= ${utcAt(oldEnough)} as old_enough,
+          extract(epoch from
+            (select min(ii.issued_at) from invoice_issuances ii where ii.user_id = u.id)
+            - ${fromUtc(sql`u.created_at`)}) / 3600 as h
+        from users u where u.created_at >= ${utcAt(from)} and u.created_at < ${utcAt(to)}
+      )
+      select
+        count(*) filter (where old_enough and h < 1)::int as "under_1h",
+        count(*) filter (where old_enough and h >= 1 and h < 24)::int as "1_to_24h",
+        count(*) filter (where old_enough and h >= 24 and h < ${24 * ACTIVATION_DAYS})::int as "1_to_7d",
+        count(*) filter (where old_enough and h >= ${24 * ACTIVATION_DAYS})::int as "over_7d",
+        count(*) filter (where old_enough and h is null)::int as "not_yet",
+        count(*) filter (where not old_enough)::int as "too_new"
+      from firsts
+    `);
+    const counts = row!;
+    const keys = ["under_1h", "1_to_24h", "1_to_7d", "over_7d", "not_yet", "too_new"] as const;
+    const base = keys.reduce(
+      (total, key) => (key === "too_new" ? total : total + Number(counts[key])),
+      0,
+    );
+    return {
+      base,
+      buckets: keys.map((key) => ({
+        key,
+        count: Number(counts[key]),
+        share: key === "too_new" ? null : ratio(Number(counts[key]), base),
+      })),
+    };
+  }
+
   async analytics(range: AdminRange, now = new Date(), allTime?: AllTime): Promise<AdminAnalytics> {
     const plan = planRange(range, now);
     const inRange = (column: SQL) =>
@@ -154,6 +194,7 @@ export class AdminAnalyticsService {
       from hours
     `);
     const activation = await activationCounts(this.db, plan.start, plan.end, now);
+    const distribution = await this.firstInvoiceDistribution(plan.start, plan.end, now);
 
     const top = await this.rows<{
       accountId: string;
@@ -194,6 +235,7 @@ export class AdminAnalyticsService {
           count: activation.activated,
           base: activation.base,
         },
+        distribution,
       },
       featureAdoption,
       planLimit,
@@ -202,7 +244,7 @@ export class AdminAnalyticsService {
         invoiceVolume:
           "Invoices created and invoices made Ready in each part of the range. The median counts only accounts that made at least one invoice Ready in the range.",
         timeToFirstInvoice:
-          "Hours from sign-up to the first invoice made Ready, for accounts that signed up in the range and have reached it so far. The activation rate counts a Ready invoice within 7 days, among sign-ups at least 7 days old.",
+          "Hours from sign-up to the first invoice made Ready, for accounts that signed up in the range and have reached it so far. The activation rate counts a Ready invoice within 7 days, among sign-ups at least 7 days old. The distribution places only those sign-ups, so its first three bars add up to the activated accounts. Younger sign-ups are shown apart as too new to tell.",
         featureAdoption:
           "Of accounts with at least one business, how many have ever used each feature. These are all time figures and do not follow the range.",
         planLimit:

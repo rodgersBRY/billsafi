@@ -820,6 +820,8 @@ export function analyticsSuite(ctx: AnalyticsSuiteContext) {
         invoicesReady: 0,
         kesCollected: "0.00",
         usdCollected: "0.00",
+        activeAccounts: 0, // nothing happened that day
+        mrrUsd: "12.00", // alpha not yet paying; p2, p5 and echo are
       });
       // Cumulative accounts run from the count at the start and end at the total now.
       const overview = await overviews().overview("30d", NOW);
@@ -830,6 +832,39 @@ export function analyticsSuite(ctx: AnalyticsSuiteContext) {
         trends.points.reduce((total, point) => total + point[key], 0);
       expect(sum("signups")).toBe(overview.signups.current.total);
       expect(sum("invoicesReady")).toBe(overview.invoicesReady.current);
+    });
+
+    it("gives each trend bucket its active accounts and MRR for the sparklines", async () => {
+      const trends = await overviews().trends("30d", NOW);
+      const point = (day: string) => trends.points.find((p) => p.bucketStart === day)!;
+      // Distinct accounts with an invoice, Ready invoice, payment or client that day.
+      expect(
+        Object.fromEntries(
+          ["2031-02-17", "2031-03-01", "2031-03-09", "2031-03-10", "2031-03-12", "2031-03-13"].map(
+            (day) => [day, point(day).activeAccounts],
+          ),
+        ),
+      ).toEqual({
+        "2031-02-17": 1, // X: client, invoice and Ready invoice count once
+        "2031-03-01": 1, // bravo's client
+        "2031-03-09": 1, // f2
+        "2031-03-10": 2, // alpha and f2
+        "2031-03-12": 2, // bravo's invoice and alpha's payment
+        "2031-03-13": 0,
+      });
+      // MRR is paying accounts at the end of the bucket times USD 4.
+      expect(point("2031-02-17").mrrUsd).toBe("16.00"); // p1, p2, p3 and echo
+      expect(point("2031-03-10").mrrUsd).toBe("12.00"); // p2, p5 and echo
+      expect(point("2031-03-11").mrrUsd).toBe("16.00"); // alpha's payment lands that day
+      expect(point("2031-03-12").mrrUsd).toBe("12.00"); // echo's month ended at noon
+      const overview = await overviews().overview("30d", NOW);
+      expect(trends.points.at(-1)!.mrrUsd).toBe(overview.mrrUsd.current);
+      for (const range of ["7d", "90d", "12m"] as const) {
+        const other = await overviews().trends(range, NOW);
+        const full = await overviews().overview(range, NOW);
+        expect(other.points.at(-1)!.mrrUsd).toBe(full.mrrUsd.current);
+        for (const entry of other.points) expect(entry.mrrUsd).toMatch(/^\d+\.\d{2}$/);
+      }
     });
 
     it("buckets 90 days by Monday weeks and 12 months by calendar month", async () => {
@@ -986,6 +1021,22 @@ export function analyticsSuite(ctx: AnalyticsSuiteContext) {
         p75Hours: 25,
         activation: { rate: 0.4286, count: 3, base: 7 },
       });
+      // Of the 7 sign-ups old enough: X 0h, alpha 3h, f2 25h, bravo 265h, and three with
+      // no Ready invoice. Charlie is under 7 days old, so he waits outside the base.
+      const distribution = result.timeToFirstInvoice.distribution;
+      expect(distribution.base).toBe(7);
+      expect(distribution.buckets).toEqual([
+        { key: "under_1h", count: 1, share: 0.1429 },
+        { key: "1_to_24h", count: 1, share: 0.1429 },
+        { key: "1_to_7d", count: 1, share: 0.1429 },
+        { key: "over_7d", count: 1, share: 0.1429 },
+        { key: "not_yet", count: 3, share: 0.4286 },
+        { key: "too_new", count: 1, share: null },
+      ]);
+      // The first three bars are the activated accounts.
+      expect(
+        distribution.buckets.slice(0, 3).reduce((total, bucket) => total + bucket.count, 0),
+      ).toBe(result.timeToFirstInvoice.activation.count);
 
       // Feature adoption is all time: compare with the snapshot before the fixture.
       const delta = (key: string) =>

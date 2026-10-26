@@ -7,11 +7,18 @@ import type {
   AdminTrends,
 } from "@billsafi/contracts";
 import { type DatabaseConnection, type SQL, sql } from "@billsafi/db";
-import { nairobiCalendarMonth, PRO_PLAN, money, stuckPaymentCutoff } from "@billsafi/domain";
+import {
+  addNairobiMonths,
+  nairobiCalendarMonth,
+  PRO_PLAN,
+  money,
+  stuckPaymentCutoff,
+} from "@billsafi/domain";
 import { DATABASE } from "../../database/database.module.js";
 import { activeOverrideSql, currentMonthSourceSql, proAccessSql } from "../shared/account-sql.js";
 import {
   at,
+  DAY_MS,
   fromUtc,
   hasGoogle,
   paidOnSql,
@@ -23,6 +30,8 @@ import { freeLimitHitsCte, realFreeLimitHit } from "../shared/free-limit-hits.js
 import { activationCounts } from "./activation.js";
 import { proAccessCte } from "./pro-access.js";
 import { bucketIndexSql, bucketsSql, planRange, type RangePlan } from "./range.js";
+
+const WEEK_MS = 7 * DAY_MS;
 
 const MANUAL = "manual";
 const ENDING_DAYS = 7;
@@ -213,6 +222,32 @@ export class AdminOverviewService {
     return { ...row!, freeLimitReached: limit!.total };
   }
 
+  /** The instant each bucket ends: where the next one starts, and now for the last. */
+  private bucketEnds(plan: RangePlan): Date[] {
+    return Array.from({ length: plan.bucketCount }, (_, i) => {
+      if (i === plan.bucketCount - 1) return plan.end;
+      if (plan.bucket === "month") return addNairobiMonths(plan.origin, i + 1);
+      const size = plan.bucket === "week" ? WEEK_MS : DAY_MS;
+      return new Date(plan.origin.getTime() + (i + 1) * size);
+    });
+  }
+
+  /** Paying accounts at the end of every bucket, by the same Pro-at-time rule as the Overview. */
+  private async payingAtBucketEnds(plan: RangePlan): Promise<number[]> {
+    const ends = this.bucketEnds(plan);
+    const ctes = ends.map((end, i) => proAccessCte(`pro_${i}`, end));
+    const counts = ends.map(
+      (_, i) =>
+        sql`select ${i}::int as i, count(*)::int as n from ${sql.identifier(`pro_${i}`)} where source = 'paid'`,
+    );
+    const rows = await this.rows<{ i: number; n: number }>(
+      sql`with ${sql.join(ctes, sql`, `)} ${sql.join(counts, sql` union all `)}`,
+    );
+    const paying = new Array<number>(ends.length).fill(0);
+    for (const row of rows) paying[Number(row.i)] = Number(row.n);
+    return paying;
+  }
+
   async trends(range: AdminRange, now = new Date()): Promise<AdminTrends> {
     const plan = planRange(range, now);
     const bounded = (column: SQL) =>
@@ -227,6 +262,7 @@ export class AdminOverviewService {
       invoicesReady: number;
       kesCollected: string;
       usdCollected: string;
+      activeAccounts: number;
     }>(sql`
       with b as (${bucketsSql(plan)}),
       signups as (
@@ -249,6 +285,18 @@ export class AdminOverviewService {
         from subscription_payments sp
         where sp.status = 'succeeded' and ${bounded(paidAt)} group by 1
       ),
+      actions as (
+        select ${perBucket(sql`i.created_at`)} as i, bz.owner_user_id as uid
+          from invoices i join businesses bz on bz.id = i.business_id where ${bounded(sql`i.created_at`)}
+        union all select ${perBucket(sql`ii.issued_at`)}, ii.user_id
+          from invoice_issuances ii where ${bounded(sql`ii.issued_at`)}
+        union all select ${perBucket(sql`p.created_at`)}, bz.owner_user_id
+          from invoice_payments p join businesses bz on bz.id = p.business_id
+          where ${bounded(sql`p.created_at`)}
+        union all select ${perBucket(sql`c.created_at`)}, bz.owner_user_id
+          from clients c join businesses bz on bz.id = c.business_id where ${bounded(sql`c.created_at`)}
+      ),
+      active as (select i, count(distinct uid)::int as n from actions group by i),
       before as (select count(*)::int as n from users where created_at < ${utcAt(plan.start)})
       select
         to_char(b.bucket_start at time zone 'Africa/Nairobi', 'YYYY-MM-DD') as "bucketStart",
@@ -257,20 +305,25 @@ export class AdminOverviewService {
         coalesce(firsts.n, 0) as "firstInvoices",
         coalesce(ready.n, 0) as "invoicesReady",
         coalesce(paid.kes, '0.00') as "kesCollected",
-        coalesce(paid.usd, '0.00') as "usdCollected"
+        coalesce(paid.usd, '0.00') as "usdCollected",
+        coalesce(active.n, 0) as "activeAccounts"
       from b
       left join signups on signups.i = b.i
       left join firsts on firsts.i = b.i
       left join ready on ready.i = b.i
       left join paid on paid.i = b.i
+      left join active on active.i = b.i
       order by b.i
     `);
+    const paying = await this.payingAtBucketEnds(plan);
     return {
       range,
       bucketSize: plan.bucket,
       period: { start: plan.start.toISOString(), end: plan.end.toISOString() },
-      points: rows.map((row) => ({
+      points: rows.map((row, index) => ({
         ...row,
+        activeAccounts: Number(row.activeAccounts),
+        mrrUsd: usd(paying[index] ?? 0),
         signups: Number(row.signups),
         accountsTotal: Number(row.accountsTotal),
         firstInvoices: Number(row.firstInvoices),
