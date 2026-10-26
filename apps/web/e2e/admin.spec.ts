@@ -1,4 +1,5 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
+import { platformSettingDefaults } from "@billsafi/contracts";
 import { addNairobiMonths } from "@billsafi/domain";
 import { createFirstBusiness, signIn, signUp, uniqueEmail } from "./support";
 
@@ -138,6 +139,167 @@ test.describe("as an admin", () => {
     const payments = page.getByRole("table", { name: "Plan payments" });
     await expect(payments).toContainText(reference);
     await expect(payments).toContainText("KES 1,040.00");
+  });
+
+  // Settings are platform-wide, so each test puts its setting back, pass or fail.
+  // Puts a setting back to its default if a failed test left it changed. Skipped when it is
+  // already the default, since admin writes are limited to 10 a minute.
+  async function restoreSetting(page: Page, key: string, value: unknown) {
+    const response = await page.request.get("/api/v1/admin/settings");
+    const { settings } = (await response.json()) as {
+      settings: { key: string; isDefault: boolean }[];
+    };
+    if (settings.find((setting) => setting.key === key)?.isDefault) return;
+    await page.request.put(`/api/v1/admin/settings/${key}`, {
+      data: { value, reason: "Browser test: restore the default" },
+    });
+  }
+
+  async function editSetting(page: Page, title: string) {
+    await page.goto("/admin/settings");
+    await page.getByRole("region", { name: title }).getByRole("button", { name: "Edit" }).click();
+    return page.getByRole("dialog", { name: title });
+  }
+
+  test("creates a support case from the tenant page, adds a note and resolves it", async ({
+    browser,
+    page,
+  }) => {
+    const tenantEmail = uniqueEmail("admin-support");
+    const tenantContext = await browser.newContext();
+    await signUp(await tenantContext.newPage(), "Chebet Rotich", tenantEmail);
+    await tenantContext.close();
+
+    await signIn(page, adminEmail!, adminPassword!);
+    await expect(page).not.toHaveURL(/\/sign-in/);
+    await page.goto(`/admin/tenants?search=${encodeURIComponent(tenantEmail)}`);
+    await page
+      .getByRole("table", { name: "Tenants" })
+      .getByRole("link", { name: "Chebet Rotich" })
+      .click();
+    await page
+      .getByRole("navigation", { name: "Account sections" })
+      .getByRole("link", { name: "Support" })
+      .click();
+    await expect(page).toHaveURL(/tab=support/);
+
+    await page.getByRole("button", { name: "New case" }).click();
+    const create = page.getByRole("dialog", { name: "New case" });
+    await create.getByLabel("Title").fill("Cannot sign in on phone");
+    await create.getByLabel("Category").selectOption("sign_in");
+    await create.getByLabel("Severity").selectOption("high");
+    await create.getByLabel(/Reason/).fill("Browser test: customer wrote in");
+    await create.getByRole("button", { name: "Create case" }).click();
+    await expect(create).toBeHidden();
+    await page
+      .getByRole("table", { name: "Account cases" })
+      .getByRole("link", { name: "Cannot sign in on phone" })
+      .click();
+
+    await expect(
+      page.getByRole("heading", { name: "Cannot sign in on phone", level: 1 }),
+    ).toBeVisible();
+    await expect(page.getByText("Status: Open").first()).toBeVisible();
+    await expect(page.getByText("Category: Sign-in").first()).toBeVisible();
+
+    // Notes are plain text: markup shows as typed, and line breaks stay.
+    await page.getByLabel("Add a note", { exact: true }).fill("Tried a reset.\n<b>not bold</b>");
+    await page.getByRole("button", { name: "Add note" }).click();
+    const timeline = page.getByRole("list").filter({ hasText: "Tried a reset." });
+    await expect(timeline).toContainText("<b>not bold</b>");
+    await expect(timeline.locator("b")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Resolve" }).click();
+    const resolve = page.getByRole("dialog", { name: "Resolve case" });
+    await resolve.getByLabel("How was it resolved?").fill("Reset the password by hand.");
+    await resolve.getByLabel(/Reason/).fill("Browser test: fixed");
+    await resolve.getByRole("button", { name: "Resolve case" }).click();
+    await expect(resolve).toBeHidden();
+    await expect(page.getByText("Status: Resolved").first()).toBeVisible();
+    await expect(page.getByText("Reset the password by hand.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Reopen" })).toBeVisible();
+  });
+
+  test("an announcement shows in the app while it is on, and goes away when it is off", async ({
+    browser,
+    page,
+  }) => {
+    const tenantContext = await browser.newContext();
+    const tenant = await tenantContext.newPage();
+    await signUp(tenant, "Dancan Ouma", uniqueEmail("admin-banner"));
+    await createFirstBusiness(tenant);
+
+    await signIn(page, adminEmail!, adminPassword!);
+    await expect(page).not.toHaveURL(/\/sign-in/);
+    try {
+      const dialog = await editSetting(page, "Announcement banner");
+      await dialog.getByLabel("Show the banner").check();
+      await dialog.getByLabel("Message").fill("Planned maintenance on Sunday at 2am.");
+      await expect(dialog.getByRole("region", { name: "Announcement" })).toHaveCount(0);
+      await expect(dialog).toContainText("Planned maintenance on Sunday at 2am.");
+      await dialog.getByLabel(/Reason/).fill("Browser test: announce maintenance");
+      await dialog.getByRole("button", { name: "Save" }).click();
+      await expect(dialog).toBeHidden();
+
+      await tenant.reload();
+      const banner = tenant.getByRole("region", { name: "Announcement" });
+      await expect(banner).toContainText("Planned maintenance on Sunday at 2am.");
+
+      // Dismissing hides it on this device, and it stays hidden after a reload.
+      await banner.getByRole("button", { name: "Dismiss announcement" }).click();
+      await expect(banner).toBeHidden();
+      await tenant.reload();
+      await expect(tenant.getByRole("heading", { name: "Overview" })).toBeVisible();
+      await expect(banner).toBeHidden();
+
+      const off = await editSetting(page, "Announcement banner");
+      await off.getByLabel("Show the banner").uncheck();
+      await off.getByLabel(/Reason/).fill("Browser test: maintenance is over");
+      await off.getByRole("button", { name: "Save" }).click();
+      await expect(off).toBeHidden();
+      await tenant.reload();
+      await expect(tenant.getByRole("region", { name: "Announcement" })).toHaveCount(0);
+    } finally {
+      await restoreSetting(page, "announcement", platformSettingDefaults.announcement);
+      await tenantContext.close();
+    }
+  });
+
+  test("closing registration shows the message on the sign-up page until it is reopened", async ({
+    browser,
+    page,
+  }) => {
+    // The earlier tests used most of the limit of 10 admin writes a minute.
+    test.setTimeout(150_000);
+    await page.waitForTimeout(65_000);
+    const visitor = await browser.newContext();
+    const signUpPage = await visitor.newPage();
+    await signIn(page, adminEmail!, adminPassword!);
+    await expect(page).not.toHaveURL(/\/sign-in/);
+    try {
+      const close = await editSetting(page, "Registration");
+      await close.getByLabel("Sign-ups are open").uncheck();
+      await close.getByLabel("Message shown when closed").fill("We are not taking sign-ups today.");
+      await close.getByLabel(/Reason/).fill("Browser test: close sign-ups");
+      await close.getByRole("button", { name: "Close sign-ups" }).click();
+      await expect(close).toBeHidden();
+
+      await signUpPage.goto("/sign-up");
+      await expect(signUpPage.getByText("We are not taking sign-ups today.")).toBeVisible();
+      await expect(signUpPage.getByRole("button", { name: "Create account" })).toHaveCount(0);
+
+      const reopen = await editSetting(page, "Registration");
+      await reopen.getByLabel("Sign-ups are open").check();
+      await reopen.getByLabel(/Reason/).fill("Browser test: reopen sign-ups");
+      await reopen.getByRole("button", { name: "Save" }).click();
+      await expect(reopen).toBeHidden();
+
+      await signUpPage.goto("/sign-up");
+      await expect(signUpPage.getByRole("button", { name: "Create account" })).toBeVisible();
+    } finally {
+      await restoreSetting(page, "registration", platformSettingDefaults.registration);
+      await visitor.close();
+    }
   });
 
   test("switches the Overview date range and the figures show their change", async ({ page }) => {
