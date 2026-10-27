@@ -6,6 +6,7 @@ import request from "supertest";
 import { AccountAccessService } from "../src/admin/tenants/account-access.service.js";
 import { AdminBillingService } from "../src/admin/subscriptions/admin-billing.service.js";
 import { AdminMetricsService } from "../src/admin/metrics/admin-metrics.service.js";
+import { AdminOverviewService } from "../src/admin/metrics/admin-overview.service.js";
 import { AdminRoleSyncService } from "../src/admin/access/admin-role-sync.service.js";
 import { AdminTenantsService } from "../src/admin/tenants/admin-tenants.service.js";
 import { proEndsAtSql } from "../src/admin/shared/account-sql.js";
@@ -13,6 +14,7 @@ import { AuditService } from "../src/audit/audit.service.js";
 import { DISABLED_ADMIN_PATHS } from "../src/auth/auth.js";
 import type { FakeMpesaProvider } from "../src/billing/mpesa/fake.provider.js";
 import { DATABASE } from "../src/database/database.module.js";
+import { analyticsSuite } from "./admin-analytics.suite.js";
 import { subscriptionSuite } from "./admin-subscriptions.suite.js";
 import {
   createBusiness,
@@ -28,6 +30,10 @@ const CALLBACK = "/api/v1/billing/mpesa/callback/e2e-callback-token-0123456789";
 const ROUTES = [
   "access",
   "overview",
+  "overview?range=7d",
+  "overview/trends",
+  "activity",
+  "analytics",
   "funnel",
   "retention",
   "tenants",
@@ -487,16 +493,18 @@ describe("admin", () => {
     // The e2e database is shared with other spec files, so global counts are lower bounds.
     it("counts the seeded account as paying in the overview", async () => {
       const { body } = await admin("overview").expect(200);
-      expect(body.payingAccounts).toBeGreaterThanOrEqual(1);
-      expect(body.mrrUsd).toBe((body.payingAccounts * 4).toFixed(2));
-      expect(body.totalAccounts).toBeGreaterThanOrEqual(2);
-      expect(body.signups.today.total).toBeGreaterThanOrEqual(2);
-      expect(body.signups.today.total).toBe(body.signups.today.google + body.signups.today.email);
-      expect(body.activeBusinesses).toBeGreaterThanOrEqual(1);
-      expect(body.invoicesReadyThisMonth).toBeGreaterThanOrEqual(1);
-      expect(Number(body.kesCollectedThisMonth)).toBeGreaterThanOrEqual(500);
-      expect(body.conversion).toBeGreaterThan(0);
-      expect(body.mpesaSuccessRate30Days).toBeGreaterThan(0);
+      expect(body.range).toBe("30d");
+      expect(body.payingAccounts.current).toBeGreaterThanOrEqual(1);
+      expect(body.mrrUsd.current).toBe((body.payingAccounts.current * 4).toFixed(2));
+      expect(body.totalAccounts.current).toBeGreaterThanOrEqual(2);
+      expect(body.signups.current.total).toBeGreaterThanOrEqual(2);
+      expect(body.signups.current.total).toBe(
+        body.signups.current.google + body.signups.current.email,
+      );
+      expect(body.activeAccounts.current).toBeGreaterThanOrEqual(1);
+      expect(body.invoicesReady.current).toBeGreaterThanOrEqual(1);
+      expect(Number(body.collected.kes.current)).toBeGreaterThanOrEqual(500);
+      expect(body.mpesa.current.successRate).toBeGreaterThan(0);
     });
 
     it("shows every funnel step for recent signups", async () => {
@@ -630,6 +638,7 @@ describe("admin", () => {
    */
   describe("exact numbers", () => {
     const metrics = () => app.get(AdminMetricsService);
+    const overviews = () => app.get(AdminOverviewService);
     const billing = () => app.get(AdminBillingService);
     /** Moves a Better Auth `timestamp` column, which stores UTC. */
     const setSignup = (id: string, utc: string) =>
@@ -638,7 +647,7 @@ describe("admin", () => {
     it("adds exactly what was seeded to the overview and funnel", async () => {
       // Tuesday 15 June 2021, 12:00 in Nairobi.
       const now = new Date("2021-06-15T09:00:00Z");
-      const before = await metrics().overview(now);
+      const before = await overviews().overview("30d", now);
       const funnelBefore = await metrics().funnel(7, now);
 
       const paying = await seedAccount("admin-exact", 2);
@@ -679,22 +688,22 @@ describe("admin", () => {
           paid_until = ${addNairobiMonths(new Date(t("05:51")), 1).toISOString()}::timestamptz
         where user_id = ${payingId}`);
 
-      const after = await metrics().overview(now);
-      const signups = { total: 2, google: 1, email: 1 };
-      const delta = (a: AdminOverview["signups"]["today"], b: typeof a) => ({
+      const after = await overviews().overview("30d", now);
+      const delta = (a: AdminOverview["signups"]["current"], b: typeof a) => ({
         total: a.total - b.total,
         google: a.google - b.google,
         email: a.email - b.email,
       });
-      expect(delta(after.signups.today, before.signups.today)).toEqual(signups);
-      expect(delta(after.signups.last7Days, before.signups.last7Days)).toEqual(signups);
-      expect(delta(after.signups.last30Days, before.signups.last30Days)).toEqual(signups);
-      expect(after.payingAccounts - before.payingAccounts).toBe(1);
-      expect(Number(after.mrrUsd) - Number(before.mrrUsd)).toBeCloseTo(4, 2);
-      expect(after.activeBusinesses - before.activeBusinesses).toBe(1);
-      expect(after.invoicesCreatedThisMonth - before.invoicesCreatedThisMonth).toBe(2);
-      expect(after.invoicesReadyThisMonth - before.invoicesReadyThisMonth).toBe(2);
-      expect(Number(after.kesCollectedThisMonth) - Number(before.kesCollectedThisMonth)).toBe(500);
+      expect(delta(after.signups.current, before.signups.current)).toEqual({
+        total: 2,
+        google: 1,
+        email: 1,
+      });
+      expect(after.payingAccounts.current - before.payingAccounts.current).toBe(1);
+      expect(Number(after.mrrUsd.current) - Number(before.mrrUsd.current)).toBeCloseTo(4, 2);
+      expect(after.activeAccounts.current - before.activeAccounts.current).toBe(1);
+      expect(after.invoicesReady.current - before.invoicesReady.current).toBe(2);
+      expect(Number(after.collected.kes.current) - Number(before.collected.kes.current)).toBe(500);
 
       const funnelAfter = await metrics().funnel(7, now);
       const stepDelta = (a: AdminFunnel, b: AdminFunnel) =>
@@ -719,7 +728,8 @@ describe("admin", () => {
           userId((await signUp(app, uniqueEmail(`admin-edge-${label}`))).email),
         ),
       );
-      const overviewBefore = await metrics().overview(now);
+      const trendsBefore = await overviews().trends("7d", now);
+      const overviewBefore = await overviews().overview("7d", now);
       const retentionBefore = await metrics().retention(4, now);
 
       // 00:30 Saturday, 23:59:59 Friday, and 23:59:59 on the Sunday before, in Nairobi.
@@ -727,11 +737,17 @@ describe("admin", () => {
       await setSignup(ids[1]!, "2026-10-23 20:59:59");
       await setSignup(ids[2]!, "2026-10-18 20:59:59");
 
-      const overviewAfter = await metrics().overview(now);
-      expect(overviewAfter.signups.today.total - overviewBefore.signups.today.total).toBe(1);
-      expect(overviewAfter.signups.last7Days.total - overviewBefore.signups.last7Days.total).toBe(
-        3,
-      );
+      // The last 7 days are Saturday 18 to Saturday 24 October; the three signups sit on the
+      // 24th, the 23rd and the 18th, and the last one is the seventh day back.
+      const trendsAfter = await overviews().trends("7d", now);
+      const signupDays = (trends: typeof trendsAfter) =>
+        Object.fromEntries(trends.points.map((point) => [point.bucketStart, point.signups]));
+      const [daysBefore, daysAfter] = [signupDays(trendsBefore), signupDays(trendsAfter)];
+      expect(daysAfter["2026-10-24"]! - daysBefore["2026-10-24"]!).toBe(1);
+      expect(daysAfter["2026-10-23"]! - daysBefore["2026-10-23"]!).toBe(1);
+      expect(daysAfter["2026-10-18"]! - daysBefore["2026-10-18"]!).toBe(1);
+      const overviewAfter = await overviews().overview("7d", now);
+      expect(overviewAfter.signups.current.total - overviewBefore.signups.current.total).toBe(3);
 
       const retentionAfter = await metrics().retention(4, now);
       const sizes = (retention: typeof retentionAfter) =>
@@ -1754,4 +1770,6 @@ describe("admin", () => {
     payPro,
     userId,
   });
+
+  analyticsSuite({ app: () => app, adminCookie: () => adminCookie, adminId: () => adminId });
 });

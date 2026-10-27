@@ -15,7 +15,16 @@ function UserLink({ id, email }: { id: string; email: string }) {
 }
 
 /** Checkouts that need a look and Free accounts at their limit, below the payments list. */
-export function BillingPanels({ data }: { data: AdminBilling }) {
+export function BillingPanels({
+  data,
+  thisMonthOnly = false,
+  clearLimitFilterHref,
+}: {
+  data: AdminBilling;
+  /** Free limit hits are limited to this month. */
+  thisMonthOnly?: boolean;
+  clearLimitFilterHref?: string;
+}) {
   return (
     <div className="space-y-4">
       <Panel
@@ -31,11 +40,34 @@ export function BillingPanels({ data }: { data: AdminBilling }) {
       </Panel>
 
       <Panel
+        id="free-limit-hits"
         title="Free limit hits"
         description="Free months where the user reached the invoice limit in the last 90 days. Paid means a plan payment between the hit and 30 days after that month ended."
+        actions={
+          thisMonthOnly ? (
+            <p className="flex items-center gap-2 text-sm text-sub">
+              This month only
+              {clearLimitFilterHref && (
+                <AdminLink
+                  href={clearLimitFilterHref}
+                  replace
+                  className="text-accent hover:underline"
+                >
+                  Clear filter
+                </AdminLink>
+              )}
+            </p>
+          ) : undefined
+        }
       >
         {data.freeLimitHits.length === 0 ? (
-          <EmptyRow text="No one has reached the Free limit in the last 90 days." />
+          <EmptyRow
+            text={
+              thisMonthOnly
+                ? "No one has reached the Free limit this month."
+                : "No one has reached the Free limit in the last 90 days."
+            }
+          />
         ) : (
           <table className="w-full text-sm">
             <thead className={theadClass}>

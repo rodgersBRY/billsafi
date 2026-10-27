@@ -25,6 +25,16 @@ export function fromUtc(column: SQL): SQL {
   return sql`(${column} at time zone 'UTC')`;
 }
 
+/**
+ * When a plan payment was paid: the day an admin says a manual payment was paid, else the
+ * confirmation. Every succeeded row has a confirmed_at (billing and the manual action both
+ * set it), so this is never null for them. Collected money, the activity feed, "bought
+ * within 14 days" and "paid within 30 days" all use this one rule. `alias` is the table alias.
+ */
+export function paidOnSql(alias: string): SQL {
+  return sql`coalesce(${sql.raw(alias)}.paid_at, ${sql.raw(alias)}.confirmed_at)`;
+}
+
 /** A timestamptz expression as an ISO string, so rows need no date parsing. */
 export function iso(expr: SQL): SQL<string> {
   return sql<string>`to_char(${expr} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;

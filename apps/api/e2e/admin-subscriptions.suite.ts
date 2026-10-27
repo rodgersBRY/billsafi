@@ -3,7 +3,7 @@ import { asc, type DatabaseConnection, eq, schema, sql } from "@billsafi/db";
 import { addNairobiMonths, CREDIT_PACK, nairobiDate } from "@billsafi/domain";
 import request from "supertest";
 import { AdminBillingService } from "../src/admin/subscriptions/admin-billing.service.js";
-import { AdminMetricsService } from "../src/admin/metrics/admin-metrics.service.js";
+import { AdminOverviewService } from "../src/admin/metrics/admin-overview.service.js";
 import { AuditService } from "../src/audit/audit.service.js";
 import { AllowanceService } from "../src/billing/allowance.service.js";
 import { BillingService } from "../src/billing/billing.service.js";
@@ -1122,8 +1122,8 @@ export function subscriptionSuite(ctx: SubscriptionSuiteContext) {
     it("counts only paid Pro months as MRR and keeps manual USD apart from KES", async () => {
       // A June 2021 Nairobi month nothing else in the shared database touches.
       const now = new Date("2021-06-15T09:00:00Z");
-      const metrics = ctx.app().get(AdminMetricsService);
-      const before = await metrics.overview(now);
+      const overviews = ctx.app().get(AdminOverviewService);
+      const before = await overviews.overview("30d", now);
 
       const make = async (label: string) => {
         const account = await newAccount(`${tag}-mrr-${label}`);
@@ -1170,16 +1170,16 @@ export function subscriptionSuite(ctx: SubscriptionSuiteContext) {
         .set({ grantedFrom: anchor, grantedUntil: until })
         .where(eq(schema.accountGrants.userId, gift.id));
 
-      const after = await metrics.overview(now);
-      expect(after.payingAccounts - before.payingAccounts).toBe(2);
-      expect(after.complimentaryProAccounts - before.complimentaryProAccounts).toBe(1);
-      expect(Number(after.mrrUsd) - Number(before.mrrUsd)).toBeCloseTo(8, 2);
-      expect(Number(after.kesCollectedThisMonth) - Number(before.kesCollectedThisMonth)).toBe(520);
-      expect(
-        Number(after.manualUsdCollectedThisMonth) - Number(before.manualUsdCollectedThisMonth),
-      ).toBe(4);
+      const after = await overviews.overview("30d", now);
+      expect(after.payingAccounts.current - before.payingAccounts.current).toBe(2);
+      expect(after.complimentaryProAccounts.current - before.complimentaryProAccounts.current).toBe(
+        1,
+      );
+      expect(Number(after.mrrUsd.current) - Number(before.mrrUsd.current)).toBeCloseTo(8, 2);
+      expect(Number(after.collected.kes.current) - Number(before.collected.kes.current)).toBe(520);
+      expect(Number(after.collected.usd.current) - Number(before.collected.usd.current)).toBe(4);
       // Manual payments are not M-Pesa checkouts.
-      expect(after.mpesaSuccessRate30Days).toBe(before.mpesaSuccessRate30Days);
+      expect(after.mpesa.current).toEqual(before.mpesa.current);
     }, 30_000);
   });
 

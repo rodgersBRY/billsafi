@@ -135,7 +135,7 @@ const timeFormat = new Intl.DateTimeFormat("en-KE", {
 export function UpdatedAt({ iso, cached = true }: { iso: string; cached?: boolean }) {
   return (
     <p className="text-xs text-sub">
-      Last updated <time dateTime={iso}>{timeFormat.format(new Date(iso))}</time> Nairobi time.
+      Last updated <time dateTime={iso}>{timeFormat.format(new Date(iso))}</time>.
       {cached && " Figures refresh at most once a minute."}
     </p>
   );

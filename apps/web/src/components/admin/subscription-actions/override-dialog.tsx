@@ -96,7 +96,7 @@ export function OverrideDialog({
           value={expiresOn}
           onChange={(event) => setExpiresOn(event.target.value)}
           error={errors.expiresAt}
-          hint="At the start of that day, Nairobi time. At most a year away."
+          hint="At the start of that day. At most a year away."
         />
       </div>
     </FormActionDialog>

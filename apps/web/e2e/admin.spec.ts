@@ -139,4 +139,37 @@ test.describe("as an admin", () => {
     await expect(payments).toContainText(reference);
     await expect(payments).toContainText("KES 1,040.00");
   });
+
+  test("switches the Overview date range and the figures show their change", async ({ page }) => {
+    await signIn(page, adminEmail!, adminPassword!);
+    await expect(page).not.toHaveURL(/\/sign-in/);
+
+    await page.goto("/admin");
+    await expect(page.getByRole("heading", { name: "Overview", level: 1 })).toBeVisible();
+    const ranges = page.getByRole("navigation", { name: "Date range" });
+    await expect(ranges.getByRole("link", { name: "30 days" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+
+    await ranges.getByRole("link", { name: "7 days" }).click();
+    await expect(page).toHaveURL(/range=7d/);
+    await expect(ranges.getByRole("link", { name: "7 days" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    // Every headline figure says how it moved from the period before, in words.
+    await expect(page.getByText(/(up|down|no change).*last period/i).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Account growth" })).toBeVisible();
+    // Items show under a heading; with nothing to do there is one quiet line instead.
+    await expect(
+      page
+        .getByRole("heading", { name: "Needs attention" })
+        .or(page.getByText("Nothing needs you right now.")),
+    ).toBeVisible();
+
+    await page.goto("/admin/analytics?range=90d");
+    await expect(page.getByRole("heading", { name: "Analytics", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Feature adoption" })).toBeVisible();
+  });
 });

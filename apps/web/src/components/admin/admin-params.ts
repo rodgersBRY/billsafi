@@ -1,11 +1,14 @@
 import {
+  type AdminFunnelDays,
+  type AdminRange,
+  type AdminRetentionWeeks,
   adminGrantsQuerySchema,
+  adminRangeQuerySchema,
+  DEFAULT_ADMIN_RANGE,
   adminOverridesQuerySchema,
   adminPlanPaymentsQuerySchema,
   adminSubscriptionsQuerySchema,
   adminAuditLogsQuerySchema,
-  adminFunnelQuerySchema,
-  adminRetentionQuerySchema,
   adminTenantsQuerySchema,
   adminUsersQuerySchema,
 } from "@billsafi/contracts";
@@ -77,7 +80,8 @@ function withRange<T extends { from?: string; to?: string }>(state: T): T {
 }
 
 export function parsePlanPaymentsParams(raw: RawParams) {
-  return withRange(parseFields(adminPlanPaymentsQuerySchema.shape, raw));
+  const state = withRange(parseFields(adminPlanPaymentsQuerySchema.shape, raw));
+  return { ...state, stuck: state.stuck === undefined ? undefined : String(state.stuck) };
 }
 
 export function parseGrantsParams(raw: RawParams) {
@@ -87,6 +91,9 @@ export function parseGrantsParams(raw: RawParams) {
 export function parseOverridesParams(raw: RawParams) {
   return parseFields(adminOverridesQuerySchema.shape, raw);
 }
+
+/** The Payments tab can show only this month's Free limit hits (`?limitHits=this_month`). */
+export const limitHitsThisMonth = (raw: RawParams) => first(raw.limitHits) === "this_month";
 
 const SUBSCRIPTION_TABS = ["subscriptions", "payments", "grants", "overrides", "plans"] as const;
 export type SubscriptionTab = (typeof SUBSCRIPTION_TABS)[number];
@@ -101,15 +108,25 @@ export function parseSubscriptionTab(raw: RawParams): SubscriptionTab {
 export const subscriptionsHref = (tab: SubscriptionTab, filters: Values = {}) =>
   `/admin/subscriptions${toQuery({ tab: tab === "subscriptions" ? undefined : tab, ...filters })}`;
 
-export function parseAnalyticsParams(raw: RawParams) {
-  const funnel = adminFunnelQuerySchema.safeParse({ days: first(raw.days) });
-  const retention = adminRetentionQuerySchema.safeParse({ weeks: first(raw.weeks) });
-  return {
-    days: funnel.success ? funnel.data.days : 30,
-    weeks: retention.success ? retention.data.weeks : 8,
-  };
+/** The date range of Overview and Analytics; a bad or missing value is the default. */
+export function parseRangeParams(raw: RawParams): { range: AdminRange } {
+  return parseFields(adminRangeQuerySchema.shape, raw);
 }
-export type AnalyticsState = ReturnType<typeof parseAnalyticsParams>;
+export const rangeDefaults = { range: DEFAULT_ADMIN_RANGE } as const;
+
+/** The funnel takes days and retention takes weeks; both follow the page range. */
+export const funnelDaysFor: Record<AdminRange, AdminFunnelDays> = {
+  "7d": 7,
+  "30d": 30,
+  "90d": 90,
+  "12m": 365,
+};
+export const retentionWeeksFor: Record<AdminRange, AdminRetentionWeeks> = {
+  "7d": 4,
+  "30d": 4,
+  "90d": 12,
+  "12m": 12,
+};
 
 const TABS = ["overview", "businesses", "subscription", "usage", "activity", "support"] as const;
 export type TenantTab = (typeof TABS)[number];

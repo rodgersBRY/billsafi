@@ -384,6 +384,8 @@ export const adminPlanPaymentsQuerySchema = z
     provider: optionalEnum(planPaymentProviders),
     status: optionalEnum(["pending", "succeeded", "failed"]),
     method: optionalEnum(manualPaymentMethods),
+    /** Pending for more than 10 minutes (what the Overview attention list counts). */
+    stuck: optionalBoolean,
     ...dateRangeFields,
   })
   .refine(...fromBeforeTo);
@@ -436,6 +438,8 @@ export const adminOverridesQuerySchema = z.object({
   page: pageParam,
   search: searchParam,
   state: optionalEnum(adminOverrideStates),
+  /** Active now and expiring within N days (what the Overview attention list counts). */
+  endingWithin: optionalDays([7]),
 });
 export type AdminOverridesQuery = z.output<typeof adminOverridesQuerySchema>;
 

@@ -21,6 +21,7 @@ import {
   type PlanPaymentProvider,
 } from "@billsafi/contracts";
 import { and, type DatabaseConnection, desc, eq, schema, type SQL, sql } from "@billsafi/db";
+import { stuckPaymentCutoff } from "@billsafi/domain";
 import { containsPattern } from "../../common/like-pattern.js";
 import { DATABASE } from "../../database/database.module.js";
 import {
@@ -242,6 +243,11 @@ export class AdminSubscriptionsService {
       );
     }
     if (query.status) conditions.push(eq(subscriptionPayments.status, query.status)!);
+    if (query.stuck !== undefined) {
+      const stuck = sql`(${subscriptionPayments.status} = 'pending'
+        and ${subscriptionPayments.createdAt} < ${at(stuckPaymentCutoff(now))})`;
+      conditions.push(query.stuck ? stuck : sql`not ${stuck}`);
+    }
     if (query.method) conditions.push(eq(subscriptionPayments.method, query.method)!);
     const where = and(...conditions);
 
@@ -292,6 +298,12 @@ export class AdminSubscriptionsService {
   async overrides(query: AdminOverridesQuery, now = new Date()): Promise<AdminOverridesPage> {
     const conditions: SQL[] = [];
     if (query.state) conditions.push(sql`${overrideStateSql(now)} = ${query.state}`);
+    if (query.endingWithin) {
+      conditions.push(
+        sql`${overrideStateSql(now)} = 'active'
+          and o.expires_at <= ${at(now)} + make_interval(hours => ${24 * query.endingWithin})`,
+      );
+    }
     if (query.search) conditions.push(accountSearch(query.search, sql`u.email`, sql`o.user_id`));
     const where = all(conditions);
     const [count] = await selectRows<{ total: number }>(

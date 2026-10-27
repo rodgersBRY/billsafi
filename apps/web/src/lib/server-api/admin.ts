@@ -8,7 +8,11 @@ import type {
   AdminBilling,
   AdminFunnel,
   AdminFunnelDays,
+  AdminActivity,
+  AdminAnalytics,
   AdminOverview,
+  AdminRange,
+  AdminTrends,
   AdminRetention,
   AdminRetentionWeeks,
   AdminTenantDetail,
@@ -33,8 +37,20 @@ export const getAdminAccess = cache((): Promise<void> => apiGet<void>("/admin/ac
 /** The signed-in admin, to tell their own account apart from others. */
 export const getAdminSelf = cache(getSessionUser);
 
-export const getAdminOverview = cache((): Promise<AdminOverview> =>
-  apiGet<AdminOverview>("/admin/overview"),
+export const getAdminOverview = cache((range: AdminRange): Promise<AdminOverview> =>
+  apiGet<AdminOverview>(`/admin/overview${query({ range })}`),
+);
+
+export const getAdminTrends = cache((range: AdminRange): Promise<AdminTrends> =>
+  apiGet<AdminTrends>(`/admin/overview/trends${query({ range })}`),
+);
+
+export const getAdminActivity = cache((limit: number): Promise<AdminActivity> =>
+  apiGet<AdminActivity>(`/admin/activity${query({ limit: String(limit) })}`),
+);
+
+export const getAdminAnalytics = cache((range: AdminRange): Promise<AdminAnalytics> =>
+  apiGet<AdminAnalytics>(`/admin/analytics${query({ range })}`),
 );
 
 export const getAdminFunnel = cache((days: AdminFunnelDays): Promise<AdminFunnel> =>
@@ -45,8 +61,9 @@ export const getAdminRetention = cache((weeks: AdminRetentionWeeks): Promise<Adm
   apiGet<AdminRetention>(`/admin/retention${query({ weeks: String(weeks) })}`),
 );
 
-export const getAdminBilling = cache((): Promise<AdminBilling> =>
-  apiGet<AdminBilling>("/admin/billing"),
+/** `thisMonthOnly` limits the Free limit hits to the current Nairobi month (`limitHits=this_month`). */
+export const getAdminBilling = cache((thisMonthOnly: boolean = false): Promise<AdminBilling> =>
+  apiGet<AdminBilling>(`/admin/billing${thisMonthOnly ? query({ limitHits: "this_month" }) : ""}`),
 );
 
 export const getAdminTenants = cache((queryString: string): Promise<AdminTenantsPage> =>

@@ -16,8 +16,8 @@ const search = (placeholder: string): FilterField => ({
   placeholder,
 });
 const dateRange: FilterField[] = [
-  { type: "date", name: "from", label: "From (Nairobi date)" },
-  { type: "date", name: "to", label: "To (Nairobi date)" },
+  { type: "date", name: "from", label: "From" },
+  { type: "date", name: "to", label: "To" },
 ];
 
 export const subscriptionFilters: FilterField[] = [
@@ -64,6 +64,7 @@ export const paymentFilters: FilterField[] = [
     "Any method",
     manualPaymentMethods.map((value) => [value, methodLabels[value]] as const),
   ),
+  selectField("stuck", "Pending", "Any pending time", [["true", "Stuck for over 10 minutes"]]),
   ...dateRange,
 ];
 
@@ -86,4 +87,5 @@ export const overrideFilters: FilterField[] = [
     "Any state",
     adminOverrideStates.map((value) => [value, overrideStateLabels[value]] as const),
   ),
+  selectField("endingWithin", "Ending", "Any time", [["7", "Ending within 7 days"]]),
 ];

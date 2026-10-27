@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { adminMetadata } from "@/components/admin/admin-metadata";
 import {
+  limitHitsThisMonth,
   parseSubscriptionTab,
   type RawParams,
   type SubscriptionTab,
@@ -32,11 +33,16 @@ const labels: Record<SubscriptionTab, string> = {
 };
 
 async function PaymentsWithBilling({ raw }: { raw: RawParams }) {
-  const billing = await getAdminBilling();
+  const thisMonthOnly = limitHitsThisMonth(raw);
+  const billing = await getAdminBilling(thisMonthOnly);
   return (
     <div className="space-y-6">
       <PaymentsDirectory raw={raw} />
-      <BillingPanels data={billing} />
+      <BillingPanels
+        data={billing}
+        thisMonthOnly={thisMonthOnly}
+        clearLimitFilterHref={`${subscriptionsHref("payments")}#free-limit-hits`}
+      />
     </div>
   );
 }
