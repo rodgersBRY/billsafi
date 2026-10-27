@@ -1,11 +1,12 @@
-import { REGISTRATION_CLOSED_CODE } from "@billsafi/contracts";
+import { type FailedSignInReason, REGISTRATION_CLOSED_CODE } from "@billsafi/contracts";
 import type { Database } from "@billsafi/db";
-import { schema } from "@billsafi/db";
+import { eq, schema } from "@billsafi/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware, isAPIError } from "better-auth/api";
 import { admin } from "better-auth/plugins";
 import { defaultAc } from "better-auth/plugins/admin/access";
+import type { ActivityRecorder } from "../activity/activity-recorder.js";
 import type { Env } from "../config/env.js";
 import type { Mailer } from "../mail/mailer.js";
 import { passwordResetEmail } from "../mail/templates.js";
@@ -25,6 +26,7 @@ export interface AuthDependencies {
     | "GOOGLE_CLIENT_SECRET"
   >;
   mailer: Mailer;
+  recorder: Pick<ActivityRecorder, "failedSignIn">;
 }
 
 const PROVIDER_TOKEN_FIELDS = [
@@ -77,20 +79,95 @@ export const DISABLED_ADMIN_PATHS = Object.values(createAdminPlugin().endpoints)
  * one survived (a failed delete, a row made some other way) the web app must still treat
  * the visitor as signed out. Nest's SessionGuard applies the same rule to API routes.
  */
-export const hideBannedSessions = createAuthMiddleware(async (ctx) => {
+type AfterContext = Parameters<Parameters<typeof createAuthMiddleware>[0]>[0];
+
+function hideBanned(ctx: AfterContext) {
   if (ctx.path !== "/get-session") return;
   const returned = ctx.context.returned as { user?: { banned?: boolean | null } } | null;
   if (returned && typeof returned === "object" && returned.user?.banned) return ctx.json(null);
-});
+}
+
+/** The visitor's address as the proxy reports it (first X-Forwarded-For entry). */
+function requestIp(
+  source: { request?: Request | null; headers?: Headers | null } | null | undefined,
+) {
+  const headers = source?.request?.headers ?? source?.headers;
+  return headers?.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
+}
+
+/** OAuth error codes that are not a person failing to sign in: noise, or already recorded. */
+const IGNORED_OAUTH_ERRORS =
+  /state_not_found|invalid_callback_request|access_denied|registration_closed/i;
+
+/**
+ * Records failed sign-ins (D066) from Better Auth's after hook: email sign-in that ends in
+ * an error, and a Google callback that redirects back with ?error=. Recording is fire and
+ * forget and never stores the password. A closed registration is recorded where the user
+ * would be created, because that is the only place the email is known for Google.
+ */
+function recordFailedSignIn(db: Database, recorder: AuthDependencies["recorder"]) {
+  return async (ctx: AfterContext) => {
+    const returned = ctx.context.returned;
+    if (!isAPIError(returned)) return;
+    if (ctx.path === "/sign-in/email") {
+      const email =
+        typeof ctx.body?.email === "string" ? ctx.body.email.trim().toLowerCase() : null;
+      const code = (returned.body as { code?: string } | undefined)?.code;
+      let reason: FailedSignInReason | null = null;
+      if (code === "BANNED_USER") reason = "banned";
+      else if (code === "INVALID_EMAIL_OR_PASSWORD") {
+        const known = email
+          ? await db
+              .select({ id: schema.users.id })
+              .from(schema.users)
+              .where(eq(schema.users.email, email))
+              .limit(1)
+              .catch(() => null)
+          : null;
+        reason = known === null ? "other" : known.length > 0 ? "wrong_password" : "unknown_email";
+      } else if (returned.statusCode === 401 || returned.statusCode === 403) reason = "other";
+      if (reason) recorder.failedSignIn({ email, method: "password", reason, ip: requestIp(ctx) });
+      return;
+    }
+    if (ctx.path.startsWith("/callback/") && String(returned.status) === "FOUND") {
+      const location =
+        returned.headers instanceof Headers ? returned.headers.get("location") : null;
+      const error = location
+        ? new URL(location, "http://localhost").searchParams.get("error")
+        : null;
+      if (!error || IGNORED_OAUTH_ERRORS.test(error)) return;
+      recorder.failedSignIn({
+        email: null,
+        method: "google",
+        reason: /banned/i.test(error) ? "banned" : "other",
+        ip: requestIp(ctx),
+      });
+    }
+  };
+}
+
+export const hideBannedSessions = createAuthMiddleware(async (ctx) => hideBanned(ctx));
 
 /**
  * Better Auth answers an APIError from this hook with a 403 {code, message} for email
  * sign-up, and redirects Google sign-in to the sign-in page with ?error=<code>&error_description=<message>.
  */
-export function refuseWhenRegistrationClosed(db: Database) {
-  return async () => {
+export function refuseWhenRegistrationClosed(
+  db: Database,
+  recorder: Pick<ActivityRecorder, "failedSignIn">,
+) {
+  return async (
+    user: { email?: string | null },
+    context?: { path?: string; request?: Request | null; headers?: Headers | null } | null,
+  ) => {
     const registration = await readRegistrationForEnforcement(db);
     if (registration.open) return;
+    recorder.failedSignIn({
+      email: user.email,
+      method: context?.path?.startsWith("/sign-up") ? "password" : "google",
+      reason: "registration_closed",
+      ip: requestIp(context),
+    });
     throw new APIError("FORBIDDEN", {
       code: REGISTRATION_CLOSED_CODE,
       message: registration.closedMessage,
@@ -103,7 +180,7 @@ export function enabledSocialProviders(env: AuthDependencies["env"]) {
   return { google: Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) };
 }
 
-export function createAuth({ db, env, mailer }: AuthDependencies) {
+export function createAuth({ db, env, mailer, recorder }: AuthDependencies) {
   const google =
     env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
       ? {
@@ -122,7 +199,12 @@ export function createAuth({ db, env, mailer }: AuthDependencies) {
     trustedOrigins: [env.WEB_ORIGIN],
     plugins: [createAdminPlugin()],
     disabledPaths: DISABLED_ADMIN_PATHS,
-    hooks: { after: hideBannedSessions },
+    hooks: {
+      after: createAuthMiddleware(async (ctx) => {
+        await recordFailedSignIn(db, recorder)(ctx);
+        return hideBanned(ctx);
+      }),
+    },
     database: drizzleAdapter(db, { provider: "pg", schema, usePlural: true }),
     emailAndPassword: {
       enabled: true,
@@ -133,9 +215,14 @@ export function createAuth({ db, env, mailer }: AuthDependencies) {
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: async ({ user, url }) => {
         // Not awaited so response timing does not reveal whether the account exists.
-        void mailer.send(passwordResetEmail(user.email, user.name, url)).catch((error) => {
-          console.error("Failed to send password reset email", error);
-        });
+        void mailer
+          .send(passwordResetEmail(user.email, user.name, url), {
+            operation: "password_reset_email",
+            accountId: user.id,
+          })
+          .catch((error) => {
+            console.error("Failed to send password reset email", error);
+          });
       },
     },
     // Only openid, email and profile are requested; Google confirms the email (D055).
@@ -145,7 +232,7 @@ export function createAuth({ db, env, mailer }: AuthDependencies) {
         // Runs only when a user row is about to be created: email sign-up and a first-time
         // Google sign-in. Existing users, admins included, never reach it. The setting is
         // read fresh, so closing registration applies on the next attempt (D065).
-        create: { before: refuseWhenRegistrationClosed(db) },
+        create: { before: refuseWhenRegistrationClosed(db, recorder) },
       },
       account: {
         create: { before: dropProviderTokens },

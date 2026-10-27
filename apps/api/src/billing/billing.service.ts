@@ -443,6 +443,7 @@ export class BillingService {
       try {
         await this.mailer.send(
           renewalReminderEmail(email, name, until, `${this.env.WEB_ORIGIN}/billing`, kind),
+          { operation: "renewal_reminder", accountId: subscription.userId },
         );
         sent++;
       } catch (error) {

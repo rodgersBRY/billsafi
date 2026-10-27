@@ -76,4 +76,10 @@ describe("loadEnv", () => {
     );
     expect(() => loadEnv({ ...required, ADMIN_SENTRY_URL: "sentry" })).toThrow(/ADMIN_SENTRY_URL/);
   });
+
+  it("turns the maintenance job on by default and reads on and off only", () => {
+    expect(loadEnv(required).MAINTENANCE_JOBS).toBe(true);
+    expect(loadEnv({ ...required, MAINTENANCE_JOBS: "off" }).MAINTENANCE_JOBS).toBe(false);
+    expect(() => loadEnv({ ...required, MAINTENANCE_JOBS: "maybe" })).toThrow(/MAINTENANCE_JOBS/);
+  });
 });
