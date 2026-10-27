@@ -35,7 +35,12 @@ on_exit() {
   fi
   exit "${code}"
 }
+# A kill (cron timeout, Ctrl-C) exits through the EXIT trap, so the failure is recorded.
+trap 'exit 130' INT TERM
 trap on_exit EXIT
+
+# Partial dumps left by a run that died without cleaning up.
+find backups -name 'billsafi-*.dump.partial' -mtime +0 -delete
 
 docker compose exec -T postgres pg_dump -U billsafi -d billsafi --format=custom > "${file}.partial"
 mv "${file}.partial" "${file}"
