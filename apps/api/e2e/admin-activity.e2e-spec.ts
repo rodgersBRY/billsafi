@@ -11,11 +11,13 @@ import {
 } from "@billsafi/contracts";
 import { createDatabase, type DatabaseConnection, eq, schema, sql } from "@billsafi/db";
 import request from "supertest";
+import { ActivityRecorder } from "../src/activity/activity-recorder.js";
+import { PruneService } from "../src/activity/prune.service.js";
 import { BackupsHealthProvider } from "../src/admin/health/backups-health.provider.js";
 import { BillingJobsHealthProvider } from "../src/admin/health/billing-jobs-health.provider.js";
 import { PdfEmailHealthProvider } from "../src/admin/health/pdf-email-health.provider.js";
 import { DATABASE } from "../src/database/database.module.js";
-import { createBusiness, createTestApp, signUp, uniqueEmail } from "./support/app.js";
+import { createBusiness, createTestApp, signUp, uniqueEmail, WEB_ORIGIN } from "./support/app.js";
 
 /**
  * Super admin phase 5 (what is recorded and where it shows). Health, the Overview counts
@@ -369,7 +371,9 @@ describe("admin activity", () => {
     });
 
     it("flags an email with 10 failed sign-ins inside an hour, and no other", async () => {
+      // Rows sit inside one earlier clock hour so the test can't straddle an hour boundary.
       const now = Date.now();
+      const hourStart = Math.floor(now / HOUR) * HOUR - HOUR;
       const row = (email: string, at: number) => ({
         email,
         method: "password" as const,
@@ -379,11 +383,17 @@ describe("admin activity", () => {
       await db()
         .insert(schema.failedSignIns)
         .values([
-          ...Array.from({ length: 10 }, (_, i) => row("hammered@example.test", now - i * MINUTE)),
+          ...Array.from({ length: 10 }, (_, i) =>
+            row("hammered@example.test", hourStart + i * MINUTE),
+          ),
           // Nine in an hour is not enough.
-          ...Array.from({ length: 9 }, (_, i) => row("almost@example.test", now - i * MINUTE)),
+          ...Array.from({ length: 9 }, (_, i) =>
+            row("almost@example.test", hourStart + i * MINUTE),
+          ),
           // Ten spread over five hours is not repeated in any one hour.
-          ...Array.from({ length: 10 }, (_, i) => row("slow@example.test", now - i * 30 * MINUTE)),
+          ...Array.from({ length: 10 }, (_, i) =>
+            row("slow@example.test", hourStart - i * 30 * MINUTE),
+          ),
           // Ten in an hour, but over a day ago.
           ...Array.from({ length: 10 }, (_, i) =>
             row("old@example.test", now - 30 * HOUR - i * MINUTE),
@@ -594,6 +604,93 @@ describe("admin activity", () => {
       expect(page.items[2]!.summary).toBe("Downloaded an invoice PDF");
       await get(`admin/tenants/${crypto.randomUUID()}/activity`).expect(404);
       await get("admin/tenants/not-a-uuid/activity").expect(404);
+    });
+  });
+
+  describe("limits on recording", () => {
+    beforeEach(clearRecords);
+
+    const attempt = (email: string, ip: string) =>
+      api()
+        .post("/api/v1/auth/sign-in/email")
+        .set("Origin", WEB_ORIGIN)
+        .set("X-Forwarded-For", ip)
+        .send({ email, password: "not-the-password" });
+    const count = async () => {
+      await app.get(ActivityRecorder).flush();
+      const [row] = await db()
+        .select({ n: sql<number>`count(*)::int` })
+        .from(schema.failedSignIns);
+      return row!.n;
+    };
+
+    it("skips a sign-in row when the same masked IP already has 20 in the last minute", async () => {
+      const { email } = await signUp(app);
+      await db()
+        .insert(schema.failedSignIns)
+        .values(
+          Array.from({ length: 20 }, () => ({
+            email: "flood@example.test",
+            method: "password" as const,
+            reason: "wrong_password" as const,
+            ipMasked: "203.0.113.0/24",
+          })),
+        );
+      await attempt(email, "203.0.113.9").expect(401);
+      expect(await count()).toBe(20);
+      // Another network is not throttled.
+      await attempt(email, "198.51.100.9").expect(401);
+      expect(await count()).toBe(21);
+    });
+
+    it("stops at 5,000 rows a day and keeps answering sign-ins", async () => {
+      const { email } = await signUp(app);
+      await db().execute(sql`
+        insert into failed_sign_ins (email, method, reason, ip_masked)
+        select 'bulk-' || (g % 500) || '@example.test', 'password', 'other', '10.' || (g % 250) || '.0.0/24'
+        from generate_series(1, 5000) g
+      `);
+      await attempt(email, "203.0.113.9").expect(401);
+      expect(await count()).toBe(5000);
+    });
+
+    it("stores no query text, parameters or values from a database error", async () => {
+      const secret = "secret-value-123";
+      let error: unknown;
+      try {
+        await db().execute(sql`select ${secret}::uuid`);
+      } catch (caught) {
+        error = caught;
+      }
+      expect(error).toBeDefined();
+      app.get(ActivityRecorder).failure("pdf", "invoice_pdf", error);
+      app.get(ActivityRecorder).failure("job", "billing_sweep", new Error(`boom ${secret}`));
+      await app.get(ActivityRecorder).flush();
+      const rows = await db().select().from(schema.operationFailures);
+      expect(rows).toHaveLength(2);
+      const stored = JSON.stringify(rows);
+      expect(stored).not.toContain(secret);
+      expect(stored).not.toMatch(/select|params/i);
+      expect(rows.find((row) => row.kind === "job")).toMatchObject({
+        errorClass: "Error",
+        message: "The payment check job failed. The API log has the error.",
+      });
+    });
+
+    it("prunes a backlog in batches", async () => {
+      await db().execute(sql`
+        insert into product_events (name, created_at)
+        select 'link_opened', now() - interval '400 days' from generate_series(1, 5500)
+      `);
+      await db().execute(sql`
+        insert into product_events (name, created_at) values ('link_opened', now())
+      `);
+      const counts = await app.get(PruneService).prune();
+      expect(counts.productEvents).toBe(5500);
+      const [left] = await db()
+        .select({ n: sql<number>`count(*)::int` })
+        .from(schema.productEvents);
+      expect(left!.n).toBe(1);
     });
   });
 });

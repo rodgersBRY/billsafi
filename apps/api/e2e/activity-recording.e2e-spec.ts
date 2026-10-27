@@ -3,7 +3,10 @@ import { type DatabaseConnection, and, eq, schema, sql } from "@billsafi/db";
 import { nairobiDate } from "@billsafi/domain";
 import request from "supertest";
 import { ActivityRecorder } from "../src/activity/activity-recorder.js";
-import { EVENT_INTAKE_LIMITER } from "../src/activity/events.controller.js";
+import {
+  EVENT_INTAKE_GLOBAL_LIMITER,
+  EVENT_INTAKE_LIMITER,
+} from "../src/activity/events.controller.js";
 import { MaintenanceJobs } from "../src/activity/maintenance.jobs.js";
 import { SlidingWindowLimiter } from "../src/admin/shared/rate-limit.guard.js";
 import { BillingJobs } from "../src/billing/billing.jobs.js";
@@ -343,7 +346,21 @@ describe("activity recording", () => {
         reason: "wrong_password",
         ipMasked: "203.0.113.0/24",
       });
-      expect(JSON.stringify(rows)).not.toContain("not-the-password");
+      // The whole row: only the typed email, the reason, the method and the masked network.
+      expect(Object.keys(rows[0]!).sort()).toEqual(
+        ["createdAt", "email", "id", "ipMasked", "method", "reason"].sort(),
+      );
+      const stored = JSON.stringify(rows);
+      expect(stored).not.toContain("not-the-password");
+      expect(stored).not.toContain("203.0.113.77");
+    });
+
+    it("takes the client address the way Express does, not from a spoofed left entry", async () => {
+      const { email } = await signUp(app);
+      await attempt(email, "not-the-password", "6.6.6.6, 203.0.113.77, 10.0.0.2").expect(401);
+      const rows = await rowsFor(email);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]!.ipMasked).toBe("203.0.113.0/24");
     });
 
     it("records an unknown email", async () => {
@@ -426,6 +443,71 @@ describe("activity recording", () => {
       ];
       for (const body of bad) await send(body, "198.51.100.2").expect(204);
       expect(await forVisitor(id)).toHaveLength(0);
+    });
+
+    it("rate limits by the client address behind the proxy, however the left entries change", async () => {
+      for (let i = 0; i < 10; i++) {
+        await send(
+          { name: "generator_started", anonymousId: anonymousId() },
+          `9.9.9.${i}, 198.51.100.50, 10.0.0.2`,
+        ).expect(204);
+      }
+      await send(
+        { name: "generator_started", anonymousId: anonymousId() },
+        "8.8.8.8, 198.51.100.50, 10.0.0.2",
+      ).expect(429);
+      await send(
+        { name: "generator_started", anonymousId: anonymousId() },
+        "198.51.100.51, 10.0.0.2",
+      ).expect(204);
+    });
+
+    it("keeps one of each step per visitor per day", async () => {
+      const id = anonymousId();
+      for (let i = 0; i < 3; i++) {
+        await send({ name: "generator_started", anonymousId: id }, `198.51.100.6${i}`).expect(204);
+      }
+      await send({ name: "generator_download_clicked", anonymousId: id }, "198.51.100.64").expect(
+        204,
+      );
+      const rows = await forVisitor(id);
+      expect(rows.map((row) => row.name).sort()).toEqual([
+        "generator_download_clicked",
+        "generator_started",
+      ]);
+    });
+
+    it("drops events past the global limit but still answers 204", async () => {
+      const { app: capped } = await createTestApp({
+        configure: (builder) =>
+          builder
+            .overrideProvider(EVENT_INTAKE_GLOBAL_LIMITER)
+            .useValue(new SlidingWindowLimiter(2, 60_000)),
+      });
+      try {
+        const id = anonymousId();
+        const names = [
+          "generator_started",
+          "generator_download_clicked",
+          "generator_signup_clicked",
+        ];
+        for (const [i, name] of names.entries()) {
+          await request(capped.getHttpServer())
+            .post("/api/v1/events")
+            .set("X-Forwarded-For", `198.51.100.7${i}`)
+            .send({ name, anonymousId: id })
+            .expect(204);
+        }
+        await capped.get(ActivityRecorder).flush();
+        const rows = await capped
+          .get<DatabaseConnection>(DATABASE)
+          .db.select()
+          .from(schema.productEvents)
+          .where(eq(schema.productEvents.anonymousId, id));
+        expect(rows).toHaveLength(2);
+      } finally {
+        await capped.close();
+      }
     });
 
     it("rate limits per address", async () => {

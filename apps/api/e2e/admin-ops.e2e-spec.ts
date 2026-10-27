@@ -200,7 +200,10 @@ describe("admin ops", () => {
       ]);
       expect(byKey.database).toMatchObject({ status: "ok", source: "Live query" });
       expect(byKey.database!.data!.responseMs).toBeGreaterThanOrEqual(0);
-      expect(byKey.migrations).toMatchObject({ status: "ok", value: "0017_activity_records" });
+      expect(byKey.migrations).toMatchObject({
+        status: "ok",
+        value: "0018_pruning_and_throttle_indexes",
+      });
       expect(byKey.mpesa).toMatchObject({ status: "unknown", value: null });
       // BILLING_JOBS is off in tests, nothing has failed and no backup has been recorded.
       expect(byKey.billing_jobs).toMatchObject({ status: "unknown", value: null });

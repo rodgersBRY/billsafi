@@ -63,3 +63,15 @@ describe("AdminActionRateLimitGuard", () => {
     expect(guard.canActivate(contextFor(undefined).context)).toBe(false);
   });
 });
+
+describe("SlidingWindowLimiter", () => {
+  it("forgets keys whose hits have all left the window", () => {
+    let now = 1_000_000;
+    const limiter = new SlidingWindowLimiter(5, 60_000, () => now);
+    for (let i = 0; i < 100; i++) limiter.hit(`ip-${i}`);
+    expect(limiter.size).toBe(100);
+    now += 61_000;
+    limiter.hit("fresh");
+    expect(limiter.size).toBe(1);
+  });
+});

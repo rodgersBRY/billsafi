@@ -12,6 +12,7 @@ import type { AuthenticatedRequest } from "../../common/current-user.js";
 /** Sliding-window counter per key, kept in memory: one API process, one admin. */
 export class SlidingWindowLimiter {
   private readonly hits = new Map<string, number[]>();
+  private lastSweep = 0;
 
   constructor(
     private readonly limit: number,
@@ -22,6 +23,7 @@ export class SlidingWindowLimiter {
   /** Records a hit; returns 0 if allowed, otherwise milliseconds until the next slot frees. */
   hit(key: string): number {
     const now = this.now();
+    this.sweep(now);
     const recent = (this.hits.get(key) ?? []).filter((at) => now - at < this.windowMs);
     if (recent.length >= this.limit) {
       this.hits.set(key, recent);
@@ -30,6 +32,20 @@ export class SlidingWindowLimiter {
     recent.push(now);
     this.hits.set(key, recent);
     return 0;
+  }
+
+  /** How many keys are tracked; for tests. */
+  get size(): number {
+    return this.hits.size;
+  }
+
+  /** Drops keys with no hit inside the window, at most once per window, so the map can't grow forever. */
+  private sweep(now: number): void {
+    if (now - this.lastSweep < this.windowMs) return;
+    this.lastSweep = now;
+    for (const [key, times] of this.hits) {
+      if (times.every((at) => now - at >= this.windowMs)) this.hits.delete(key);
+    }
   }
 }
 
