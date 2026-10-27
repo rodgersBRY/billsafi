@@ -1,4 +1,7 @@
 import type {
+  AdminCurrentMonthSource,
+  AdminOverrideState,
+  PlanPaymentProvider,
   AdminAccountStatus,
   AdminAuditOutcome,
   AdminLifecycleStage,
@@ -7,6 +10,13 @@ import type {
 } from "@billsafi/contracts";
 import {
   Ban,
+  CalendarClock,
+  Gift,
+  HandCoins,
+  Hourglass,
+  Smartphone,
+  Undo2,
+  Wallet,
   CircleCheck,
   CircleDashed,
   CircleDot,
@@ -74,13 +84,41 @@ const role: Record<AdminRole, Variant> = {
   admin: { label: "Admin", icon: ShieldCheck, tone: "info" },
 };
 
-export const statusVariants = { account, subscription, lifecycle, outcome, role };
+const source: Record<AdminCurrentMonthSource, Variant> = {
+  paid: { label: "Paid", icon: Wallet, tone: "good" },
+  complimentary: { label: "Complimentary", icon: Gift, tone: "info" },
+};
+
+const override: Record<AdminOverrideState, Variant> = {
+  scheduled: { label: "Scheduled", icon: CalendarClock, tone: "info" },
+  active: { label: "Active", icon: CircleCheck, tone: "good" },
+  expired: { label: "Expired", icon: Hourglass, tone: "neutral" },
+  revoked: { label: "Revoked", icon: Undo2, tone: "neutral" },
+};
+
+const provider: Record<PlanPaymentProvider, Variant> = {
+  mpesa: { label: "M-Pesa checkout", icon: Smartphone, tone: "neutral" },
+  manual: { label: "Recorded manually", icon: HandCoins, tone: "info" },
+};
+
+export const statusVariants = {
+  account,
+  subscription,
+  lifecycle,
+  outcome,
+  role,
+  source,
+  override,
+  provider,
+};
 
 export const accountStatusLabels = labels(account);
 export const subscriptionStatusLabels = labels(subscription);
 export const lifecycleLabels = labels(lifecycle);
 export const outcomeLabels = labels(outcome);
 export const roleLabels = labels(role);
+export const overrideStateLabels = labels(override);
+export const providerLabels = labels(provider);
 
 function labels<K extends string>(variants: Record<K, Variant>): Record<K, string> {
   return Object.fromEntries(
@@ -93,7 +131,10 @@ type BadgeProps =
   | { kind: "subscription"; value: AdminSubscriptionStatus }
   | { kind: "lifecycle"; value: AdminLifecycleStage }
   | { kind: "outcome"; value: AdminAuditOutcome }
-  | { kind: "role"; value: AdminRole };
+  | { kind: "role"; value: AdminRole }
+  | { kind: "source"; value: AdminCurrentMonthSource }
+  | { kind: "override"; value: AdminOverrideState }
+  | { kind: "provider"; value: PlanPaymentProvider };
 
 const kindNames: Record<BadgeProps["kind"], string> = {
   account: "Account",
@@ -101,6 +142,9 @@ const kindNames: Record<BadgeProps["kind"], string> = {
   lifecycle: "Lifecycle",
   outcome: "Outcome",
   role: "Role",
+  source: "Current month",
+  override: "Override",
+  provider: "Source",
 };
 
 /** A status as text plus icon. `labelled` adds the dimension name for screen readers. */

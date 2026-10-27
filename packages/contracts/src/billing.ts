@@ -18,15 +18,27 @@ export type SubscriptionPaymentStatus = "pending" | "succeeded" | "failed";
 export interface SubscriptionPayment {
   id: string;
   purpose: SubscriptionPurpose;
+  /** "mpesa" for checkouts; "manual" for a payment Billsafi recorded on the account's behalf. */
+  source: "mpesa" | "manual";
+  /** How a manual payment was made; null for checkouts. */
+  method: "mpesa_direct" | "bank_transfer" | "cash" | "other" | null;
+  /** Pro months or credit packs paid for. */
+  quantity: number;
+  /** In `currency`; checkouts are always KES. */
   amount: string;
-  phone: string;
+  currency: "KES" | "USD";
+  /** The M-Pesa number prompted; null for a payment Billsafi recorded by hand. */
+  phone: string | null;
   status: SubscriptionPaymentStatus;
   receipt: string | null;
   /** Why a payment failed, in the provider's words. */
   resultDescription: string | null;
   createdAt: string;
   confirmedAt: string | null;
+  /** When the Pro access this payment added ends; earlier than bought if `endedEarly`. */
   grantedUntil: string | null;
+  /** BillSafi ended Pro before this payment's months ran out. */
+  endedEarly: boolean;
   creditsGranted: number;
 }
 
@@ -64,5 +76,23 @@ export interface BillingOverview {
     renewalDue: boolean;
   };
   pendingPayment: SubscriptionPayment | null;
+  /**
+   * Settled payments and grants together make up the latest 20 history entries; merge
+   * them by date (a payment's confirmedAt, else createdAt) to show them in order.
+   */
   payments: SubscriptionPayment[];
+  /** Pro months and invoice credits BillSafi gave at no charge, newest first. */
+  grants: BillingGrant[];
+}
+
+/** A complimentary grant as the account sees it: no admin name, no internal reason. */
+export interface BillingGrant {
+  id: string;
+  kind: "pro_months" | "invoice_credits";
+  /** Pro months or invoice credits. */
+  quantity: number;
+  createdAt: string;
+  /** For Pro: when the access this grant added ends; earlier than given if `endedEarly`. */
+  grantedUntil: string | null;
+  endedEarly: boolean;
 }

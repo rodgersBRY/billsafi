@@ -605,3 +605,22 @@ User: shared the owner's super admin spec and asked for it to be adapted to Bill
 - Later phases add subscription actions and manual payments, an overview with analytics, recording data we do not keep yet (such as PDF downloads and job failures), health, support, and configuration.
 - Out of scope: teams, plan editing, discounts, export or delete of accounts, and impersonation.
 - The environment badge in the admin comes from `NEXT_PUBLIC_APP_ENV`.
+
+## D062 - Let the admin manage plans: manual payments, gifts, ending Pro and limit overrides
+
+Status: confirmed on 2026-10-25.
+
+User: asked for phase 3 of the super admin spec, the Subscriptions module, adapted to BillSafi: plans stay in code and there are no trials.
+
+- Manual payments. An admin can record money that reached BillSafi outside M-Pesa checkout: sent by M-Pesa directly, bank transfer, cash or other. Each record has the amount, the currency, the method, the payer's reference, the day it was paid and an optional note only admins see. It buys Pro months (1 to 12) or credit packs (1 to 10) and adds them with the same rule as an M-Pesa payment.
+- A reference can only be used once per method, so the same payment can't be recorded twice. The admin page also sends an `Idempotency-Key` made once each time a dialog opens, so a double click or a retry replays the first answer instead of adding twice. Keys older than 30 days are deleted.
+- Pro from a manual payment starts when it is recorded, not on the day paid. Revenue counts it on the day paid.
+- KES and USD are kept apart. KES collected includes manual KES payments. Manual USD payments are shown on their own and never converted.
+- Complimentary grants. An admin can give Pro months (1 to 12) or invoice credits (1 to 500) at no charge. Gifts live in their own table and never count as revenue. Granted credits are spent like bought ones.
+- Ending Pro. An admin can end Pro at the end of the current Pro month. The account keeps Pro until then and then becomes Free. Later months are dropped without a refund; refunds stay a manual support task. Payments and gifts whose access ran past the new end keep what they bought and are marked "ended early" with the real end date, in the admin and in the user's own billing history.
+- Limit overrides. An admin can raise an account's invoice limit by 1 to 1000 for a while. An expiry is required and can be at most about a year away, so nothing is raised forever by accident. Overrides can start later and can be revoked. Revoking keeps the row, so the history stays.
+- One stored Pro end. `subscriptions.paid_until` holds when Pro ends. Only the billing service writes it, every time it changes the anchor or the months, so the admin reads one value instead of working the rule out again.
+- MRR counts only accounts whose current Pro month was paid for. Accounts whose current month is a gift are counted apart as complimentary Pro.
+- Lock order. Admin actions lock the user row with FOR NO KEY UPDATE, then the subscription row. FOR UPDATE on the user would deadlock with Ready and checkout, which hold the subscription lock while their foreign keys take a share lock on the user.
+- The user's billing history shows manual payments as "Recorded by BillSafi" with the method, and gifts with "No charge". It never shows the admin's name, note or reason.
+- Every action needs a reason, is audited and counts toward the limit of 10 admin actions a minute. An admin can't record payments, gifts or overrides for their own account, but can end their own Pro.

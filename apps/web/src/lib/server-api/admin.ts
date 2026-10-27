@@ -1,5 +1,9 @@
 import "server-only";
 import type {
+  AdminGrantsPage,
+  AdminOverridesPage,
+  AdminPlanPaymentsPage,
+  AdminSubscriptionsPage,
   AdminAuditPage,
   AdminBilling,
   AdminFunnel,
@@ -63,4 +67,20 @@ export const getAdminUser = cache((id: string): Promise<AdminUserDetail> =>
 
 export const getAdminAuditLogs = cache((queryString: string): Promise<AdminAuditPage> =>
   apiGet<AdminAuditPage>(`/admin/audit-logs${queryString}`),
+);
+
+export const getAdminSubscriptions = cache((queryString: string): Promise<AdminSubscriptionsPage> =>
+  apiGet<AdminSubscriptionsPage>(`/admin/subscriptions${queryString}`),
+);
+
+export const getAdminPlanPayments = cache((queryString: string): Promise<AdminPlanPaymentsPage> =>
+  apiGet<AdminPlanPaymentsPage>(`/admin/subscription-payments${queryString}`),
+);
+
+export const getAdminGrants = cache((queryString: string): Promise<AdminGrantsPage> =>
+  apiGet<AdminGrantsPage>(`/admin/grants${queryString}`),
+);
+
+export const getAdminOverrides = cache((queryString: string): Promise<AdminOverridesPage> =>
+  apiGet<AdminOverridesPage>(`/admin/overrides${queryString}`),
 );

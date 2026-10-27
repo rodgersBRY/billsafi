@@ -1,10 +1,17 @@
 import { ConflictException, Inject, Injectable } from "@nestjs/common";
 import type { AllowanceUsage } from "@billsafi/contracts";
-import { and, type Database, type DatabaseConnection, eq, schema, sql } from "@billsafi/db";
+import { and, type Database, type DatabaseConnection, eq, isNull, schema, sql } from "@billsafi/db";
 import { FREE_PLAN, nairobiCalendarMonth, PRO_PLAN, proPeriodAt } from "@billsafi/domain";
 import { DATABASE } from "../database/database.module.js";
 
-const { usagePeriods, invoiceIssuances, subscriptions, subscriptionPayments } = schema;
+const {
+  usagePeriods,
+  invoiceIssuances,
+  subscriptions,
+  subscriptionPayments,
+  accountGrants,
+  allowanceOverrides,
+} = schema;
 
 export type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 type Db = Database | Transaction;
@@ -14,7 +21,12 @@ interface AllowanceWindow {
   plan: "free" | "pro";
   start: Date;
   end: Date;
+  /** The plan limit plus any admin overrides active at the moment asked about. */
   limit: number;
+  /** The plan's own limit, which usage_periods keeps. */
+  planLimit: number;
+  /** Extra invoices from active overrides. */
+  extra: number;
   carriedOver: number;
 }
 
@@ -58,10 +70,16 @@ export class AllowanceService {
     at: Date,
   ): Promise<AllowanceUsage> {
     const window = await this.window(db, userId, subscription, at);
+    const used =
+      window.carriedOver + (await this.countPlanIssued(db, userId, window.start, window.end));
     return {
       plan: window.plan,
       limit: window.limit,
-      used: window.carriedOver + (await this.countPlanIssued(db, userId, window.start, window.end)),
+      planLimit: window.planLimit,
+      extraInvoices: window.extra,
+      extraEndsAt: window.extra > 0 ? await this.extraEndsAt(db, userId, at) : null,
+      used,
+      remaining: Math.max(0, window.limit - used),
       periodStart: window.start.toISOString(),
       periodEnd: window.end.toISOString(),
       credits: await this.credits(db, userId),
@@ -105,9 +123,10 @@ export class AllowanceService {
 
     const planName = window.plan === "pro" ? "Pro" : "Free";
     const span = window.plan === "pro" ? "this Pro month" : "this month";
+    const limitName = window.extra > 0 ? "your current limit" : `the ${planName} plan limit`;
     throw new ConflictException({
       code: "ALLOWANCE_REACHED",
-      message: `You've made ${window.limit} invoices Ready ${span}, the ${planName} plan limit.`,
+      message: `You've made ${window.limit} invoices Ready ${span}, ${limitName}.`,
       usage: { plan: window.plan, used, limit: window.limit, periodEnd: window.end.toISOString() },
     });
   }
@@ -118,6 +137,7 @@ export class AllowanceService {
     subscription: SubscriptionRow | null,
     at: Date,
   ): Promise<AllowanceWindow> {
+    const extra = await this.extraInvoices(db, userId, at);
     const pro =
       subscription?.anchorAt && proPeriodAt(subscription.anchorAt, subscription.paidMonths, at);
     if (pro) {
@@ -125,7 +145,9 @@ export class AllowanceService {
         plan: "pro",
         start: pro.start,
         end: pro.end,
-        limit: PRO_PLAN.invoiceLimit,
+        limit: PRO_PLAN.invoiceLimit + extra,
+        planLimit: PRO_PLAN.invoiceLimit,
+        extra,
         // Only the first period after (re)activation carries Free usage (D044, D051).
         carriedOver:
           pro.index === 0
@@ -135,7 +157,45 @@ export class AllowanceService {
     }
     // On Free, every plan-funded invoice this month counts, including ones issued on Pro (D044).
     const month = nairobiCalendarMonth(at);
-    return { plan: "free", ...month, limit: FREE_PLAN.invoiceLimit, carriedOver: 0 };
+    return {
+      plan: "free",
+      ...month,
+      limit: FREE_PLAN.invoiceLimit + extra,
+      planLimit: FREE_PLAN.invoiceLimit,
+      extra,
+      carriedOver: 0,
+    };
+  }
+
+  /** When the soonest-ending override active at `at` ends. */
+  private async extraEndsAt(db: Db, userId: string, at: Date): Promise<string | null> {
+    const [row] = await db
+      .select({ endsAt: sql<string | null>`min(${allowanceOverrides.expiresAt})` })
+      .from(allowanceOverrides)
+      .where(this.activeOverrides(userId, at));
+    return row?.endsAt ? new Date(row.endsAt).toISOString() : null;
+  }
+
+  private activeOverrides(userId: string, at: Date) {
+    return and(
+      eq(allowanceOverrides.userId, userId),
+      isNull(allowanceOverrides.revokedAt),
+      sql`${allowanceOverrides.startsAt} <= ${at.toISOString()}`,
+      sql`${allowanceOverrides.expiresAt} > ${at.toISOString()}`,
+    );
+  }
+
+  /**
+   * Extra invoices from admin overrides active at `at`: started (starts_at <= at), not yet
+   * expired (at < expires_at) and not revoked. Both reserve() and usage() read it, so the
+   * limit shown is the limit enforced.
+   */
+  async extraInvoices(db: Db, userId: string, at: Date): Promise<number> {
+    const [row] = await db
+      .select({ total: sql<number>`coalesce(sum(${allowanceOverrides.extraInvoices}), 0)::int` })
+      .from(allowanceOverrides)
+      .where(this.activeOverrides(userId, at));
+    return row!.total;
   }
 
   private async ensurePeriod(tx: Transaction, userId: string, window: AllowanceWindow) {
@@ -146,7 +206,8 @@ export class AllowanceService {
         planCode: window.plan,
         startsAt: window.start,
         endsAt: window.end,
-        invoiceLimit: window.limit,
+        // The plan's limit: overrides come and go within a period, so they're read live.
+        invoiceLimit: window.planLimit,
         carriedOver: window.carriedOver,
       })
       .onConflictDoNothing({
@@ -199,18 +260,22 @@ export class AllowanceService {
     return Math.min(row!.count, FREE_PLAN.invoiceLimit);
   }
 
-  /** Credits bought minus credits used; they never expire (D051). */
+  /** Credits bought plus credits an admin granted, minus credits used; they never expire (D051). */
   async credits(db: Db, userId: string): Promise<number> {
-    const [granted] = await db
+    const [bought] = await db
       .select({ total: sql<number>`coalesce(sum(${subscriptionPayments.creditsGranted}), 0)::int` })
       .from(subscriptionPayments)
       .where(
         and(eq(subscriptionPayments.userId, userId), eq(subscriptionPayments.status, "succeeded")),
       );
+    const [granted] = await db
+      .select({ total: sql<number>`coalesce(sum(${accountGrants.quantity}), 0)::int` })
+      .from(accountGrants)
+      .where(and(eq(accountGrants.userId, userId), eq(accountGrants.kind, "invoice_credits")));
     const [used] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(invoiceIssuances)
       .where(and(eq(invoiceIssuances.userId, userId), eq(invoiceIssuances.source, "credit")));
-    return granted!.total - used!.count;
+    return bought!.total + granted!.total - used!.count;
   }
 }

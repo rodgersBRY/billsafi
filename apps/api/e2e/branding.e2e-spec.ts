@@ -1,5 +1,6 @@
 import type { INestApplication } from "@nestjs/common";
 import { type DatabaseConnection, eq, schema } from "@billsafi/db";
+import { addNairobiMonths } from "@billsafi/domain";
 import request from "supertest";
 import { DATABASE } from "../src/database/database.module.js";
 import { createBusiness, createClient, createTestApp, signUp } from "./support/app.js";
@@ -99,9 +100,10 @@ describe("logos and invoice branding", () => {
       .from(schema.users)
       .where(eq(schema.users.email, account.email));
     // Marking the invoice Ready created the account's subscription row.
+    const anchorAt = new Date(Date.now() - 60_000);
     await db
       .update(schema.subscriptions)
-      .set({ anchorAt: new Date(Date.now() - 60_000), paidMonths: 1 })
+      .set({ anchorAt, paidMonths: 1, paidUntil: addNairobiMonths(anchorAt, 1) })
       .where(eq(schema.subscriptions.userId, user!.id));
 
     const view = await api().get(`/api/v1/public/invoices/${token}`).expect(200);

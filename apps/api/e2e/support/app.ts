@@ -5,8 +5,11 @@ import request from "supertest";
 import { AppModule } from "../../src/app.module.js";
 import { configureApp } from "../../src/app.setup.js";
 import { loadRootEnvFile } from "../../src/config/env-file.js";
-import { AdminRoleSyncService } from "../../src/admin/admin-role-sync.service.js";
-import { ADMIN_ACTION_LIMITER, SlidingWindowLimiter } from "../../src/admin/rate-limit.guard.js";
+import { AdminRoleSyncService } from "../../src/admin/access/admin-role-sync.service.js";
+import {
+  ADMIN_ACTION_LIMITER,
+  SlidingWindowLimiter,
+} from "../../src/admin/shared/rate-limit.guard.js";
 import { FakeMpesaProvider } from "../../src/billing/mpesa/fake.provider.js";
 import { MPESA_PROVIDER } from "../../src/billing/mpesa/mpesa.provider.js";
 import { MAILER } from "../../src/mail/mail.module.js";

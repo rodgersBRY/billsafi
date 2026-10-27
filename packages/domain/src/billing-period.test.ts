@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addNairobiMonths,
+  effectiveWindowEnd,
   nairobiCalendarMonth,
   nairobiDayStart,
   nairobiWeekStart,
@@ -115,5 +116,20 @@ describe("nairobiWeekStart", () => {
     expect(nairobiWeekStart(new Date("2026-10-25T22:00:00Z")).toISOString()).toBe(
       "2026-10-25T21:00:00.000Z",
     );
+  });
+});
+
+describe("effectiveWindowEnd", () => {
+  const until = new Date("2027-01-25T09:00:00Z");
+
+  it("keeps the granted end when Pro was not ended early", () => {
+    expect(effectiveWindowEnd(until, null)).toEqual({ end: until, endedEarly: false });
+    expect(effectiveWindowEnd(until, new Date("2027-02-01T00:00:00Z")).endedEarly).toBe(false);
+    expect(effectiveWindowEnd(until, until).endedEarly).toBe(false);
+  });
+
+  it("stops at the run's new end", () => {
+    const cut = new Date("2026-11-25T09:00:00Z");
+    expect(effectiveWindowEnd(until, cut)).toEqual({ end: cut, endedEarly: true });
   });
 });

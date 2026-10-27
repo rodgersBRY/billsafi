@@ -3,16 +3,17 @@ import type { AdminFunnel, AdminOverview } from "@billsafi/contracts";
 import { and, asc, type DatabaseConnection, eq, schema, sql } from "@billsafi/db";
 import { addNairobiMonths, FREE_PLAN, lifecycleStage, subscriptionStatus } from "@billsafi/domain";
 import request from "supertest";
-import { AccountAccessService } from "../src/admin/account-access.service.js";
-import { AdminBillingService } from "../src/admin/admin-billing.service.js";
-import { AdminMetricsService } from "../src/admin/admin-metrics.service.js";
-import { AdminRoleSyncService } from "../src/admin/admin-role-sync.service.js";
-import { AdminTenantsService } from "../src/admin/admin-tenants.service.js";
-import { proEndsAtSql } from "../src/admin/account-sql.js";
+import { AccountAccessService } from "../src/admin/tenants/account-access.service.js";
+import { AdminBillingService } from "../src/admin/subscriptions/admin-billing.service.js";
+import { AdminMetricsService } from "../src/admin/metrics/admin-metrics.service.js";
+import { AdminRoleSyncService } from "../src/admin/access/admin-role-sync.service.js";
+import { AdminTenantsService } from "../src/admin/tenants/admin-tenants.service.js";
+import { proEndsAtSql } from "../src/admin/shared/account-sql.js";
 import { AuditService } from "../src/audit/audit.service.js";
 import { DISABLED_ADMIN_PATHS } from "../src/auth/auth.js";
 import type { FakeMpesaProvider } from "../src/billing/mpesa/fake.provider.js";
 import { DATABASE } from "../src/database/database.module.js";
+import { subscriptionSuite } from "./admin-subscriptions.suite.js";
 import {
   createBusiness,
   createClient,
@@ -554,10 +555,11 @@ describe("admin", () => {
           invoices: { draft: 0, ready: 1, partially_paid: 0, paid: 0, cancelled: 0 },
         }),
       ]);
-      expect(tenant.body.subscription.recentPayments).toEqual([
+      expect(tenant.body.subscription.payments).toEqual([
         expect.objectContaining({
           purpose: "pro_month",
-          amountKes: "500.00",
+          amount: "500.00",
+          currency: "KES",
           status: "succeeded",
           receipt,
           phone: "+2547•••••149",
@@ -573,7 +575,10 @@ describe("admin", () => {
       expect(payment).toMatchObject({
         userEmail: customerEmail,
         purpose: "pro_month",
-        amountKes: "500.00",
+        amount: "500.00",
+        currency: "KES",
+        provider: "mpesa",
+        method: null,
         priceUsd: "4.00",
         status: "succeeded",
         phone: "+2547•••••149",
@@ -669,7 +674,10 @@ describe("admin", () => {
         set created_at = ${t("05:50")}::timestamptz, confirmed_at = ${t("05:51")}::timestamptz
         where user_id = ${payingId}`);
       await db().execute(sql`
-        update subscriptions set anchor_at = ${t("05:51")}::timestamptz where user_id = ${payingId}`);
+        update subscriptions
+        set anchor_at = ${t("05:51")}::timestamptz,
+          paid_until = ${addNairobiMonths(new Date(t("05:51")), 1).toISOString()}::timestamptz
+        where user_id = ${payingId}`);
 
       const after = await metrics().overview(now);
       const signups = { total: 2, google: 1, email: 1 };
@@ -753,11 +761,17 @@ describe("admin", () => {
       sql`update users set created_at = (${instant.toISOString()}::timestamptz at time zone 'UTC') where id = ${id}`,
     );
   const daysAgo = (days: number) => new Date(Date.now() - days * DAY_MS);
-  const setSubscription = (id: string, anchorAt: Date, paidMonths: number) =>
-    db()
+  const setSubscription = (id: string, anchorAt: Date, paidMonths: number) => {
+    // Billing always writes paid_until with the anchor and months; tests must too.
+    const paidUntil = addNairobiMonths(anchorAt, paidMonths);
+    return db()
       .insert(schema.subscriptions)
-      .values({ userId: id, anchorAt, paidMonths })
-      .onConflictDoUpdate({ target: schema.subscriptions.userId, set: { anchorAt, paidMonths } });
+      .values({ userId: id, anchorAt, paidMonths, paidUntil })
+      .onConflictDoUpdate({
+        target: schema.subscriptions.userId,
+        set: { anchorAt, paidMonths, paidUntil },
+      });
+  };
   const act = (
     path: string,
     body: object = { reason: "Checked with the owner" },
@@ -1204,6 +1218,7 @@ describe("admin", () => {
           limit: 100,
           periodStart: expect.any(String),
           periodEnd: expect.any(String),
+          extraInvoices: 0,
         },
         credits: 0,
         invoicesCreated: 3,
@@ -1219,7 +1234,9 @@ describe("admin", () => {
         paidMonths: 1,
         paidUntil: body.tenant.plan.proUntil,
         cancelledAt: null,
-        recentPayments: [expect.objectContaining({ receipt: paid, phone: "+2547•••••149" })],
+        payments: [
+          expect.objectContaining({ receipt: paid, phone: "+2547•••••149", provider: "mpesa" }),
+        ],
       });
       expect(body.recentAudit).toEqual([]);
       // Phone numbers only ever leave masked.
@@ -1727,5 +1744,14 @@ describe("admin", () => {
         ).toMatchObject({ actor: { userId: null, role: "system", email: null } });
       });
     });
+  });
+
+  subscriptionSuite({
+    app: () => app,
+    adminCookie: () => adminCookie,
+    adminId: () => adminId,
+    seedAccount,
+    payPro,
+    userId,
   });
 });

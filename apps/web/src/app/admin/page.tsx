@@ -14,7 +14,7 @@ export const generateMetadata = () => adminMetadata("Overview");
 const header = (
   <PageHeader
     title="Overview"
-    description="Sign-ups, invoicing and Billsafi's own revenue at a glance. Times are Nairobi time."
+    description="Sign-ups, invoicing and BillSafi's own revenue at a glance. Times are Nairobi time."
   />
 );
 
@@ -40,7 +40,7 @@ async function Overview() {
                 label: "Stuck payments",
                 count: billing.stuckPayments.length,
                 help: "M-Pesa checkouts still pending more than 10 minutes after they started.",
-                href: "/admin/subscriptions#stuck-payments",
+                href: "/admin/subscriptions?tab=payments#stuck-payments",
               },
               {
                 label: "Suspended accounts",

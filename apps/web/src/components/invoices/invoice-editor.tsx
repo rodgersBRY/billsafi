@@ -234,7 +234,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
     }
   }
 
-  const remaining = props.usage.limit - props.usage.used;
+  const remaining = props.usage.remaining;
   const title = invoice?.invoiceNumber ?? (invoice ? "Draft invoice" : "Create invoice");
 
   return (

@@ -1,11 +1,23 @@
-import type { AdminTenantUsage } from "@billsafi/contracts";
+import type { AdminOverrideRow, AdminTenantUsage } from "@billsafi/contracts";
 import { formatBytes, formatCount, formatDay } from "../admin-format";
 import { KpiCard } from "../kpi-card";
 import { Panel } from "../admin-ui";
 
 /** The allowance in force now, credits, totals and storage. */
-export function TenantUsageTab({ usage }: { usage: AdminTenantUsage }) {
+interface TenantUsageTabProps {
+  usage: AdminTenantUsage;
+  /** The account's limit overrides, to say how long the extra invoices last. */
+  overrides: AdminOverrideRow[];
+}
+
+export function TenantUsageTab({ usage, overrides }: TenantUsageTabProps) {
   const { allowance } = usage;
+  const planLimit = allowance.limit - allowance.extraInvoices;
+  const remaining = Math.max(0, allowance.limit - allowance.used);
+  const extraUntil = overrides
+    .filter((row) => row.state === "active")
+    .map((row) => row.expiresAt)
+    .sort()[0];
   const share = allowance.limit > 0 ? Math.min(allowance.used / allowance.limit, 1) : 0;
   const plan = allowance.plan === "pro" ? "Pro period" : "Free month";
   const totals = [
@@ -21,7 +33,7 @@ export function TenantUsageTab({ usage }: { usage: AdminTenantUsage }) {
     {
       label: "Invoice credits",
       value: usage.credits,
-      definition: "Bought and not used yet. They don't expire.",
+      definition: "Bought and granted, not used yet. They don't expire.",
     },
   ];
 
@@ -36,7 +48,15 @@ export function TenantUsageTab({ usage }: { usage: AdminTenantUsage }) {
             <span className="text-2xl font-semibold tabular-nums">
               {formatCount(allowance.used)}
             </span>{" "}
-            <span className="text-sub">of {formatCount(allowance.limit)} invoices used</span>
+            <span className="text-sub">
+              of {formatCount(allowance.limit)} invoices used, {formatCount(remaining)} left
+            </span>
+          </p>
+          <p className="mt-1 text-xs text-sub">
+            Plan limit {formatCount(planLimit)}
+            {allowance.extraInvoices > 0 &&
+              `, plus ${formatCount(allowance.extraInvoices)} extra from limit overrides${extraUntil ? ` (the first ends on ${formatDay(extraUntil)})` : ""}`}
+            .
           </p>
           <div
             role="meter"

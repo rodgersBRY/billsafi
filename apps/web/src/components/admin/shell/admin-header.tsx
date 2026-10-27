@@ -1,24 +1,13 @@
 "use client";
 
-import {
-  ArrowLeft,
-  ChevronRight,
-  Code,
-  FlaskConical,
-  LogOut,
-  Menu,
-  ShieldAlert,
-} from "lucide-react";
+import { ChevronRight, Code, FlaskConical, Menu, ShieldAlert } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { authClient } from "@/lib/auth-client";
-import { useNavigationPending } from "@/lib/use-navigation-pending";
+import { usePathname } from "next/navigation";
 import { adminCrumbs } from "./admin-nav";
 
 import type { AdminEnvironment } from "./admin-environment";
 
 interface AdminHeaderProps {
-  user: { name: string; email: string };
   environment: AdminEnvironment;
   menuButtonRef: React.RefObject<HTMLButtonElement | null>;
   onOpenMenu: () => void;
@@ -58,19 +47,13 @@ function EnvironmentBadge({ environment }: { environment: AdminEnvironment }) {
   );
 }
 
-/** Sticky header: menu button on phones, breadcrumbs, environment, way back, sign out. */
-export function AdminHeader({ user, environment, menuButtonRef, onOpenMenu }: AdminHeaderProps) {
+/**
+ * Sticky header: menu button on phones, breadcrumbs and the environment. The account,
+ * the way back to the app and sign out live in the sidebar's account menu.
+ */
+export function AdminHeader({ environment, menuButtonRef, onOpenMenu }: AdminHeaderProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const [signingOut, setSigningOut] = useNavigationPending();
   const crumbs = adminCrumbs(pathname);
-
-  async function signOut() {
-    setSigningOut(true);
-    await authClient.signOut();
-    router.replace("/sign-in");
-    router.refresh();
-  }
 
   return (
     <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-line bg-panel px-2 py-2 sm:px-4 lg:px-6">
@@ -115,25 +98,6 @@ export function AdminHeader({ user, environment, menuButtonRef, onOpenMenu }: Ad
         </ol>
       </nav>
       <EnvironmentBadge environment={environment} />
-      <Link href="/" className={iconButton}>
-        <ArrowLeft aria-hidden className="size-4" />
-        <span className="sr-only lg:not-sr-only">Back to app</span>
-      </Link>
-      <div className="hidden min-w-0 text-right lg:block">
-        <p className="max-w-40 truncate text-sm font-medium">{user.name}</p>
-        <p className="max-w-40 truncate text-xs text-sub">{user.email}</p>
-      </div>
-      <button
-        type="button"
-        onClick={signOut}
-        disabled={signingOut}
-        // The name is only visible from 1024px; the accessible name always carries it.
-        aria-label={`${signingOut ? "Signing out" : "Sign out"} ${user.name}`}
-        className={iconButton}
-      >
-        <LogOut aria-hidden className="size-4" />
-        <span className="sr-only xl:not-sr-only">{signingOut ? "Signing out" : "Sign out"}</span>
-      </button>
     </header>
   );
 }

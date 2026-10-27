@@ -1,7 +1,7 @@
 import type { INestApplication } from "@nestjs/common";
 import { type DatabaseConnection, and, eq, schema } from "@billsafi/db";
 import request from "supertest";
-import { AccountAccessService } from "../src/admin/account-access.service.js";
+import { AccountAccessService } from "../src/admin/tenants/account-access.service.js";
 import { DATABASE } from "../src/database/database.module.js";
 import { createTestApp, signUp, uniqueEmail, WEB_ORIGIN } from "./support/app.js";
 

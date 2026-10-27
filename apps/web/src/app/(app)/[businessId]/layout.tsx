@@ -35,6 +35,8 @@ async function Sidebar({ params }: { params: Promise<{ businessId: string }> }) 
           settingsHref={`/${businessId}/settings`}
           tourHref={`/${businessId}/overview?tour=1`}
           isPro={usage.plan === "pro"}
+          // Only shows the link; /admin itself is still checked by the proxy and the API.
+          isAdmin={user.role === "admin"}
         />
         <p className="px-1 text-xs text-sub text-center">
           BillSafi v{process.env.NEXT_PUBLIC_APP_VERSION}

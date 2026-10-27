@@ -8,6 +8,7 @@ import {
   ServiceUnavailableException,
 } from "@nestjs/common";
 import type {
+  BillingGrant,
   BillingOverview,
   Checkout,
   PlanPrices,
@@ -17,6 +18,7 @@ import { and, type DatabaseConnection, desc, eq, schema, sql } from "@billsafi/d
 import {
   addNairobiMonths,
   CREDIT_PACK,
+  effectiveWindowEnd,
   nairobiDate,
   PRO_PLAN,
   REMINDER_DAYS_BEFORE,
@@ -32,8 +34,15 @@ import { AllowanceService, type SubscriptionRow, type Transaction } from "./allo
 import { ExchangeRateService, type UsdKesRate } from "./exchange-rate.service.js";
 import { MPESA_PROVIDER, type MpesaProvider } from "./mpesa/mpesa.provider.js";
 
-const { subscriptions, subscriptionPayments, subscriptionEvents, subscriptionReminders, users } =
-  schema;
+const {
+  subscriptions,
+  subscriptionPayments,
+  subscriptionEvents,
+  subscriptionReminders,
+  users,
+  accountGrants,
+  adminIdempotencyKeys,
+} = schema;
 
 type PaymentRow = typeof subscriptionPayments.$inferSelect;
 
@@ -42,6 +51,10 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const PENDING_WINDOW_MS = 2 * 60 * 1000;
 /** Ask Daraja directly once a callback is this late. */
 const QUERY_AFTER_MS = 20 * 1000;
+/** Billing history entries (payments and grants together) on the Billing page. */
+const HISTORY_LENGTH = 20;
+/** Admin Idempotency-Key rows are kept this long. */
+const IDEMPOTENCY_KEY_DAYS = 30;
 /** Give up on a request Daraja still cannot report on after a day. */
 const ABANDON_AFTER_MS = DAY_MS;
 
@@ -69,25 +82,60 @@ function planPrices(rate: UsdKesRate | null): PlanPrices {
   };
 }
 
+/** A Pro extension applied by BillingService.extendPro. */
+export interface ProExtension {
+  /** activated: a new run from now; renewed: added to the active run. */
+  kind: "activated" | "renewed";
+  grantedFrom: Date;
+  grantedUntil: Date;
+  /** The subscription row after the change. */
+  subscription: SubscriptionRow;
+}
+
 export function paidThrough(subscription: SubscriptionRow): Date | null {
   return subscription.anchorAt
     ? addNairobiMonths(subscription.anchorAt, subscription.paidMonths)
     : null;
 }
 
+/**
+ * A plan payment as the account sees it. A manual payment shows its method and the payer's
+ * reference as the receipt; who recorded it and the admin's note stay out.
+ */
 function toPayment(row: PaymentRow): SubscriptionPayment {
+  const manual = row.provider === schema.MANUAL_PROVIDER;
+  const window = row.grantedUntil ? effectiveWindowEnd(row.grantedUntil, row.endedEarlyAt) : null;
   return {
     id: row.id,
     purpose: row.purpose,
+    source: manual ? "manual" : "mpesa",
+    method: row.method,
+    quantity: row.quantity,
     amount: row.amount,
+    currency: row.currency as SubscriptionPayment["currency"],
     phone: row.phone,
     status: row.status,
-    receipt: row.receipt,
+    receipt: manual ? row.externalReference : row.receipt,
     resultDescription: row.status === "failed" ? row.resultDescription : null,
     createdAt: row.createdAt.toISOString(),
-    confirmedAt: row.confirmedAt?.toISOString() ?? null,
-    grantedUntil: row.grantedUntil?.toISOString() ?? null,
+    // A manual payment is dated by the day it was paid.
+    confirmedAt: (manual ? row.paidAt : row.confirmedAt)?.toISOString() ?? null,
+    grantedUntil: window?.end.toISOString() ?? null,
+    endedEarly: window?.endedEarly ?? false,
     creditsGranted: row.creditsGranted,
+  };
+}
+
+/** A complimentary grant as the account sees it: no admin, no internal reason. */
+function toGrant(row: typeof schema.accountGrants.$inferSelect): BillingGrant {
+  const window = row.grantedUntil ? effectiveWindowEnd(row.grantedUntil, row.endedEarlyAt) : null;
+  return {
+    id: row.id,
+    kind: row.kind,
+    quantity: row.quantity,
+    createdAt: row.createdAt.toISOString(),
+    grantedUntil: window?.end.toISOString() ?? null,
+    endedEarly: window?.endedEarly ?? false,
   };
 }
 
@@ -117,16 +165,18 @@ export class BillingService {
       .select()
       .from(subscriptions)
       .where(eq(subscriptions.userId, userId));
-    const recent = await this.db
+    const [pending] = await this.db
       .select()
       .from(subscriptionPayments)
-      .where(eq(subscriptionPayments.userId, userId))
+      .where(
+        and(eq(subscriptionPayments.userId, userId), eq(subscriptionPayments.status, "pending")),
+      )
       .orderBy(desc(subscriptionPayments.createdAt))
-      .limit(20);
+      .limit(1);
+    const history = await this.history(userId);
     const until = subscription ? paidThrough(subscription) : null;
     const active = until !== null && at < until;
     const cancelled = active && subscription!.cancelledAt !== null;
-    const pending = recent.find((payment) => payment.status === "pending");
     return {
       usage: await this.allowance.usageFor(this.db, userId, subscription ?? null, at),
       prices: planPrices(await this.rates.usdKes()),
@@ -138,7 +188,49 @@ export class BillingService {
           active && !cancelled && until.getTime() - at.getTime() <= REMINDER_DAYS_BEFORE * DAY_MS,
       },
       pendingPayment: pending ? toPayment(pending) : null,
-      payments: recent.filter((payment) => payment.status !== "pending").map(toPayment),
+      ...history,
+    };
+  }
+
+  /**
+   * The latest 20 entries of the account's billing history: settled payments and grants
+   * together, newest first by the date the page shows (toPayment's confirmedAt, else the
+   * creation time). The top 20 of each list is enough to find the top 20 of both.
+   */
+  private async history(userId: string) {
+    const shownAt = sql`coalesce(case when ${subscriptionPayments.provider} = ${schema.MANUAL_PROVIDER}
+      then ${subscriptionPayments.paidAt} else ${subscriptionPayments.confirmedAt} end,
+      ${subscriptionPayments.createdAt})`;
+    const payments = (
+      await this.db
+        .select()
+        .from(subscriptionPayments)
+        .where(
+          and(
+            eq(subscriptionPayments.userId, userId),
+            sql`${subscriptionPayments.status} <> 'pending'`,
+          ),
+        )
+        .orderBy(desc(shownAt), desc(subscriptionPayments.id))
+        .limit(HISTORY_LENGTH)
+    ).map(toPayment);
+    const grants = (
+      await this.db
+        .select()
+        .from(accountGrants)
+        .where(eq(accountGrants.userId, userId))
+        .orderBy(desc(accountGrants.createdAt), desc(accountGrants.id))
+        .limit(HISTORY_LENGTH)
+    ).map(toGrant);
+    const timeline = [
+      ...payments.map((payment) => ({ at: payment.confirmedAt ?? payment.createdAt, payment })),
+      ...grants.map((grant) => ({ at: grant.createdAt, grant })),
+    ]
+      .sort((a, b) => b.at.localeCompare(a.at))
+      .slice(0, HISTORY_LENGTH);
+    return {
+      payments: timeline.flatMap((entry) => ("payment" in entry ? [entry.payment] : [])),
+      grants: timeline.flatMap((entry) => ("grant" in entry ? [entry.grant] : [])),
     };
   }
 
@@ -310,6 +402,19 @@ export class BillingService {
     for (const payment of stale) await this.refresh(payment, at);
   }
 
+  /**
+   * Deletes admin Idempotency-Key rows older than 30 days: a retry never comes that late,
+   * and the payment or grant they point to is kept. Runs with the billing jobs.
+   */
+  async pruneIdempotencyKeys(at = new Date()): Promise<number> {
+    const cutoff = new Date(at.getTime() - IDEMPOTENCY_KEY_DAYS * DAY_MS);
+    const deleted = await this.db
+      .delete(adminIdempotencyKeys)
+      .where(sql`${adminIdempotencyKeys.createdAt} < ${cutoff.toISOString()}`)
+      .returning({ key: adminIdempotencyKeys.key });
+    return deleted.length;
+  }
+
   /** Sends each renewal reminder once per expiry date (D051). */
   async sendReminders(at = new Date()): Promise<number> {
     const candidates = await this.db
@@ -439,27 +544,14 @@ export class BillingService {
             creditsGranted: CREDIT_PACK.invoices,
           })
           .where(eq(subscriptionPayments.id, payment.id));
-        await tx.insert(subscriptionEvents).values({
-          subscriptionId: subscription.id,
-          kind: "credits_added",
+        await this.recordCreditsAdded(tx, subscription.id, CREDIT_PACK.invoices, {
           paymentId: payment.id,
-          details: { credits: CREDIT_PACK.invoices },
         });
         return;
       }
 
-      // Each Pro payment buys one month: from the current expiry while active,
-      // or from now as a new anniversary anchor after expiry (D044, D051).
-      const until = paidThrough(subscription);
-      const active = until !== null && now < until;
-      const anchorAt = active ? subscription.anchorAt! : now;
-      const paidMonths = active ? subscription.paidMonths + 1 : 1;
-      const grantedFrom = active ? until : now;
-      const grantedUntil = addNairobiMonths(anchorAt, paidMonths);
-      await tx
-        .update(subscriptions)
-        .set({ anchorAt, paidMonths, cancelledAt: null })
-        .where(eq(subscriptions.id, subscription.id));
+      // Each Pro payment buys one month (D044, D051).
+      const extension = await this.extendPro(tx, subscription, 1, now);
       await tx
         .update(subscriptionPayments)
         .set({
@@ -467,19 +559,89 @@ export class BillingService {
           receipt: outcome.receipt ?? null,
           resultCode: "0",
           confirmedAt: now,
-          grantedFrom,
-          grantedUntil,
+          grantedFrom: extension.grantedFrom,
+          grantedUntil: extension.grantedUntil,
         })
         .where(eq(subscriptionPayments.id, payment.id));
-      await tx.insert(subscriptionEvents).values({
-        subscriptionId: subscription.id,
-        kind: active ? "renewed" : "activated",
-        paymentId: payment.id,
-        details: {
-          grantedFrom: grantedFrom.toISOString(),
-          grantedUntil: grantedUntil.toISOString(),
-        },
-      });
+      await this.recordProEvent(tx, subscription.id, extension, { paymentId: payment.id });
+    });
+  }
+
+  /**
+   * Adds `months` Pro months under the account lock (taken by the caller): from the current
+   * expiry while Pro is active, or from `now` as a new anniversary anchor after it ended
+   * (D044, D051). M-Pesa payments, manual payments and admin grants all go through here, so
+   * the rule is the same whichever way Pro is added. Also writes `paidUntil`.
+   *
+   * A payment clears an earlier cancellation (D051). A gift keeps it while Pro is active,
+   * since the account said it does not want to continue; a new run always starts uncancelled.
+   */
+  async extendPro(
+    tx: Transaction,
+    subscription: SubscriptionRow,
+    months: number,
+    now: Date,
+    { clearCancellation = true }: { clearCancellation?: boolean } = {},
+  ): Promise<ProExtension> {
+    if (!Number.isInteger(months) || months < 1) throw new Error(`Invalid Pro months: ${months}`);
+    const until = paidThrough(subscription);
+    const active = until !== null && now < until;
+    const anchorAt = active ? subscription.anchorAt! : now;
+    const paidMonths = active ? subscription.paidMonths + months : months;
+    const grantedFrom = active ? until : now;
+    const grantedUntil = addNairobiMonths(anchorAt, paidMonths);
+    const [updated] = await tx
+      .update(subscriptions)
+      .set({
+        anchorAt,
+        paidMonths,
+        paidUntil: grantedUntil,
+        cancelledAt: active && !clearCancellation ? subscription.cancelledAt : null,
+      })
+      .where(eq(subscriptions.id, subscription.id))
+      .returning();
+    return {
+      kind: active ? "renewed" : "activated",
+      grantedFrom,
+      grantedUntil,
+      subscription: updated!,
+    };
+  }
+
+  /** The plan history row for a Pro extension from a payment. */
+  async recordProEvent(
+    tx: Transaction,
+    subscriptionId: string,
+    extension: ProExtension,
+    { paymentId, details = {} }: { paymentId: string; details?: Record<string, unknown> },
+  ): Promise<void> {
+    await tx.insert(subscriptionEvents).values({
+      subscriptionId,
+      kind: extension.kind,
+      paymentId,
+      details: {
+        ...details,
+        grantedFrom: extension.grantedFrom.toISOString(),
+        grantedUntil: extension.grantedUntil.toISOString(),
+      },
+    });
+  }
+
+  /**
+   * The plan history row for credits a payment added. The balance itself is derived from
+   * the payment (or grant) rows by AllowanceService.credits, so nothing else changes here.
+   */
+  async recordCreditsAdded(
+    tx: Transaction,
+    subscriptionId: string,
+    credits: number,
+    { paymentId, details = {} }: { paymentId: string; details?: Record<string, unknown> },
+  ): Promise<void> {
+    await tx.insert(subscriptionEvents).values({
+      subscriptionId,
+      kind: "credits_added",
+      paymentId,
+      details: { ...details, credits },
     });
   }
 

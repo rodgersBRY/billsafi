@@ -7,7 +7,22 @@ import {
   subscriptionStatuses,
 } from "@billsafi/domain";
 import { z } from "zod";
-import type { SubscriptionPaymentStatus, SubscriptionPurpose } from "./billing.js";
+import type {
+  AdminCurrentMonthSource,
+  AdminGrantRow,
+  AdminOverrideRow,
+  AdminPlanPayment,
+} from "./admin-subscriptions.js";
+import {
+  blankToUndefined,
+  optionalDate,
+  optionalDays,
+  optionalEnum,
+  optionalText,
+  pageParam,
+  searchParam,
+  sortDirParam,
+} from "./query-params.js";
 import type { InvoiceStatus } from "./invoices.js";
 
 /*
@@ -76,13 +91,18 @@ export interface AdminOverview {
   invoicesCreatedThisMonth: number;
   invoicesReadyThisMonth: number;
   totalAccounts: number;
-  /** Accounts whose Pro access has not ended. */
+  /** Accounts on Pro whose current Pro month was paid for (not a gift). */
   payingAccounts: number;
+  /** Accounts on Pro whose current Pro month was a gift; never revenue. */
+  complimentaryProAccounts: number;
   /** Accounts with a succeeded plan payment divided by all accounts; null with no accounts. */
   conversion: number | null;
-  /** Paying accounts times the Pro price in USD. */
+  /** Paying accounts times the Pro price in USD; complimentary months are left out. */
   mrrUsd: string;
+  /** Succeeded KES plan payments this month, M-Pesa and manual, by the day paid. */
   kesCollectedThisMonth: string;
+  /** Manual USD payments this month, kept apart and never converted. */
+  manualUsdCollectedThisMonth: string;
   /**
    * Succeeded / (succeeded + failed) by checkout time over the last 30 Nairobi
    * days; pending payments are left out. Null with no settled payments.
@@ -141,29 +161,18 @@ export interface AdminRetention {
   generatedAt: string;
 }
 
-export interface AdminBillingPayment {
-  id: string;
-  createdAt: string;
-  userId: string;
-  userEmail: string;
-  purpose: SubscriptionPurpose;
-  amountKes: string;
-  /** USD list price at checkout; null for payments made before prices were stored. */
-  priceUsd: string | null;
-  status: SubscriptionPaymentStatus;
-  /** Middle digits hidden, like +2547•••••678. */
-  phone: string;
-  receipt: string | null;
-  /** M-Pesa's reason, for failed payments only. */
-  resultDescription: string | null;
-}
+/** A plan payment in the admin Billing tab; see AdminPlanPayment. */
+export type AdminBillingPayment = AdminPlanPayment;
 
 export interface AdminFreeLimitHit {
   userId: string;
   userEmail: string;
   /** The Free month, as a Nairobi YYYY-MM. */
   month: string;
+  /** The limit reached: the Free limit plus override extra in force at the time. */
   limit: number;
+  /** Of `limit`, the extra invoices from limit overrides. */
+  extraInvoices: number;
   /** When the limit-th invoice of the month was made Ready. */
   hitAt: string;
   /** A succeeded plan payment between the hit and 30 days after the month ended. */
@@ -196,22 +205,6 @@ export const adminSubscriptionStatuses = subscriptionStatuses;
 export type AdminSubscriptionStatus = SubscriptionStatus;
 export const adminLifecycleStages = lifecycleStages;
 export type AdminLifecycleStage = LifecycleStage;
-
-/** Query strings arrive as text; an empty value (a cleared filter) means "not set". */
-const blankToUndefined = (value: unknown) => (value === "" ? undefined : value);
-
-const searchParam = z
-  .string()
-  .trim()
-  .max(100)
-  .transform((value) => value || undefined)
-  .optional();
-const pageParam = z.coerce.number().int().min(1).max(10_000).default(1);
-const sortDirParam = z.preprocess(blankToUndefined, z.enum(["asc", "desc"]).default("desc"));
-const optionalEnum = <const T extends readonly [string, ...string[]]>(values: T) =>
-  z.preprocess(blankToUndefined, z.enum(values).optional());
-const optionalDays = <const T extends readonly [number, ...number[]]>(values: T) =>
-  z.preprocess(blankToUndefined, z.coerce.number().pipe(z.literal(values)).optional());
 
 export const adminSortDirections = ["asc", "desc"] as const;
 export type AdminSortDirection = (typeof adminSortDirections)[number];
@@ -269,11 +262,6 @@ export type AdminUsersQuery = z.output<typeof adminUsersQuerySchema>;
 
 export const adminAuditOutcomes = ["success", "failure"] as const;
 export type AdminAuditOutcome = (typeof adminAuditOutcomes)[number];
-
-const optionalText = (max: number) =>
-  z.preprocess(blankToUndefined, z.string().trim().min(1).max(max).optional());
-/** A Nairobi calendar date, YYYY-MM-DD. */
-const optionalDate = z.preprocess(blankToUndefined, z.iso.date().optional());
 
 export const adminAuditLogsQuerySchema = z
   .object({
@@ -381,8 +369,10 @@ export interface AdminTenantUsage {
     limit: number;
     periodStart: string;
     periodEnd: string;
+    /** Extra invoices from limit overrides active now, included in `limit`. */
+    extraInvoices: number;
   };
-  /** Purchased invoice credits not used yet. */
+  /** Bought and granted invoice credits not used yet. */
   credits: number;
   invoicesCreated: number;
   invoicesReady: number;
@@ -394,17 +384,8 @@ export interface AdminTenantUsage {
   storageBytes: number;
 }
 
-export interface AdminTenantPayment {
-  id: string;
-  createdAt: string;
-  confirmedAt: string | null;
-  purpose: SubscriptionPurpose;
-  amountKes: string;
-  status: SubscriptionPaymentStatus;
-  /** Middle digits hidden. */
-  phone: string;
-  receipt: string | null;
-}
+/** A plan payment in tenant detail; see AdminPlanPayment. */
+export type AdminTenantPayment = AdminPlanPayment;
 
 export interface AdminTenantSubscription {
   plan: AdminPlan;
@@ -416,8 +397,18 @@ export interface AdminTenantSubscription {
   paidUntil: string | null;
   /** Set while the account has asked not to continue after paid access. */
   cancelledAt: string | null;
-  /** The 10 most recent plan payments, newest first. */
-  recentPayments: AdminTenantPayment[];
+  /**
+   * The 25 latest plan payments, M-Pesa and manual, newest first. The rest are in
+   * GET /admin/subscription-payments?search=<account id>.
+   */
+  payments: AdminTenantPayment[];
+  /** All of the account's plan payments. */
+  paymentCount: number;
+  currentMonthSource: AdminCurrentMonthSource | null;
+  /** Every complimentary grant, newest first. */
+  grants: AdminGrantRow[];
+  /** Every limit override, revoked and expired ones included, newest first. */
+  overrides: AdminOverrideRow[];
 }
 
 export interface AdminTenantDetail {

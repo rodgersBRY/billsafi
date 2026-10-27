@@ -48,8 +48,8 @@ function tiles(data: AdminOverview): Tile[] {
     {
       label: "Paying accounts",
       value: formatCount(data.payingAccounts),
-      definition: "Accounts whose Pro access has not ended.",
-      href: "/admin/tenants?lifecycle=subscribed",
+      definition: "Accounts on Pro with the current month paid for.",
+      href: "/admin/subscriptions",
     },
     {
       label: "Conversion",
@@ -59,12 +59,22 @@ function tiles(data: AdminOverview): Tile[] {
     {
       label: "MRR",
       value: formatUsd(data.mrrUsd),
-      definition: "Paying accounts times the Pro price in USD.",
+      definition: "Paying accounts times the Pro price in USD. Gifts left out.",
     },
     {
-      label: "Collected this month",
+      label: "KES collected this month",
       value: formatKes(data.kesCollectedThisMonth),
-      definition: "Successful plan payments confirmed this calendar month.",
+      definition: "Plan payments in KES this calendar month, M-Pesa and manual, by the day paid.",
+    },
+    {
+      label: "USD collected this month",
+      value: formatUsd(data.manualUsdCollectedThisMonth),
+      definition: "Manual payments in USD this calendar month. Never converted to KES.",
+    },
+    {
+      label: "Complimentary Pro",
+      value: formatCount(data.complimentaryProAccounts),
+      definition: "Accounts on Pro with the current month a gift. Never revenue.",
     },
     {
       label: "M-Pesa success rate",
