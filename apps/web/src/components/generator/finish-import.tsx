@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { FormMessage } from "@/components/ui/form-message";
 import { apiPost } from "@/lib/api.client";
 import { ApiError } from "@/lib/api-error";
+import { getAnonymousId } from "@/lib/generator-events";
 import { clearGuestDraft, readGuestDraft } from "./guest-draft";
 
 /** Saves the generator draft to the new account, then opens it in the editor (D056). */
@@ -26,7 +27,10 @@ export function FinishImport() {
     }
     inFlight.current = true;
     try {
-      const result = await apiPost<ImportGuestInvoiceResult>("/guest-invoices/import", draft);
+      const result = await apiPost<ImportGuestInvoiceResult>("/guest-invoices/import", {
+        ...draft,
+        anonymousId: getAnonymousId(),
+      });
       // Clear only after the server has it, so a failure never loses their work.
       clearGuestDraft();
       const existing = result.usedExistingBusiness ? "&existing=1" : "";

@@ -14,6 +14,7 @@ import { TextAreaField } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
 import { addDays, todayInNairobi } from "@/lib/format";
 import { authClient } from "@/lib/auth-client";
+import { sendGeneratorEvent, sendGeneratorStarted } from "@/lib/generator-events";
 import { FINISH_PATH, GuestAuthDialog } from "./guest-auth-dialog";
 import { GuestBusinessFields } from "./guest-business-fields";
 import { GuestClientFields } from "./guest-client-fields";
@@ -53,6 +54,7 @@ export function GuestInvoiceForm({
 
   const set = (patch: Partial<GuestForm>) => {
     edited.current = true;
+    sendGeneratorStarted();
     setForm((current) => ({ ...current, ...patch }));
   };
   const discount = discountOf(form.adjustments);
@@ -123,6 +125,7 @@ export function GuestInvoiceForm({
   }
 
   async function onSave() {
+    sendGeneratorEvent("generator_download_clicked");
     if (!validate()) return;
     writeGuestDraft(toGuestDraft(form));
     // Signed-in visitors (including those sent back by the finish page) skip the account step.

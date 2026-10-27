@@ -11,6 +11,7 @@ import { TextField } from "@/components/ui/field";
 import { PasswordField } from "@/components/ui/password-field";
 import { FormMessage } from "@/components/ui/form-message";
 import { authClient } from "@/lib/auth-client";
+import { sendGeneratorEvent } from "@/lib/generator-events";
 import { useNavigationPending } from "@/lib/use-navigation-pending";
 import { welcomePath } from "@/lib/welcome";
 
@@ -65,6 +66,7 @@ export function GuestAuthDialog({
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (signUp) sendGeneratorEvent("generator_signup_clicked");
     const formElement = event.currentTarget;
     const data = new FormData(formElement);
     const email = String(data.get("email")).trim();
