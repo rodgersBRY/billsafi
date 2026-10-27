@@ -75,6 +75,18 @@ async function Overview({ searchParams }: PageProps<"/admin">) {
               href: "/admin/subscriptions?tab=payments&limitHits=this_month#free-limit-hits",
             },
             {
+              label: "Failed operations today",
+              count: a.failedOperationsToday,
+              help: "Failed M-Pesa checkouts, PDFs, emails and background jobs since midnight.",
+              href: "/admin/health",
+            },
+            {
+              label: "Repeated failed sign-ins",
+              count: a.repeatedFailedSignIns,
+              help: "Emails with 10 or more failed sign-ins inside one hour, in the last 24 hours.",
+              href: "/admin/security?tab=failed-sign-ins",
+            },
+            {
               label: "Overrides ending",
               count: a.overridesEnding,
               help: "Limit overrides that end within 7 days.",

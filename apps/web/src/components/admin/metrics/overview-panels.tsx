@@ -62,7 +62,7 @@ const money = (metric: MetricKey, pair: { current: string; previous: string }) =
   describeCompactChange(metric, Number(pair.current), Number(pair.previous));
 
 export function RevenuePanel({ data }: { data: AdminOverview }) {
-  const { definitions: d, proChurn, mpesa } = data;
+  const { definitions: d, proChurn, failedOperations: failed } = data;
   const since = sinceBasis(data.period.start);
   return (
     <Rows
@@ -109,17 +109,14 @@ export function RevenuePanel({ data }: { data: AdminOverview }) {
               : `${formatCount(proChurn.current.count)} of ${formatCount(proChurn.current.base)} Pro accounts`,
         },
         {
-          label: "Failed M-Pesa checkouts",
-          value: formatCount(mpesa.current.failed),
-          definition: d.mpesa,
-          change: count("failedMpesa", {
-            current: mpesa.current.failed,
-            previous: mpesa.previous.failed,
+          label: "Failed operations",
+          value: formatCount(failed.current.total),
+          definition: d.failedOperations,
+          change: count("failedOperations", {
+            current: failed.current.total,
+            previous: failed.previous.total,
           }),
-          subline:
-            mpesa.current.successRate === null
-              ? "No settled checkouts"
-              : `${formatShare(mpesa.current.successRate)} success rate`,
+          subline: `${formatCount(failed.current.mpesa)} M-Pesa, ${formatCount(failed.current.pdf)} PDF, ${formatCount(failed.current.email)} email, ${formatCount(failed.current.jobs)} jobs`,
         },
       ]}
     />

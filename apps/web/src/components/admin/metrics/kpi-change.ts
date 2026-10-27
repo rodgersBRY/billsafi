@@ -18,6 +18,7 @@ export const metricBetter = {
   activationRate: "up",
   proChurn: "down",
   failedMpesa: "down",
+  failedOperations: "down",
   complimentaryPro: "neutral",
 } as const satisfies Record<string, Better>;
 
