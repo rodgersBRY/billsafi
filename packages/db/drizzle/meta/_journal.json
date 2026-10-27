@@ -120,6 +120,13 @@
       "when": 1793034409055,
       "tag": "0016_support_and_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793083356512,
+      "tag": "0017_activity_records",
+      "breakpoints": true
     }
   ]
 }
