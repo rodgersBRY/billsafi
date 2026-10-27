@@ -44,6 +44,9 @@ services:
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      ADMIN_USER_IDS: ${ADMIN_USER_IDS:-}
+      ADMIN_SENTRY_URL: ${ADMIN_SENTRY_URL:-}
+      ADMIN_UPTIME_URL: ${ADMIN_UPTIME_URL:-}
       SMTP_URL: ${SMTP_URL:?}
       MAIL_FROM: ${MAIL_FROM:?}
       # disabled until Safaricom approves the Paybill (D051).

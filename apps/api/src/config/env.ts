@@ -36,8 +36,37 @@ const envSchema = z
     USD_KES_RATE: z.coerce.number().positive().optional(),
     /** Sentry project DSN for API errors; reporting is off when unset (D052). */
     SENTRY_DSN: z.url().optional(),
+    /**
+     * User IDs given the platform admin role on every API start (D057), comma
+     * separated; anyone else holding it is demoted. IDs, not emails: emails are
+     * not verified, so an unregistered email could be claimed by someone else.
+     * Empty or unset leaves nobody as admin.
+     */
+    ADMIN_USER_IDS: z
+      .string()
+      .optional()
+      .transform((value) => [
+        ...new Set(
+          (value ?? "")
+            .split(",")
+            .map((id) => id.trim().toLowerCase())
+            .filter(Boolean),
+        ),
+      ])
+      .pipe(z.array(z.uuid("ADMIN_USER_IDS must be a comma-separated list of user IDs (UUIDs)"))),
+    /**
+     * Optional links shown on the admin Health page (D065): the Sentry project and the
+     * uptime monitor's status page. The page hides a card when its variable is unset.
+     */
+    ADMIN_SENTRY_URL: z.url({ protocol: /^https$/ }).optional(),
+    ADMIN_UPTIME_URL: z.url({ protocol: /^https$/ }).optional(),
     /** Runs the renewal reminder job inside the API process. */
     BILLING_JOBS: z
+      .enum(["on", "off"])
+      .default("on")
+      .transform((value) => value === "on"),
+    /** Runs the daily job that deletes recorded facts past their retention (D066). */
+    MAINTENANCE_JOBS: z
       .enum(["on", "off"])
       .default("on")
       .transform((value) => value === "on"),

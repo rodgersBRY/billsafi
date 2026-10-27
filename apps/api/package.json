@@ -10,7 +10,8 @@
     "lint": "eslint src e2e",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "vitest run --config ./vitest.config.e2e.mts",
+    "test:e2e": "vitest run --config ./vitest.config.e2e.mts --exclude e2e/admin.e2e-spec.ts && vitest run --config ./vitest.config.e2e.mts e2e/admin.e2e-spec.ts",
+    "seed:browser-admin": "node scripts/seed-browser-admin.mjs",
     "auth:generate": "auth generate --config src/auth/auth.cli.ts --output ../../packages/db/src/schema/auth.ts --yes"
   },
   "dependencies": {

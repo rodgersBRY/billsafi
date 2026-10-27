@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/field";
+import { PasswordField } from "@/components/ui/password-field";
 import { FormMessage } from "@/components/ui/form-message";
 import { authClient } from "@/lib/auth-client";
 
@@ -97,17 +98,15 @@ export function AccountSettings({ user }: { user: { name: string; email: string 
         <p className="mt-1 text-sm text-sub">
           Changing your password signs you out on your other devices.
         </p>
-        <TextField
+        <PasswordField
           label="Current password"
-          type="password"
           value={current}
           onChange={(event) => setCurrent(event.target.value)}
           error={passwordErrors.current}
           autoComplete="current-password"
         />
-        <TextField
+        <PasswordField
           label="New password"
-          type="password"
           value={next}
           onChange={(event) => {
             setPasswordSaved(undefined);

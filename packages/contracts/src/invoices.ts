@@ -151,8 +151,20 @@ export interface Invoice extends InvoiceSummary {
 /** The account's allowance for the current Free month or Pro period (D044, D051). */
 export interface AllowanceUsage {
   plan: "free" | "pro";
+  /** The limit in force now: the plan's own limit plus `extraInvoices`. */
   limit: number;
+  /** The plan's own limit, without overrides. */
+  planLimit: number;
+  /** Extra invoices from limit overrides BillSafi set, active now. */
+  extraInvoices: number;
+  /** When the soonest of those overrides ends; null without one. */
+  extraEndsAt: string | null;
+  /**
+   * Can be above `limit` when a raised limit ended mid-period; `remaining` is then 0,
+   * never negative.
+   */
   used: number;
+  remaining: number;
   periodStart: string;
   periodEnd: string;
   /** Purchased invoice credits left; used once the plan allowance runs out. */

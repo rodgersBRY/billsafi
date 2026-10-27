@@ -1,7 +1,8 @@
 import { Global, Module } from "@nestjs/common";
+import { ActivityRecorder } from "../activity/activity-recorder.js";
 import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
-import { type Mailer, SmtpMailer } from "./mailer.js";
+import { type Mailer, RecordingMailer, SmtpMailer } from "./mailer.js";
 
 export const MAILER = Symbol("MAILER");
 
@@ -10,8 +11,9 @@ export const MAILER = Symbol("MAILER");
   providers: [
     {
       provide: MAILER,
-      inject: [ENV],
-      useFactory: (env: Env): Mailer => new SmtpMailer(env.SMTP_URL, env.MAIL_FROM),
+      inject: [ENV, ActivityRecorder],
+      useFactory: (env: Env, recorder: ActivityRecorder): Mailer =>
+        new RecordingMailer(new SmtpMailer(env.SMTP_URL, env.MAIL_FROM), recorder),
     },
   ],
   exports: [MAILER],

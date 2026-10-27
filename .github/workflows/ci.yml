@@ -53,8 +53,18 @@ jobs:
       - run: pnpm turbo run build typecheck lint test
       - run: pnpm db:migrate
       - run: pnpm test:e2e
+      # A fixed-ID admin for the admin browser tests. Listed only for the browser step, so the
+      # API Playwright starts promotes it at start-up and the API e2e run above is unaffected.
+      - run: pnpm --filter @billsafi/api seed:browser-admin
+        env:
+          E2E_ADMIN_EMAIL: admin-e2e@example.test
+          E2E_ADMIN_PASSWORD: ci-only-admin-password
       # Uses the runner's installed Chrome; Playwright starts the built API and web app.
       - run: pnpm --filter @billsafi/web test:browser
+        env:
+          ADMIN_USER_IDS: 00000000-0000-4000-8000-0000000000ad
+          E2E_ADMIN_EMAIL: admin-e2e@example.test
+          E2E_ADMIN_PASSWORD: ci-only-admin-password
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

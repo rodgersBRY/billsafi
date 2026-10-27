@@ -37,6 +37,7 @@ import {
 } from "@billsafi/contracts";
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth";
 import { z } from "zod";
+import { ActivityRecorder } from "../activity/activity-recorder.js";
 import { BusinessOwnerGuard } from "../businesses/business-owner.guard.js";
 import { CurrentUserId } from "../common/current-user.js";
 import { UuidParamPipe } from "../common/uuid-param.pipe.js";
@@ -72,6 +73,36 @@ async function pdfFile(
   });
 }
 
+/**
+ * Renders a PDF and records it (D066). A render error is recorded as a PDF failure and
+ * rethrown unchanged; a download is recorded only once the file is ready.
+ */
+async function recordedPdf(
+  recorder: ActivityRecorder,
+  {
+    operation,
+    source,
+    accountId,
+    invoiceId,
+  }: {
+    operation: string;
+    source: "app" | "public_link";
+    accountId: string;
+    invoiceId: string;
+  },
+  render: () => Promise<StreamableFile>,
+): Promise<StreamableFile> {
+  let file: StreamableFile;
+  try {
+    file = await render();
+  } catch (error) {
+    recorder.failure("pdf", operation, error, accountId);
+    throw error;
+  }
+  recorder.pdfDownloaded(source, accountId, invoiceId);
+  return file;
+}
+
 @Controller("businesses/:businessId/invoices")
 @UseGuards(BusinessOwnerGuard)
 export class InvoicesController {
@@ -81,6 +112,7 @@ export class InvoicesController {
     private readonly links: LinksService,
     private readonly pdf: PdfService,
     private readonly branding: BrandingService,
+    private readonly recorder: ActivityRecorder,
   ) {}
 
   @Get()
@@ -225,6 +257,7 @@ export class InvoicesController {
 
   @Get(":invoiceId/pdf")
   async downloadPdf(
+    @CurrentUserId() userId: string,
     @Param("businessId") businessId: string,
     @Param("invoiceId", InvoiceId()) invoiceId: string,
   ): Promise<StreamableFile> {
@@ -232,7 +265,11 @@ export class InvoicesController {
     if (invoice.status === "draft") {
       throw new ConflictException("Mark the invoice as Ready to download a PDF");
     }
-    return pdfFile(this.pdf, this.branding, businessId, invoice);
+    return recordedPdf(
+      this.recorder,
+      { operation: "invoice_pdf", source: "app", accountId: userId, invoiceId },
+      () => pdfFile(this.pdf, this.branding, businessId, invoice),
+    );
   }
 }
 
@@ -266,18 +303,26 @@ export class PublicInvoicesController {
     private readonly links: LinksService,
     private readonly pdf: PdfService,
     private readonly branding: BrandingService,
+    private readonly recorder: ActivityRecorder,
   ) {}
 
   @Get(":token")
   async view(@Param("token") token: string): Promise<PublicInvoice> {
-    const { businessId, invoice } = await this.links.resolve(token);
-    return this.branding.present(businessId, invoice);
+    const { businessId, invoice, linkId, ownerId } = await this.links.resolve(token);
+    const view = await this.branding.present(businessId, invoice);
+    // One open per link per Nairobi day; the database drops repeats (D066).
+    this.recorder.linkOpened({ id: linkId, accountId: ownerId, invoiceId: invoice.id });
+    return view;
   }
 
   @Get(":token/pdf")
   async downloadPdf(@Param("token") token: string): Promise<StreamableFile> {
-    const { businessId, invoice } = await this.links.resolve(token);
-    return pdfFile(this.pdf, this.branding, businessId, invoice);
+    const { businessId, invoice, ownerId } = await this.links.resolve(token);
+    return recordedPdf(
+      this.recorder,
+      { operation: "public_pdf", source: "public_link", accountId: ownerId, invoiceId: invoice.id },
+      () => pdfFile(this.pdf, this.branding, businessId, invoice),
+    );
   }
 
   @Get(":token/logo")

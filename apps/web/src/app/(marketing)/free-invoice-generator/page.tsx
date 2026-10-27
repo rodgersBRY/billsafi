@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { GoogleSignIn } from "@/components/auth/google-sign-in";
 import { FINISH_PATH } from "@/components/generator/guest-auth-dialog";
 import { GuestInvoiceForm } from "@/components/generator/guest-invoice-form";
+import { getPlatformInfo } from "@/lib/server-api/platform";
 import { BrandMark } from "@/components/ui/brand-mark";
 
 export const metadata: Metadata = {
@@ -11,6 +12,21 @@ export const metadata: Metadata = {
   description:
     "Make a professional invoice in your browser. Add your details, your client and what you're billing for, then save it as a PDF with a free BillSafi account.",
 };
+
+async function Generator() {
+  const { registration } = await getPlatformInfo();
+  return (
+    <GuestInvoiceForm
+      closedMessage={registration.open ? null : registration.closedMessage}
+      google={
+        // The Google button reads ?error= from the URL, so it needs its own boundary.
+        <Suspense fallback={null}>
+          <GoogleSignIn callbackURL={FINISH_PATH} newUserCallbackURL={FINISH_PATH} />
+        </Suspense>
+      }
+    />
+  );
+}
 
 export default function FreeInvoiceGeneratorPage() {
   return (
@@ -31,14 +47,10 @@ export default function FreeInvoiceGeneratorPage() {
           Fill in your details and watch the invoice take shape. It&apos;s saved in this browser. A
           free account is needed to save and download. It takes 10 seconds.
         </p>
-        {/* The Google button reads ?error= from the URL, so it needs its own boundary. */}
-        <GuestInvoiceForm
-          google={
-            <Suspense fallback={null}>
-              <GoogleSignIn callbackURL={FINISH_PATH} newUserCallbackURL={FINISH_PATH} />
-            </Suspense>
-          }
-        />
+        {/* Reads the platform settings at request time, so it needs its own boundary. */}
+        <Suspense fallback={<GuestInvoiceForm google={null} />}>
+          <Generator />
+        </Suspense>
       </main>
     </div>
   );

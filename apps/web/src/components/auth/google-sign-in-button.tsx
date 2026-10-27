@@ -1,5 +1,6 @@
 "use client";
 
+import { REGISTRATION_CLOSED_CODE } from "@billsafi/contracts";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { FcGoogle } from "react-icons/fc";
@@ -7,14 +8,20 @@ import { queueIntroSplash } from "@/components/brand/intro-splash";
 import { Button } from "@/components/ui/button";
 import { FormMessage } from "@/components/ui/form-message";
 import { authClient } from "@/lib/auth-client";
+import { SUSPENDED_ACCOUNT_MESSAGE, isBannedError } from "@/lib/suspended-account";
+import { welcomePath } from "@/lib/welcome";
 
 /** Error codes Better Auth adds to /sign-in when the Google round trip fails. */
 function googleErrorMessage(code: string | null): string {
+  if (isBannedError(code)) return SUSPENDED_ACCOUNT_MESSAGE;
   switch (code) {
     case null:
       return "";
     case "account_not_linked":
       return "This email already has a BillSafi account with a password. Sign in with your password instead.";
+    case REGISTRATION_CLOSED_CODE:
+      // Shown as a notice by the sign-in page, with the admin's message.
+      return "";
     case "access_denied":
       return "Google sign-in was cancelled.";
     default:
@@ -25,7 +32,7 @@ function googleErrorMessage(code: string | null): string {
 interface GoogleSignInButtonProps {
   /** Where returning users land after Google. */
   callbackURL?: string;
-  /** Where first-time users land after Google. */
+  /** Where first-time users land after Google, by way of the welcome screen. */
   newUserCallbackURL?: string;
 }
 
@@ -46,7 +53,7 @@ export function GoogleSignInButton({
       provider: "google",
       // Relative paths only; the API refuses redirects to other origins.
       callbackURL,
-      newUserCallbackURL,
+      newUserCallbackURL: welcomePath(newUserCallbackURL),
       errorCallbackURL: "/sign-in",
     });
     // On success the browser is already leaving for Google.

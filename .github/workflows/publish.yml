@@ -79,8 +79,11 @@ jobs:
           context: .
           file: apps/web/Dockerfile
           push: true
-          # Repository variable; the browser DSN is public by design.
-          build-args: NEXT_PUBLIC_SENTRY_DSN=${{ vars.SENTRY_WEB_DSN }}
+          # Repository variables; the browser DSN is public by design. Published images
+          # are production unless an APP_ENV variable says otherwise (such as staging).
+          build-args: |
+            NEXT_PUBLIC_SENTRY_DSN=${{ vars.SENTRY_WEB_DSN }}
+            NEXT_PUBLIC_APP_ENV=${{ vars.APP_ENV || 'production' }}
           tags: ${{ steps.meta.outputs.web }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}

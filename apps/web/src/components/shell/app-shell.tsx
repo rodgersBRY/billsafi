@@ -6,11 +6,13 @@ import { useEffect, useState } from "react";
 
 interface AppShellProps {
   sidebar: React.ReactNode;
+  /** The platform announcement, above everything else on the page. */
+  banner?: React.ReactNode;
   children: React.ReactNode;
 }
 
-/** Left navigation on desktop; a top-left menu on smaller screens (D039, D040). */
-export function AppShell({ sidebar, children }: AppShellProps) {
+/** Left navigation on desktop; a top-left menu on smaller screens. */
+export function AppShell({ sidebar, banner, children }: AppShellProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
 
@@ -39,6 +41,7 @@ export function AppShell({ sidebar, children }: AppShellProps) {
         />
       )}
       <div className="flex min-w-0 flex-1 flex-col">
+        {banner}
         <header className="flex items-center gap-3 border-b border-line bg-panel px-4 py-3.5 sm:px-7 md:hidden">
           <button
             type="button"

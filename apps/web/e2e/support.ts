@@ -20,6 +20,7 @@ export async function signUp(page: Page, name: string, email: string) {
   await page.getByLabel("Email address").filter({ visible: true }).fill(email);
   await page.getByLabel("Password").filter({ visible: true }).fill(PASSWORD);
   await page.getByRole("button", { name: "Create account" }).click();
+  await acceptWelcome(page);
   await expect(page).toHaveURL(/\/onboarding$/);
   await waitUntilInteractive(page, "Continue");
 }
@@ -30,6 +31,14 @@ export async function signIn(page: Page, email: string, password = PASSWORD) {
   await page.getByLabel("Email address").filter({ visible: true }).fill(email);
   await page.getByLabel("Password").filter({ visible: true }).fill(password);
   await page.getByRole("button", { name: "Sign in" }).click();
+}
+
+/** Agrees on the welcome screen new accounts pass through. */
+export async function acceptWelcome(page: Page) {
+  await expect(page).toHaveURL(/\/welcome\?next=/);
+  await expect(page.getByRole("heading", { name: /^Welcome/ })).toBeVisible();
+  await waitUntilInteractive(page, "Agree and continue");
+  await page.getByRole("button", { name: "Agree and continue" }).click();
 }
 
 /** Completes the business step and skips payment, ending on the overview. */

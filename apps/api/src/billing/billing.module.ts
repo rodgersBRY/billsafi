@@ -36,6 +36,6 @@ export function createMpesaProvider(env: Env): MpesaProvider {
     ExchangeRateService,
     { provide: MPESA_PROVIDER, inject: [ENV], useFactory: createMpesaProvider },
   ],
-  exports: [AllowanceService],
+  exports: [AllowanceService, BillingService],
 })
 export class BillingModule {}

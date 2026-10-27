@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { shouldShowTour } from "@billsafi/contracts";
+import { PlatformBanner } from "@/components/announcement/platform-banner";
 import { AccountMenu } from "@/components/shell/account-menu";
 import { AppShell } from "@/components/shell/app-shell";
 import { BusinessSwitcher } from "@/components/shell/business-switcher";
@@ -35,8 +36,12 @@ async function Sidebar({ params }: { params: Promise<{ businessId: string }> }) 
           settingsHref={`/${businessId}/settings`}
           tourHref={`/${businessId}/overview?tour=1`}
           isPro={usage.plan === "pro"}
+          // Only shows the link; /admin itself is still checked by the proxy and the API.
+          isAdmin={user.role === "admin"}
         />
-        <p className="px-1 text-xs text-sub">BillSafi v{process.env.NEXT_PUBLIC_APP_VERSION}</p>
+        <p className="px-1 text-xs text-sub text-center">
+          BillSafi v{process.env.NEXT_PUBLIC_APP_VERSION}
+        </p>
       </div>
     </>
   );
@@ -51,12 +56,18 @@ async function SetupChecklist({ params }: { params: Promise<{ businessId: string
   ]);
   const allDone = Object.values(progress).every(Boolean);
   if (allDone || !shouldShowTour(tours, "getting-started-checklist")) return null;
+
   return <GettingStartedPanel businessId={businessId} progress={progress} />;
 }
 
 export default function BusinessLayout({ children, params }: LayoutProps<"/[businessId]">) {
   return (
     <AppShell
+      banner={
+        <Suspense fallback={null}>
+          <PlatformBanner />
+        </Suspense>
+      }
       sidebar={
         <>
           <BrandMark size={28} />

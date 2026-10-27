@@ -1,0 +1,292 @@
+import { Inject, Injectable } from "@nestjs/common";
+import {
+  type AdminAnalytics,
+  type AdminFeatureKey,
+  adminFeatureKeys,
+  type AdminRange,
+} from "@billsafi/contracts";
+import { type DatabaseConnection, type SQL, sql } from "@billsafi/db";
+import { addNairobiMonths, nairobiCalendarMonth } from "@billsafi/domain";
+import { DATABASE } from "../../database/database.module.js";
+import { at, DAY_MS, fromUtc, paidOnSql, ratio, selectRows, utcAt } from "../shared/admin-sql.js";
+import { freeLimitHitsCte, realFreeLimitHit } from "../shared/free-limit-hits.js";
+import { ACTIVATION_DAYS, activationCounts } from "./activation.js";
+import { bucketIndexSql, bucketsSql, planRange } from "./range.js";
+
+const TOP_ACCOUNTS = 10;
+const LIMIT_MONTHS = 6;
+const BOUGHT_WITHIN_DAYS = 14;
+
+const round1 = (value: number | string | null) =>
+  value === null ? null : Math.round(Number(value) * 10) / 10;
+
+export type AllTime = Pick<AdminAnalytics, "featureAdoption" | "planLimit">;
+
+/** Invoice volume, activation timing, feature adoption, plan limit and top accounts. */
+@Injectable()
+export class AdminAnalyticsService {
+  constructor(@Inject(DATABASE) private readonly connection: DatabaseConnection) {}
+
+  private get db() {
+    return this.connection.db;
+  }
+
+  private rows<T>(query: SQL): Promise<T[]> {
+    return selectRows<T>(this.db, query);
+  }
+
+  /** The figures that ignore the range, so the controller can cache them once for every range. */
+  async allTime(now = new Date()): Promise<AllTime> {
+    const [adoption] = await this.rows<Record<AdminFeatureKey | "base", number>>(sql`
+      select
+        (select count(distinct owner_user_id) from businesses)::int as base,
+        (select count(distinct b.owner_user_id) from invoices i join businesses b on b.id = i.business_id
+          where i.discount_type is not null)::int as discount,
+        (select count(distinct b.owner_user_id) from invoices i join businesses b on b.id = i.business_id
+          where i.tax_rate > 0)::int as tax,
+        (select count(distinct owner_user_id) from businesses where logo_key is not null)::int as logo,
+        (select count(distinct b.owner_user_id) from business_payment_instructions pi
+          join businesses b on b.id = pi.business_id)::int as "paymentInstructions",
+        (select count(distinct b.owner_user_id) from invoice_links l
+          join businesses b on b.id = l.business_id)::int as "shareLink",
+        (select count(distinct b.owner_user_id) from invoice_payments p
+          join businesses b on b.id = p.business_id)::int as "paymentRecorded",
+        (select count(*) from (select owner_user_id from businesses group by owner_user_id
+          having count(*) >= 2) two)::int as "secondBusiness",
+        (select count(distinct b.owner_user_id) from businesses b
+          where exists (select 1 from accounts a where a.user_id = b.owner_user_id
+            and a.provider_id = 'google'))::int as "googleSignIn",
+        -- Recorded events (D066); accounts with a business, as for the other items.
+        (select count(distinct b.owner_user_id) from product_events pe
+          join businesses b on b.owner_user_id = pe.account_id
+          where pe.name = 'pdf_downloaded')::int as "pdfDownloaded",
+        (select count(distinct b.owner_user_id) from product_events pe
+          join businesses b on b.owner_user_id = pe.account_id
+          where pe.name = 'link_opened')::int as "shareLinkOpened"
+    `);
+
+    const firstMonth = addNairobiMonths(nairobiCalendarMonth(now).start, -(LIMIT_MONTHS - 1));
+    const limitMonths = await this.rows<{ month: string; reached: number; bought: number }>(sql`
+      with ${freeLimitHitsCte(firstMonth)},
+      real_hits as (
+        select h.*, exists (
+          select 1 from subscription_payments sp
+          where sp.user_id = h.user_id and sp.status = 'succeeded'
+            and ${paidOnSql("sp")} >= h.hit_at
+            and ${paidOnSql("sp")} < h.hit_at
+              + make_interval(days => ${BOUGHT_WITHIN_DAYS})
+        ) as bought
+        from hits h
+        where ${realFreeLimitHit(firstMonth, now)}
+      ),
+      months as (
+        select to_char(((${at(firstMonth)} at time zone 'Africa/Nairobi')
+          + make_interval(months => m)) , 'YYYY-MM') as month, m
+        from generate_series(0, ${LIMIT_MONTHS - 1}::int) as m
+      )
+      select months.month, count(real_hits.id)::int as reached,
+        count(real_hits.id) filter (where real_hits.bought)::int as bought
+      from months
+      left join real_hits on to_char(real_hits.starts_at at time zone 'Africa/Nairobi', 'YYYY-MM') = months.month
+      group by months.month, months.m order by months.m
+    `);
+
+    const base = adoption!.base;
+    return {
+      featureAdoption: {
+        base,
+        items: adminFeatureKeys.map((key) => ({
+          key,
+          count: Number(adoption![key]),
+          base,
+          share: ratio(Number(adoption![key]), base),
+        })),
+      },
+      planLimit: limitMonths.map((row) => ({
+        month: row.month,
+        reached: Number(row.reached),
+        boughtWithin14Days: Number(row.bought),
+      })),
+    };
+  }
+
+  /**
+   * Sign-ups in [from, to) by time to their first Ready invoice. Only sign-ups at least 7
+   * days old are placed (so the first three buckets add up to the activation count);
+   * younger ones are "too_new" whatever they have done so far.
+   */
+  private async firstInvoiceDistribution(from: Date, to: Date, now: Date) {
+    const oldEnough = new Date(now.getTime() - ACTIVATION_DAYS * DAY_MS);
+    const [row] = await this.rows<Record<string, number>>(sql`
+      with firsts as (
+        select u.created_at <= ${utcAt(oldEnough)} as old_enough,
+          extract(epoch from
+            (select min(ii.issued_at) from invoice_issuances ii where ii.user_id = u.id)
+            - ${fromUtc(sql`u.created_at`)}) / 3600 as h
+        from users u where u.created_at >= ${utcAt(from)} and u.created_at < ${utcAt(to)}
+      )
+      select
+        count(*) filter (where old_enough and h < 1)::int as "under_1h",
+        count(*) filter (where old_enough and h >= 1 and h < 24)::int as "1_to_24h",
+        count(*) filter (where old_enough and h >= 24 and h < ${24 * ACTIVATION_DAYS})::int as "1_to_7d",
+        count(*) filter (where old_enough and h >= ${24 * ACTIVATION_DAYS})::int as "over_7d",
+        count(*) filter (where old_enough and h is null)::int as "not_yet",
+        count(*) filter (where not old_enough)::int as "too_new"
+      from firsts
+    `);
+    const counts = row!;
+    const keys = ["under_1h", "1_to_24h", "1_to_7d", "over_7d", "not_yet", "too_new"] as const;
+    const base = keys.reduce(
+      (total, key) => (key === "too_new" ? total : total + Number(counts[key])),
+      0,
+    );
+    return {
+      base,
+      buckets: keys.map((key) => ({
+        key,
+        count: Number(counts[key]),
+        share: key === "too_new" ? null : ratio(Number(counts[key]), base),
+      })),
+    };
+  }
+
+  async analytics(range: AdminRange, now = new Date(), allTime?: AllTime): Promise<AdminAnalytics> {
+    const plan = planRange(range, now);
+    const inRange = (column: SQL) =>
+      sql`${column} >= ${at(plan.start)} and ${column} < ${at(plan.end)}`;
+
+    const points = await this.rows<{ bucketStart: string; created: number; ready: number }>(sql`
+      with b as (${bucketsSql(plan)}),
+      created as (
+        select ${bucketIndexSql(plan, sql`i.created_at`)} as i, count(*)::int as n
+        from invoices i where ${inRange(sql`i.created_at`)} group by 1
+      ),
+      ready as (
+        select ${bucketIndexSql(plan, sql`ii.issued_at`)} as i, count(*)::int as n
+        from invoice_issuances ii where ${inRange(sql`ii.issued_at`)} group by 1
+      )
+      select to_char(b.bucket_start at time zone 'Africa/Nairobi', 'YYYY-MM-DD') as "bucketStart",
+        coalesce(created.n, 0) as created, coalesce(ready.n, 0) as ready
+      from b left join created on created.i = b.i left join ready on ready.i = b.i
+      order by b.i
+    `);
+
+    const [volume] = await this.rows<{ accounts: number; median: string | null }>(sql`
+      with per_account as (
+        select count(*) as n from invoice_issuances ii
+        where ${inRange(sql`ii.issued_at`)} group by ii.user_id
+      )
+      select count(*)::int as accounts,
+        percentile_cont(0.5) within group (order by n) as median
+      from per_account
+    `);
+
+    const [timing] = await this.rows<{
+      signups: number;
+      reached: number;
+      median: string | null;
+      p75: string | null;
+    }>(sql`
+      with firsts as (
+        select ${fromUtc(sql`u.created_at`)} as signed_up_at,
+          (select min(ii.issued_at) from invoice_issuances ii where ii.user_id = u.id) as first_at
+        from users u
+        where u.created_at >= ${utcAt(plan.start)} and u.created_at < ${utcAt(plan.end)}
+      ),
+      hours as (select extract(epoch from first_at - signed_up_at) / 3600 as h from firsts)
+      select (select count(*) from firsts)::int as signups,
+        (select count(first_at) from firsts)::int as reached,
+        percentile_cont(0.5) within group (order by h) as median,
+        percentile_cont(0.75) within group (order by h) as p75
+      from hours
+    `);
+    const activation = await activationCounts(this.db, plan.start, plan.end, now);
+    const distribution = await this.firstInvoiceDistribution(plan.start, plan.end, now);
+
+    const top = await this.rows<{
+      accountId: string;
+      name: string;
+      email: string;
+      readyInvoices: number;
+    }>(sql`
+      select u.id as "accountId", u.name, u.email, t.n::int as "readyInvoices"
+      from (
+        select ii.user_id, count(*) as n from invoice_issuances ii
+        where ${inRange(sql`ii.issued_at`)} group by ii.user_id
+        order by count(*) desc, ii.user_id limit ${TOP_ACCOUNTS}
+      ) t join users u on u.id = t.user_id
+      order by t.n desc, u.id
+    `);
+
+    const [funnel] = await this.rows<
+      Record<"started" | "download" | "signup" | "imported", number>
+    >(
+      sql`
+        select
+          (count(distinct anonymous_id) filter (where name = 'generator_started'))::int as started,
+          (count(distinct anonymous_id) filter (where name = 'generator_download_clicked'))::int as download,
+          (count(distinct anonymous_id) filter (where name = 'generator_signup_clicked'))::int as signup,
+          (count(distinct anonymous_id) filter (where name = 'guest_invoice_imported'))::int as imported
+        from product_events
+        where anonymous_id is not null and ${inRange(sql`created_at`)}
+      `,
+    );
+    const generatorFunnel = {
+      steps: (
+        [
+          ["started", funnel!.started],
+          ["download_clicked", funnel!.download],
+          ["signup_clicked", funnel!.signup],
+          ["imported", funnel!.imported],
+        ] as const
+      ).map(([key, count]) => ({ key, count, share: ratio(count, funnel!.started) })),
+    };
+
+    const { featureAdoption, planLimit } = allTime ?? (await this.allTime(now));
+    return {
+      range,
+      bucketSize: plan.bucket,
+      period: { start: plan.start.toISOString(), end: plan.end.toISOString() },
+      invoiceVolume: {
+        points: points.map((point) => ({
+          bucketStart: point.bucketStart,
+          created: Number(point.created),
+          ready: Number(point.ready),
+        })),
+        accountsWithReady: volume!.accounts,
+        medianReadyPerAccount: round1(volume!.median),
+      },
+      timeToFirstInvoice: {
+        signups: timing!.signups,
+        reached: timing!.reached,
+        medianHours: round1(timing!.median),
+        p75Hours: round1(timing!.p75),
+        activation: {
+          rate: ratio(activation.activated, activation.base),
+          count: activation.activated,
+          base: activation.base,
+        },
+        distribution,
+      },
+      generatorFunnel,
+      featureAdoption,
+      planLimit,
+      topAccounts: top.map((row) => ({ ...row, readyInvoices: Number(row.readyInvoices) })),
+      definitions: {
+        invoiceVolume:
+          "Invoices created and invoices made Ready in each part of the range. The median counts only accounts that made at least one invoice Ready in the range.",
+        timeToFirstInvoice:
+          "Hours from sign-up to the first invoice made Ready, for accounts that signed up in the range and have reached it so far. The activation rate counts a Ready invoice within 7 days, among sign-ups at least 7 days old. The distribution places only those sign-ups, so its first three bars add up to the activated accounts. Younger sign-ups are shown apart as too new to tell.",
+        generatorFunnel:
+          "Visitors to the free invoice generator, counted once each by their anonymous id: started editing, pressed Save and download, pressed Sign up in the dialog, and saved a draft into a new account. A visitor can appear at a later step without an earlier one, for example after clearing their browser data, so the steps are not strictly nested. Recording began with phase 5.",
+        featureAdoption:
+          "Of accounts with at least one business, how many have ever used each feature. Downloaded a PDF and shared link opened count from the day BillSafi started recording them. These are all time figures and do not follow the range.",
+        planLimit:
+          "Free accounts that used their whole monthly allowance, extra invoices from limit overrides included, in each of the last 6 months. Bought means a Pro or credit payment that succeeded within 14 days of reaching the limit. These figures do not follow the range.",
+        topAccounts:
+          "The 10 accounts with the most invoices made Ready in the range. Ties are listed by account id.",
+      },
+      generatedAt: now.toISOString(),
+    };
+  }
+}

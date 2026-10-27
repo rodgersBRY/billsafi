@@ -154,8 +154,11 @@ Paste the template from `deploy/.env.example` and fill it in:
 - `IMAGE_TAG`: leave it as `latest`. `deploy.sh` manages this line.
 - `POSTGRES_PASSWORD` and `BETTER_AUTH_SECRET`: run `openssl rand -hex 32` once for each. Use hex values because the password goes into a connection URL, where characters like `/` or `@` would break it.
 - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`: the Google OAuth web client for "Continue with Google" (D055). Leave both blank to hide the button. In Google Cloud Console, create an OAuth client of type **Web application** and add `https://<DOMAIN>/api/v1/auth/callback/google` as an authorized redirect URI.
+- `ADMIN_USER_IDS`: the user IDs allowed to open the read-only admin dashboard at `/admin` (D057), separated by commas. Leave it blank to turn the dashboard off for everyone. It uses IDs, not emails, because sign-up does not verify email addresses and anyone could register an address that has no account yet. Create your account on the site first, then look up its ID with `docker compose exec postgres psql -U billsafi -d billsafi -c "select id, email from users where email = 'you@example.com';"`. Paste the ID here and restart the API.
+- `ADMIN_SENTRY_URL` and `ADMIN_UPTIME_URL` (optional): https links to your Sentry project and your uptime monitor. The admin System Health page shows them as link cards, because those tools hold the real error rates and availability. Leave a variable blank to hide its card. A value that is not an https URL stops the API at start-up.
 - `SMTP_URL` and `MAIL_FROM`: the email provider is Resend (D052). Verify your domain in Resend first, then use `smtps://resend:<API key>@smtp.resend.com:465` and a `MAIL_FROM` address on that domain.
 - `SENTRY_API_DSN` and `SENTRY_WEB_DSN`: the DSNs of your two Sentry projects. Leave them blank to turn error reporting off. Browser errors need the web DSN at build time too: add it as a repository variable named `SENTRY_WEB_DSN` under **Settings > Secrets and variables > Actions > Variables**, then publish new images.
+- `APP_ENV` (optional repository variable, build time): the environment name the admin header shows, `production`, `staging` or `development`. Published images default to `production`; set the variable to `staging` for a staging build. It is baked into the web image as `NEXT_PUBLIC_APP_ENV`, so a change needs new images. Local builds without it show Development.
 - `MPESA_ENV`: keep it `disabled` until Safaricom approves the Paybill for Daraja. Checkout then shows a "not available yet" message and nothing else changes. Once approved, set it to `production` and fill in `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_SHORTCODE` (the Paybill number), `MPESA_PASSKEY`, and an `MPESA_CALLBACK_TOKEN` from `openssl rand -hex 24`. Safaricom calls back to `https://<DOMAIN>/api/v1/billing/mpesa/callback/<token>`, so the token stays private.
 
 Lock the file down:
@@ -220,6 +223,10 @@ This writes a dump to `/opt/billsafi/backups` at 02:15 UTC every night and delet
 ```sh
 /opt/billsafi/backup.sh
 ```
+
+Each run, good or bad, also adds one row to the `backup_runs` table: when it started and finished, whether it worked, the dump's size and file name, or a short error line. The script writes it through `docker compose exec postgres psql`, so it needs no new passwords or settings. The admin Health page reads these rows: a good backup under 26 hours old is fine, under 50 hours is a warning, and anything older or a failed last run is failing. Rows are deleted after 13 months. If the row can't be written (the database is down, say), the script prints a warning and still keeps a good dump. Until the first run after a deploy that includes this table, Health shows Backups as unknown.
+
+Run `./deploy.sh` before the first backup that uses this script, so the table exists.
 
 These dumps sit on the same disk as the database, so they won't help if the droplet is destroyed. The weekly droplet backups from Step 1 cover that case. For a tighter recovery window, copy the dumps to DigitalOcean Spaces with `rclone` or `s3cmd` after each run.
 

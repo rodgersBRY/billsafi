@@ -3,6 +3,7 @@ import {
   editablePhone,
   formatKenyanPhone,
   formatPhone,
+  maskPhone,
   normalizeKenyanPhone,
   normalizePhone,
 } from "./phone.js";
@@ -80,5 +81,19 @@ describe("editablePhone", () => {
 
   it("keeps other numbers as stored", () => {
     expect(editablePhone("+442079460958")).toBe("+442079460958");
+  });
+});
+
+describe("maskPhone", () => {
+  it("keeps the country code, first digit and last three digits", () => {
+    expect(maskPhone("+254712345678")).toBe("+2547•••••678");
+  });
+
+  it("masks international numbers the same way", () => {
+    expect(maskPhone("+447946095800")).toBe("+4479•••••800");
+  });
+
+  it("still hides digits in very short values", () => {
+    expect(maskPhone("1234567")).toBe("••••567");
   });
 });

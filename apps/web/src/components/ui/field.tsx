@@ -6,8 +6,10 @@ import {
   useId,
 } from "react";
 
-const control =
-  "mt-1.5 w-full rounded-panel border border-line bg-panel p-2.75 text-sm text-ink placeholder:text-sub/70 focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent/30 aria-invalid:border-red-600 dark:aria-invalid:border-red-400";
+/** Input styling without the top margin, for controls placed inside a wrapper. */
+export const controlBase =
+  "w-full rounded-panel border border-line bg-panel p-2.75 text-sm text-ink placeholder:text-sub/70 focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent/30 aria-invalid:border-red-600 dark:aria-invalid:border-red-400";
+const control = `mt-1.5 ${controlBase}`;
 
 interface FieldShellProps {
   id: string;
@@ -17,7 +19,7 @@ interface FieldShellProps {
   children: ReactNode;
 }
 
-function FieldShell({ id, label, hint, error, children }: FieldShellProps) {
+export function FieldShell({ id, label, hint, error, children }: FieldShellProps) {
   return (
     <div className="mt-4">
       <label htmlFor={id} className="block text-xs text-sub">
@@ -38,7 +40,7 @@ function FieldShell({ id, label, hint, error, children }: FieldShellProps) {
   );
 }
 
-function describedBy(id: string, hint: unknown, error: unknown) {
+export function describedBy(id: string, hint: unknown, error: unknown) {
   if (error) return `${id}-error`;
   if (hint) return `${id}-hint`;
   return undefined;

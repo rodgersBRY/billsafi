@@ -14,6 +14,7 @@ import { TextAreaField } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form-message";
 import { addDays, todayInNairobi } from "@/lib/format";
 import { authClient } from "@/lib/auth-client";
+import { sendGeneratorEvent, sendGeneratorStarted } from "@/lib/generator-events";
 import { FINISH_PATH, GuestAuthDialog } from "./guest-auth-dialog";
 import { GuestBusinessFields } from "./guest-business-fields";
 import { GuestClientFields } from "./guest-client-fields";
@@ -32,7 +33,14 @@ const DEFAULT_TERMS_DAYS = 14;
 const SAVE_DELAY_MS = 300;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-export function GuestInvoiceForm({ google }: { google: ReactNode }) {
+export function GuestInvoiceForm({
+  google,
+  closedMessage = null,
+}: {
+  google: ReactNode;
+  /** The admin's message while sign-ups are closed; null when they are open. */
+  closedMessage?: string | null;
+}) {
   const [form, setForm] = useState<GuestForm>(emptyGuestForm);
   const [restored, setRestored] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
@@ -46,6 +54,7 @@ export function GuestInvoiceForm({ google }: { google: ReactNode }) {
 
   const set = (patch: Partial<GuestForm>) => {
     edited.current = true;
+    sendGeneratorStarted();
     setForm((current) => ({ ...current, ...patch }));
   };
   const discount = discountOf(form.adjustments);
@@ -116,6 +125,7 @@ export function GuestInvoiceForm({ google }: { google: ReactNode }) {
   }
 
   async function onSave() {
+    sendGeneratorEvent("generator_download_clicked");
     if (!validate()) return;
     writeGuestDraft(toGuestDraft(form));
     // Signed-in visitors (including those sent back by the finish page) skip the account step.
@@ -225,7 +235,12 @@ export function GuestInvoiceForm({ google }: { google: ReactNode }) {
         </div>
       </div>
 
-      <GuestAuthDialog open={authOpen} onClose={() => setAuthOpen(false)} google={google} />
+      <GuestAuthDialog
+        open={authOpen}
+        onClose={() => setAuthOpen(false)}
+        google={google}
+        closedMessage={closedMessage}
+      />
     </>
   );
 }

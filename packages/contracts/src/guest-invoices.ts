@@ -11,6 +11,8 @@ export const importGuestInvoiceSchema = z.object({
     path: ["items"],
     message: "Add at least one line item",
   }),
+  /** The generator's anonymous id, so the journey can be joined. Ignored when not a UUID. */
+  anonymousId: z.uuid().optional().catch(undefined),
 });
 export type ImportGuestInvoiceInput = z.input<typeof importGuestInvoiceSchema>;
 export type ImportGuestInvoice = z.output<typeof importGuestInvoiceSchema>;

@@ -18,7 +18,8 @@ import {
 } from "lucide-react";
 import { Manrope } from "next/font/google";
 import Link from "next/link";
-import { Fragment } from "react";
+import { Fragment, Suspense } from "react";
+import { PlatformBanner } from "@/components/announcement/platform-banner";
 import { Checks } from "./checks";
 import { Pricing } from "./pricing";
 import { SiteHeader } from "./site-header";
@@ -565,6 +566,10 @@ function Footer() {
       </div>
       <div className={s.footerBottom}>
         <span>© 2026 BillSafi · Invoicing for independent professionals.</span>
+        <nav className={s.footerLegal} aria-label="Legal">
+          <Link href="/terms">Terms of Use</Link>
+          <Link href="/privacy">Privacy Policy</Link>
+        </nav>
         <a href="#">
           Back to top <ArrowUp className={s.inlineIcon} aria-hidden />
         </a>
@@ -577,6 +582,9 @@ function Footer() {
 export function LandingPage() {
   return (
     <div className={`${s.page} ${manrope.variable}`} data-landing>
+      <Suspense fallback={null}>
+        <PlatformBanner />
+      </Suspense>
       <SiteHeader />
       <main>
         <Hero />

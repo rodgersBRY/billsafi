@@ -14,6 +14,12 @@ export const users = pgTable("users", {
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
+  /** Platform role from the admin plugin; "admin" is set only by the ADMIN_USER_IDS sync. */
+  role: text("role").default("user").notNull(),
+  /** Suspended accounts cannot sign in; public invoice links keep working. */
+  banned: boolean("banned").default(false).notNull(),
+  banReason: text("ban_reason"),
+  banExpires: timestamp("ban_expires"),
 });
 
 export const sessions = pgTable(
@@ -33,6 +39,8 @@ export const sessions = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    // Required by the admin plugin; impersonation is disabled, so it stays empty.
+    impersonatedBy: uuid("impersonated_by"),
   },
   (table) => [index("sessions_userId_idx").on(table.userId)],
 );

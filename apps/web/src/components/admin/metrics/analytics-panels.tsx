@@ -1,0 +1,283 @@
+import type {
+  AdminAnalytics,
+  AdminFeatureKey,
+  AdminTrends,
+  GeneratorFunnelKey,
+} from "@billsafi/contracts";
+import { BarList } from "../charts/bar-list";
+import { bucketFullLabel, bucketLabel } from "../charts/chart-utils";
+import { FirstInvoiceChart, type FirstInvoiceBar } from "../charts/first-invoice-chart";
+import { GroupedBars } from "../charts/grouped-bars";
+import { formatCount, formatDuration, formatMonth, formatShare } from "../admin-format";
+import { AdminLink } from "../admin-link";
+import { tenantHref } from "../admin-params";
+import { EmptyRow, Panel } from "../admin-ui";
+import { tdClass, thClass, theadClass } from "../table-classes";
+
+const featureLabels: Record<AdminFeatureKey, string> = {
+  discount: "Used a discount",
+  tax: "Used tax",
+  logo: "Uploaded a logo",
+  paymentInstructions: "Set payment instructions",
+  shareLink: "Created a share link",
+  paymentRecorded: "Recorded a payment",
+  secondBusiness: "Added a second business",
+  googleSignIn: "Signed in with Google",
+  pdfDownloaded: "Downloaded a PDF",
+  shareLinkOpened: "Had a shared link opened",
+};
+
+const generatorStepLabels: Record<GeneratorFunnelKey, string> = {
+  started: "Started an invoice",
+  download_clicked: "Pressed Save & download",
+  signup_clicked: "Pressed sign up",
+  imported: "Signed up and imported",
+};
+
+const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
+
+function Section({
+  id,
+  title,
+  note,
+  children,
+}: {
+  id: string;
+  title: string;
+  note?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section aria-labelledby={id} className="space-y-4">
+      <div>
+        <h2 id={id} className="text-lg font-semibold">
+          {title}
+        </h2>
+        {note && <p className="text-sm text-sub">{note}</p>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+export function InvoiceVolume({ data }: { data: AdminAnalytics }) {
+  const { invoiceVolume: v, bucketSize } = data;
+  const created = v.points.map((p) => p.created);
+  const ready = v.points.map((p) => p.ready);
+  const median =
+    v.medianReadyPerAccount === null
+      ? "No account made an invoice Ready in this range."
+      : `Accounts that made any invoice Ready made a median of ${formatCount(v.medianReadyPerAccount)}.`;
+  return (
+    <Section id="volume-title" title="Invoice volume" note={data.definitions.invoiceVolume}>
+      <GroupedBars
+        title="Invoices created and made Ready"
+        summary={`${formatCount(sum(created))} invoices created and ${formatCount(sum(ready))} made Ready, side by side per ${bucketSize}. ${median}`}
+        labels={v.points.map((p) => bucketLabel(p.bucketStart, bucketSize))}
+        fullLabels={v.points.map((p) => bucketFullLabel(p.bucketStart, bucketSize))}
+        series={[
+          { name: "Created", values: created },
+          { name: "Made Ready", values: ready },
+        ]}
+        unit="count"
+        emptyText="No invoices in this range."
+      />
+    </Section>
+  );
+}
+
+const firstInvoiceLabels = {
+  under_1h: "Under 1 hour",
+  "1_to_24h": "1 to 24 hours",
+  "1_to_7d": "1 to 7 days",
+  over_7d: "Over 7 days",
+  not_yet: "Not yet",
+  too_new: "Too new to tell",
+} as const;
+
+export function TimeToFirstInvoice({ data }: { data: AdminAnalytics }) {
+  const t = data.timeToFirstInvoice;
+  const { base, buckets } = t.distribution;
+  const hours = (value: number | null) => (value === null ? null : formatDuration(value * 3600));
+  const bars: FirstInvoiceBar[] = buckets.map((bucket) => ({
+    label: firstInvoiceLabels[bucket.key],
+    count: bucket.count,
+    shareText: bucket.share === null ? "" : formatShare(bucket.share),
+    note:
+      bucket.key === "too_new"
+        ? "Signed up under 7 days ago, not counted yet"
+        : bucket.key === "not_yet"
+          ? "No invoice made Ready so far"
+          : "Time from sign-up to first Ready invoice",
+    kind: bucket.key === "too_new" ? "too_new" : bucket.key === "not_yet" ? "not_yet" : "reached",
+  }));
+  const summaryLine =
+    t.medianHours === null
+      ? t.signups === 0
+        ? "No sign-ups in this range."
+        : "No sign-up in this range has made an invoice Ready yet."
+      : `Median ${hours(t.medianHours)}, 75th percentile ${hours(t.p75Hours)}, among the ${formatCount(t.reached)} of ${formatCount(t.signups)} sign-ups that got there.`;
+  return (
+    <Section id="first-invoice-title" title="Time to first invoice">
+      <FirstInvoiceChart
+        title="Sign-ups by time to first invoice"
+        summary={`${data.definitions.timeToFirstInvoice} Percentages are of the ${formatCount(base)} sign-ups that are old enough.`}
+        bars={bars}
+        base={base}
+        emptyText="No sign-ups in this range."
+      />
+      <p className="text-sm text-sub">
+        {summaryLine}{" "}
+        {t.activation.rate === null
+          ? "No sign-ups in this range are 7 days old yet."
+          : `Activation within 7 days: ${formatShare(t.activation.rate)} (${formatCount(t.activation.count)} of ${formatCount(t.activation.base)}).`}
+      </p>
+    </Section>
+  );
+}
+
+export function FeatureAdoption({ data }: { data: AdminAnalytics }) {
+  const { base, items } = data.featureAdoption;
+  return (
+    <Section id="adoption-title" title="Feature adoption" note={data.definitions.featureAdoption}>
+      <BarList
+        title="Accounts that have used each feature"
+        summary={`Out of ${formatCount(base)} accounts with a business, ever, not only in this range.`}
+        items={items.map((item) => ({
+          label: featureLabels[item.key],
+          value: item.share ?? 0,
+          display: `${formatShare(item.share)} (${formatCount(item.count)} of ${formatCount(item.base)})`,
+        }))}
+        max={1}
+        valueHeading="Share of accounts"
+        emptyText="No accounts with a business yet."
+      />
+    </Section>
+  );
+}
+
+export function PdfAndLinks({ data }: { data: AdminTrends }) {
+  const app = data.points.map((p) => p.pdfDownloads.app);
+  const publicLink = data.points.map((p) => p.pdfDownloads.publicLink);
+  const opens = data.points.map((p) => p.linkOpens);
+  return (
+    <Section id="pdf-links-title" title="PDFs and shared links">
+      <GroupedBars
+        title="PDF downloads and link opens"
+        summary={`${formatCount(sum(app))} PDFs downloaded in the app, ${formatCount(sum(publicLink))} from shared links, and ${formatCount(sum(opens))} shared links opened, side by side per ${data.bucketSize}. A link counts once a day, however often it is opened.`}
+        labels={data.points.map((p) => bucketLabel(p.bucketStart, data.bucketSize))}
+        fullLabels={data.points.map((p) => bucketFullLabel(p.bucketStart, data.bucketSize))}
+        series={[
+          { name: "Downloaded in the app", values: app },
+          { name: "Downloaded from a link", values: publicLink },
+          { name: "Links opened", values: opens },
+        ]}
+        unit="count"
+        emptyText="No PDFs downloaded or links opened in this range."
+      />
+    </Section>
+  );
+}
+
+export function GeneratorFunnel({ data }: { data: AdminAnalytics }) {
+  const { steps } = data.generatorFunnel;
+  const top = Math.max(1, ...steps.map((step) => step.count));
+  return (
+    <Section id="generator-title" title="Free generator">
+      <BarList
+        title="Free generator steps"
+        summary={`${data.definitions.generatorFunnel} Steps count distinct visitors and are not strictly nested, so a step can be larger than the one before it.`}
+        items={steps.map((step) => ({
+          label: generatorStepLabels[step.key],
+          value: step.count,
+          display: `${formatCount(step.count)} (${formatShare(step.share)})`,
+        }))}
+        max={top}
+        valueHeading="Visitors (share of started)"
+        emptyText="No one has used the free generator in this range."
+      />
+    </Section>
+  );
+}
+
+export function PlanLimit({ data }: { data: AdminAnalytics }) {
+  const months = data.planLimit;
+  const reached = months.map((m) => m.reached);
+  const bought = months.map((m) => m.boughtWithin14Days);
+  const rate = months.map((m) =>
+    m.reached === 0 ? "No hits" : `${formatShare(m.boughtWithin14Days / m.reached)} bought`,
+  );
+  return (
+    <Section id="limit-title" title="Plan limit reached" note={data.definitions.planLimit}>
+      <GroupedBars
+        title="Free accounts that reached their limit"
+        summary={`${formatCount(sum(reached))} Free accounts used their whole allowance in the last 6 months, and ${formatCount(sum(bought))} of them bought Pro or credits within 14 days. Each month shows hits next to buyers. Not affected by the range.`}
+        labels={months.map((m) => formatMonth(m.month))}
+        fullLabels={months.map((m) => formatMonth(m.month))}
+        series={[
+          { name: "Reached the limit", values: reached },
+          { name: "Bought within 14 days", values: bought },
+        ]}
+        notes={rate}
+        extraColumn={{ heading: "Conversion", values: rate }}
+        unit="count"
+        emptyText="No Free account has reached its limit in the last 6 months."
+      />
+    </Section>
+  );
+}
+
+export function TopAccounts({ data }: { data: AdminAnalytics }) {
+  const top = Math.max(1, ...data.topAccounts.map((account) => account.readyInvoices));
+  return (
+    <Section id="top-title" title="Top accounts" note={data.definitions.topAccounts}>
+      <Panel title="Most invoices made Ready">
+        {data.topAccounts.length === 0 ? (
+          <EmptyRow text="No invoices were made Ready in this range." />
+        ) : (
+          <table className="w-full text-sm">
+            <thead className={theadClass}>
+              <tr>
+                <th scope="col" className={thClass}>
+                  Account
+                </th>
+                <th scope="col" className={thClass}>
+                  Email
+                </th>
+                <th scope="col" className={`${thClass} text-right`}>
+                  Invoices made Ready
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.topAccounts.map((account) => (
+                <tr key={account.accountId} className="border-t border-line">
+                  <th scope="row" className={`${tdClass} text-left font-normal`}>
+                    <AdminLink
+                      href={tenantHref(account.accountId)}
+                      className="text-accent hover:underline"
+                    >
+                      {account.name}
+                    </AdminLink>
+                  </th>
+                  <td className={`${tdClass} break-all text-sub`}>{account.email}</td>
+                  <td className={`${tdClass} text-right tabular-nums`}>
+                    <div className="flex items-center justify-end gap-3">
+                      <span aria-hidden className="h-2 w-16 overflow-hidden rounded-full bg-soft">
+                        <span
+                          className="block h-full rounded-full bg-series-1"
+                          style={{ width: `${(account.readyInvoices / top) * 100}%` }}
+                        />
+                      </span>
+                      {formatCount(account.readyInvoices)}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Panel>
+    </Section>
+  );
+}

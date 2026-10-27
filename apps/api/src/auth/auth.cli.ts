@@ -11,4 +11,5 @@ export const auth = createAuth({
     RESET_TOKEN_TTL_SECONDS: 3600,
   },
   mailer: { send: async () => {} },
+  recorder: { failedSignIn: () => {}, failedPasswordSignIn: () => {} },
 });
