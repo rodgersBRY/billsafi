@@ -264,7 +264,7 @@ const SECTIONS: LegalSection[] = [
             <strong>Sign-in sessions:</strong> until they expire or you sign out.
           </li>
           <li>
-            <strong>Backups:</strong> daily database backups are kept for 14 days, then overwritten.
+            <strong>Backups:</strong> daily database backups are kept for 7 days, then overwritten.
           </li>
         </ul>
         <p>
