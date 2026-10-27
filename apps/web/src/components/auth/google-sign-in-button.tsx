@@ -7,10 +7,12 @@ import { queueIntroSplash } from "@/components/brand/intro-splash";
 import { Button } from "@/components/ui/button";
 import { FormMessage } from "@/components/ui/form-message";
 import { authClient } from "@/lib/auth-client";
+import { SUSPENDED_ACCOUNT_MESSAGE, isBannedError } from "@/lib/suspended-account";
 import { welcomePath } from "@/lib/welcome";
 
 /** Error codes Better Auth adds to /sign-in when the Google round trip fails. */
 function googleErrorMessage(code: string | null): string {
+  if (isBannedError(code)) return SUSPENDED_ACCOUNT_MESSAGE;
   switch (code) {
     case null:
       return "";

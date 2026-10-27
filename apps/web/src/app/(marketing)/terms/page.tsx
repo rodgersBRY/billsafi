@@ -282,9 +282,9 @@ const SECTIONS: LegalSection[] = [
     body: (
       <>
         <p>
-          {product.toUpperCase()} IS PROVIDED &quot;AS IS&quot; AND &quot;AS AVAILABLE&quot;. TO
-          THE EXTENT THE LAW ALLOWS, WE MAKE NO PROMISES THAT THE SERVICE WILL MEET YOUR NEEDS,
-          THAT CALCULATIONS SUIT YOUR TAX SITUATION, OR THAT YOUR CLIENTS WILL PAY YOU.
+          {product.toUpperCase()} IS PROVIDED &quot;AS IS&quot; AND &quot;AS AVAILABLE&quot;. TO THE
+          EXTENT THE LAW ALLOWS, WE MAKE NO PROMISES THAT THE SERVICE WILL MEET YOUR NEEDS, THAT
+          CALCULATIONS SUIT YOUR TAX SITUATION, OR THAT YOUR CLIENTS WILL PAY YOU.
         </p>
       </>
     ),

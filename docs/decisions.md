@@ -588,3 +588,20 @@ User: "Now for the portal, include a light and dark mode and a toggle for this. 
 - Until someone uses it, the app follows the device setting as D052 describes. Once they flip it, their choice wins on that browser and survives reloads. It is saved in the browser, not on the account, so another device starts from its own setting.
 - The saved choice is applied before the first paint, so a reload never flashes the other theme.
 - The marketing landing page stays light. The post-login splash uses the portal's dark green `#142421` in both themes.
+
+## D061 - Add a super admin area for the owner, starting with tenants, users and an audit log
+
+Status: confirmed on 2026-10-25.
+
+User: shared the owner's super admin spec and asked for it to be adapted to Billsafi. Phases 1 and 2 are built. They replace the earlier read-only dashboard idea.
+
+- Source: the owner's spec, adapted. A tenant is an account, meaning one person who owns one or more business profiles. Plan, allowance and Pro are account-wide, so the account is the unit. There are no teams or memberships.
+- Access: users get the platform role `admin` from Better Auth's admin plugin. `ADMIN_USER_IDS` is the source of truth. It lists user IDs, not emails, because sign-up emails are not verified. The API syncs roles from it at start under an advisory lock. The UI can never grant admin. All of the plugin's own HTTP endpoints are disabled. Admin actions go through our own guarded, audited API. Impersonation is not possible.
+- Hidden area: a signed-in non-admin gets the same 404 as an unknown page. A signed-out visitor gets the normal sign-in redirect.
+- Suspension blocks sign-in and ends the account's sessions. A suspended account is rejected on every request, and get-session reports no session. Its clients' invoice links and PDFs keep working. Nothing is deleted. Admins cannot suspend themselves or other admins, and cannot revoke their own sessions.
+- Three separate statuses. Account: active or suspended. Subscription: free, pro, pro_ending (ends within 7 days) or lapsed. Lifecycle: registered, onboarding, activated, subscribed, or inactive after 30 days without a meaningful action. A meaningful action is an invoice created, an invoice made Ready, a payment recorded, or a client added.
+- Audit log: append-only. Database triggers refuse UPDATE, DELETE and TRUNCATE. The table owner could still disable them, which we accept for one admin. It records failures as well as successes, redacts secrets and masks phone numbers. It stores the request ID and IP, and the admin shows the IP masked. Every action needs a reason of 5 to 500 characters and is limited to 10 per minute per admin.
+- Plans stay in code and are shown read-only. Trials do not exist.
+- Later phases add subscription actions and manual payments, an overview with analytics, recording data we do not keep yet (such as PDF downloads and job failures), health, support, and configuration.
+- Out of scope: teams, plan editing, discounts, export or delete of accounts, and impersonation.
+- The environment badge in the admin comes from `NEXT_PUBLIC_APP_ENV`.

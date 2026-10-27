@@ -10,6 +10,7 @@ import { TextField } from "@/components/ui/field";
 import { PasswordField } from "@/components/ui/password-field";
 import { FormMessage } from "@/components/ui/form-message";
 import { authClient } from "@/lib/auth-client";
+import { SUSPENDED_ACCOUNT_MESSAGE, isBannedError } from "@/lib/suspended-account";
 import { useNavigationPending } from "@/lib/use-navigation-pending";
 
 /** `google` is the server-rendered "Continue with Google" block, when available. */
@@ -35,7 +36,11 @@ export function SignInForm({ google }: { google?: React.ReactNode }) {
     if (error) {
       setPending(false);
       setError(
-        error.status === 401 ? "That email and password don't match." : "We couldn't sign you in.",
+        isBannedError(error.code)
+          ? SUSPENDED_ACCOUNT_MESSAGE
+          : error.status === 401
+            ? "That email and password don't match."
+            : "We couldn't sign you in.",
       );
 
       return;

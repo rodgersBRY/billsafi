@@ -1,13 +1,16 @@
 import { Module } from "@nestjs/common";
-import { APP_FILTER } from "@nestjs/core";
+import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { SentryGlobalFilter, SentryModule } from "@sentry/nestjs/setup";
 import type { DatabaseConnection } from "@billsafi/db";
 import { AuthModule } from "@thallesp/nestjs-better-auth";
 import { createAuth } from "./auth/auth.js";
 import { AuthProvidersModule } from "./auth/auth-providers.module.js";
+import { SessionGuard } from "./auth/session.guard.js";
 import { ConfigModule, ENV } from "./config/config.module.js";
 import type { Env } from "./config/env.js";
 import { DATABASE, DatabaseModule } from "./database/database.module.js";
+import { AdminModule } from "./admin/admin.module.js";
+import { AuditModule } from "./audit/audit.module.js";
 import { BillingModule } from "./billing/billing.module.js";
 import { BusinessesModule } from "./businesses/businesses.module.js";
 import { ClientsModule } from "./clients/clients.module.js";
@@ -25,8 +28,9 @@ import type { Mailer } from "./mail/mailer.js";
     ConfigModule,
     DatabaseModule,
     MailModule,
-    // Registers Better Auth routes under /api/v1/auth and a global guard:
-    // every route requires a session unless marked @AllowAnonymous().
+    AuditModule,
+    // Registers Better Auth routes under /api/v1/auth. The global guard is SessionGuard
+    // below: every route requires a session unless marked @AllowAnonymous().
     AuthModule.forRootAsync({
       inject: [DATABASE, ENV, MAILER],
       useFactory: (connection: DatabaseConnection, env: Env, mailer: Mailer) => ({
@@ -34,6 +38,7 @@ import type { Mailer } from "./mail/mailer.js";
         // CORS is configured once in app.setup.ts.
         disableTrustedOriginsCors: true,
       }),
+      disableGlobalAuthGuard: true,
     }),
     AuthProvidersModule,
     HealthModule,
@@ -43,8 +48,13 @@ import type { Mailer } from "./mail/mailer.js";
     GuestInvoicesModule,
     BillingModule,
     ProductToursModule,
+    AdminModule,
   ],
   // Reports unexpected errors; HTTP errors such as 404 and 409 are not sent.
-  providers: [{ provide: APP_FILTER, useClass: SentryGlobalFilter }],
+  providers: [
+    { provide: APP_FILTER, useClass: SentryGlobalFilter },
+    // Better Auth's guard, but suspended accounts count as signed out.
+    { provide: APP_GUARD, useClass: SessionGuard },
+  ],
 })
 export class AppModule {}

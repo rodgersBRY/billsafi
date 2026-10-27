@@ -92,9 +92,7 @@ const SECTIONS: LegalSection[] = [
             plan limits.
           </li>
         </ul>
-        <p>
-          We do not use advertising trackers, and WE DO NOT SELL OR RENT YOUR DATA TO ANYONE.
-        </p>
+        <p>We do not use advertising trackers, and WE DO NOT SELL OR RENT YOUR DATA TO ANYONE.</p>
       </>
     ),
   },
@@ -150,8 +148,8 @@ const SECTIONS: LegalSection[] = [
             <strong>Payment provider (M-Pesa):</strong> processes Pro and credit payments.
           </li>
           <li>
-            <strong>Sign-in provider (Google):</strong> handles sign-in if you choose
-            &quot;Continue with Google&quot;.
+            <strong>Sign-in provider (Google):</strong> handles sign-in if you choose &quot;Continue
+            with Google&quot;.
           </li>
           <li>
             <strong>Email delivery provider:</strong> sends account and reminder emails.

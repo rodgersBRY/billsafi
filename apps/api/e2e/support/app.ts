@@ -5,6 +5,8 @@ import request from "supertest";
 import { AppModule } from "../../src/app.module.js";
 import { configureApp } from "../../src/app.setup.js";
 import { loadRootEnvFile } from "../../src/config/env-file.js";
+import { AdminRoleSyncService } from "../../src/admin/admin-role-sync.service.js";
+import { ADMIN_ACTION_LIMITER, SlidingWindowLimiter } from "../../src/admin/rate-limit.guard.js";
 import { FakeMpesaProvider } from "../../src/billing/mpesa/fake.provider.js";
 import { MPESA_PROVIDER } from "../../src/billing/mpesa/mpesa.provider.js";
 import { MAILER } from "../../src/mail/mail.module.js";
@@ -20,7 +22,6 @@ process.env.USD_KES_RATE = "125";
 // Turns Google sign-in on; the Google spec stubs Google's token endpoint.
 process.env.GOOGLE_CLIENT_ID = "e2e-client.apps.googleusercontent.com";
 process.env.GOOGLE_CLIENT_SECRET = "e2e-google-client-secret";
-
 export const WEB_ORIGIN = "http://localhost:3000";
 
 export class CapturingMailer implements Mailer {
@@ -35,15 +36,35 @@ export class CapturingMailer implements Mailer {
   }
 }
 
-export async function createTestApp() {
+/**
+ * Spec files run in parallel against one database, and the admin role sync rewrites
+ * users.role globally on start. It is off unless a spec asks for it, so one file's app
+ * cannot demote another file's admin mid-run.
+ */
+export async function createTestApp({
+  adminRoleSync = false,
+  adminActionLimit,
+}: {
+  adminRoleSync?: boolean;
+  /** Admin actions allowed per minute; the app's own limit (10) when not given. */
+  adminActionLimit?: number;
+} = {}) {
   const mailer = new CapturingMailer();
   const mpesa = new FakeMpesaProvider({ autoSettleMs: null });
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+  let builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(MAILER)
     .useValue(mailer)
     .overrideProvider(MPESA_PROVIDER)
-    .useValue(mpesa)
-    .compile();
+    .useValue(mpesa);
+  if (!adminRoleSync) {
+    builder = builder.overrideProvider(AdminRoleSyncService).useValue({});
+  }
+  if (adminActionLimit !== undefined) {
+    builder = builder
+      .overrideProvider(ADMIN_ACTION_LIMITER)
+      .useValue(new SlidingWindowLimiter(adminActionLimit, 60_000));
+  }
+  const moduleRef = await builder.compile();
   const app: INestApplication = moduleRef.createNestApplication({ bodyParser: false });
   configureApp(app, { WEB_ORIGIN });
   await app.init();

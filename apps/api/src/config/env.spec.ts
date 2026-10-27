@@ -15,6 +15,22 @@ describe("loadEnv", () => {
     });
   });
 
+  it("reads the admin user IDs as a clean lowercase list", () => {
+    const id = "0196a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b";
+    const other = "11111111-2222-4333-8444-555555555555";
+    expect(loadEnv(required).ADMIN_USER_IDS).toEqual([]);
+    expect(
+      loadEnv({ ...required, ADMIN_USER_IDS: ` ${id.toUpperCase()} , ,${other},${id}` })
+        .ADMIN_USER_IDS,
+    ).toEqual([id, other]);
+  });
+
+  it("rejects an admin entry that is not a user ID", () => {
+    expect(() => loadEnv({ ...required, ADMIN_USER_IDS: "brian@example.com" })).toThrow(
+      /ADMIN_USER_IDS/,
+    );
+  });
+
   it("requires a Postgres database URL", () => {
     expect(() => loadEnv({ ...required, DATABASE_URL: undefined })).toThrow(/DATABASE_URL/);
     expect(() => loadEnv({ ...required, DATABASE_URL: "mysql://localhost/db" })).toThrow(
