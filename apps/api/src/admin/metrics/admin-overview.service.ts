@@ -1,15 +1,17 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type {
-  AdminAttention,
-  AdminOverview,
-  AdminRange,
-  AdminSubscriptionMix,
-  AdminTrends,
+import {
+  type AdminAttention,
+  type AdminOverview,
+  type AdminRange,
+  type AdminSubscriptionMix,
+  type AdminTrends,
+  REPEATED_FAILED_SIGN_INS,
 } from "@billsafi/contracts";
 import { type DatabaseConnection, type SQL, sql } from "@billsafi/db";
 import {
   addNairobiMonths,
   nairobiCalendarMonth,
+  nairobiDayStart,
   PRO_PLAN,
   money,
   stuckPaymentCutoff,
@@ -47,6 +49,9 @@ interface WindowFacts {
   usd: string;
   succeeded: number;
   failed: number;
+  pdfFailed: number;
+  emailFailed: number;
+  jobsFailed: number;
 }
 
 interface ProSnapshots {
@@ -107,7 +112,14 @@ export class AdminOverviewService {
         (select count(*) from subscription_payments
           where status = 'succeeded' and provider <> ${MANUAL} and ${inWindow("created_at")})::int as succeeded,
         (select count(*) from subscription_payments
-          where status = 'failed' and provider <> ${MANUAL} and ${inWindow("created_at")})::int as failed
+          where status = 'failed' and provider <> ${MANUAL} and ${inWindow("created_at")})::int as failed,
+        -- Recorded operation failures in the window (D066).
+        (select count(*) from operation_failures
+          where kind = 'pdf' and ${inWindow("created_at")})::int as "pdfFailed",
+        (select count(*) from operation_failures
+          where kind = 'email' and ${inWindow("created_at")})::int as "emailFailed",
+        (select count(*) from operation_failures
+          where kind = 'job' and ${inWindow("created_at")})::int as "jobsFailed"
     `);
     return row!;
   }
@@ -161,6 +173,14 @@ export class AdminOverviewService {
       successRate: ratio(facts.succeeded, facts.succeeded + facts.failed),
     });
 
+    const failedOperations = (facts: WindowFacts) => ({
+      total: facts.failed + facts.pdfFailed + facts.emailFailed + facts.jobsFailed,
+      mpesa: facts.failed,
+      pdf: facts.pdfFailed,
+      email: facts.emailFailed,
+      jobs: facts.jobsFailed,
+    });
+
     return {
       range,
       period: { start: plan.start.toISOString(), end: plan.end.toISOString() },
@@ -184,6 +204,7 @@ export class AdminOverviewService {
         usd: pair(current.usd, previous.usd),
       },
       mpesa: pair(mpesa(current), mpesa(previous)),
+      failedOperations: pair(failedOperations(current), failedOperations(previous)),
       activation: pair(
         rate(activation.current.activated, activation.current.base),
         rate(activation.previous.activated, activation.previous.base),
@@ -201,7 +222,11 @@ export class AdminOverviewService {
   async attention(now: Date): Promise<AdminAttention> {
     const soon = sql`${at(now)} + make_interval(hours => ${24 * ENDING_DAYS})`;
     const monthStart = nairobiCalendarMonth(now).start;
-    const [row] = await this.rows<Omit<AdminAttention, "freeLimitReached">>(sql`
+    const todayStart = nairobiDayStart(now);
+    const hourly = REPEATED_FAILED_SIGN_INS;
+    const [row] = await this.rows<
+      Omit<AdminAttention, "freeLimitReached" | "failedOperationsToday" | "repeatedFailedSignIns">
+    >(sql`
       select
         (select count(*) from subscription_payments
           where status = 'pending' and created_at < ${at(stuckPaymentCutoff(now))})::int as "stuckPayments",
@@ -219,7 +244,32 @@ export class AdminOverviewService {
       select count(*)::int as total from hits h
       where ${realFreeLimitHit(monthStart, now)}
     `);
-    return { ...row!, freeLimitReached: limit!.total };
+    // Failures since Nairobi midnight: recorded PDF, email and job failures, plus M-Pesa checkouts.
+    const [today] = await this.rows<{ total: number }>(sql`
+      select (
+        (select count(*) from operation_failures
+          where created_at >= ${at(todayStart)} and created_at <= ${at(now)})
+        + (select count(*) from subscription_payments
+          where status = 'failed' and provider <> ${MANUAL}
+            and created_at >= ${at(todayStart)} and created_at <= ${at(now)})
+      )::int as total
+    `);
+    // Emails with this many failed sign-ins inside one clock hour, in the last 24 hours.
+    const [repeated] = await this.rows<{ total: number }>(sql`
+      select count(distinct email)::int as total from (
+        select email from failed_sign_ins
+        where email is not null
+          and created_at >= ${at(new Date(now.getTime() - DAY_MS))} and created_at <= ${at(now)}
+        group by email, date_trunc('hour', created_at at time zone 'UTC')
+        having count(*) >= ${hourly}
+      ) hammered
+    `);
+    return {
+      ...row!,
+      freeLimitReached: limit!.total,
+      failedOperationsToday: today!.total,
+      repeatedFailedSignIns: repeated!.total,
+    };
   }
 
   /** The instant each bucket ends: where the next one starts, and now for the last. */
@@ -263,6 +313,9 @@ export class AdminOverviewService {
       kesCollected: string;
       usdCollected: string;
       activeAccounts: number;
+      pdfApp: number;
+      pdfPublicLink: number;
+      linkOpens: number;
     }>(sql`
       with b as (${bucketsSql(plan)}),
       signups as (
@@ -297,6 +350,17 @@ export class AdminOverviewService {
           from clients c join businesses bz on bz.id = c.business_id where ${bounded(sql`c.created_at`)}
       ),
       active as (select i, count(distinct uid)::int as n from actions group by i),
+      pdfs as (
+        select ${perBucket(sql`pe.created_at`)} as i,
+          (count(*) filter (where pe.props ->> 'source' = 'app'))::int as app,
+          (count(*) filter (where pe.props ->> 'source' = 'public_link'))::int as "publicLink"
+        from product_events pe
+        where pe.name = 'pdf_downloaded' and ${bounded(sql`pe.created_at`)} group by 1
+      ),
+      opens as (
+        select ${perBucket(sql`pe.created_at`)} as i, count(*)::int as n from product_events pe
+        where pe.name = 'link_opened' and ${bounded(sql`pe.created_at`)} group by 1
+      ),
       before as (select count(*)::int as n from users where created_at < ${utcAt(plan.start)})
       select
         to_char(b.bucket_start at time zone 'Africa/Nairobi', 'YYYY-MM-DD') as "bucketStart",
@@ -306,13 +370,18 @@ export class AdminOverviewService {
         coalesce(ready.n, 0) as "invoicesReady",
         coalesce(paid.kes, '0.00') as "kesCollected",
         coalesce(paid.usd, '0.00') as "usdCollected",
-        coalesce(active.n, 0) as "activeAccounts"
+        coalesce(active.n, 0) as "activeAccounts",
+        coalesce(pdfs.app, 0) as "pdfApp",
+        coalesce(pdfs."publicLink", 0) as "pdfPublicLink",
+        coalesce(opens.n, 0) as "linkOpens"
       from b
       left join signups on signups.i = b.i
       left join firsts on firsts.i = b.i
       left join ready on ready.i = b.i
       left join paid on paid.i = b.i
       left join active on active.i = b.i
+      left join pdfs on pdfs.i = b.i
+      left join opens on opens.i = b.i
       order by b.i
     `);
     const paying = await this.payingAtBucketEnds(plan);
@@ -320,8 +389,10 @@ export class AdminOverviewService {
       range,
       bucketSize: plan.bucket,
       period: { start: plan.start.toISOString(), end: plan.end.toISOString() },
-      points: rows.map((row, index) => ({
+      points: rows.map(({ pdfApp, pdfPublicLink, ...row }, index) => ({
         ...row,
+        pdfDownloads: { app: Number(pdfApp), publicLink: Number(pdfPublicLink) },
+        linkOpens: Number(row.linkOpens),
         activeAccounts: Number(row.activeAccounts),
         mrrUsd: usd(paying[index] ?? 0),
         signups: Number(row.signups),
@@ -384,7 +455,9 @@ function definitions(): AdminOverview["definitions"] {
     collected:
       "Plan payments that succeeded, by the day they were paid, including payments recorded by hand. KES and USD are never added together.",
     mpesa:
-      "M-Pesa plan checkouts that succeeded or failed in the range, by the time they started. Pending checkouts are not counted. Only M-Pesa failures are recorded for now.",
+      "M-Pesa plan checkouts that succeeded or failed in the range, by the time they started. Pending checkouts are not counted.",
+    failedOperations:
+      "Failed M-Pesa checkouts (by the time they started) plus the PDF, email and background job failures BillSafi recorded in the range. Recording began with phase 5, so earlier periods count M-Pesa only.",
     activation:
       "Of the accounts that signed up in the range, the share that made an invoice Ready within 7 days of signing up. Accounts younger than 7 days are left out until their week is over.",
   };

@@ -1,5 +1,8 @@
 import "server-only";
 import type {
+  AdminFailedSignInsPage,
+  AdminFailuresPage,
+  AdminTenantActivityPage,
   AdminGrantsPage,
   AdminHealth,
   AdminSettings,
@@ -126,4 +129,20 @@ export const getAdminSupportAccount = cache((accountId: string): Promise<AdminSu
 
 export const getAdminSettings = cache((): Promise<AdminSettings> =>
   apiGet<AdminSettings>("/admin/settings"),
+);
+
+/** Never cached by the API, like Health. */
+export const getAdminFailures = cache((queryString: string): Promise<AdminFailuresPage> =>
+  apiGet<AdminFailuresPage>(`/admin/health/failures${queryString}`),
+);
+
+export const getAdminFailedSignIns = cache((queryString: string): Promise<AdminFailedSignInsPage> =>
+  apiGet<AdminFailedSignInsPage>(`/admin/security/failed-sign-ins${queryString}`),
+);
+
+export const getAdminTenantActivity = cache(
+  (id: string, queryString: string): Promise<AdminTenantActivityPage> =>
+    apiGet<AdminTenantActivityPage>(
+      `/admin/tenants/${encodeURIComponent(id)}/activity${queryString}`,
+    ),
 );

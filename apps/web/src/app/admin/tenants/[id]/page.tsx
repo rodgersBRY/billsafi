@@ -1,10 +1,17 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { adminMetadata } from "@/components/admin/admin-metadata";
-import { parseTenantTab, type TenantTab } from "@/components/admin/admin-params";
+import {
+  parseActivityPage,
+  parseTenantTab,
+  toQuery,
+  type RawParams,
+  type TenantTab,
+} from "@/components/admin/admin-params";
 import { Panel, UpdatedAt } from "@/components/admin/admin-ui";
 import { AuditTimeline } from "@/components/admin/audit/audit-timeline";
 import { PageSkeleton } from "@/components/admin/page-skeleton";
+import { TenantActivityFeed } from "@/components/admin/tenants/tenant-activity-feed";
 import { TenantBusinessesTab } from "@/components/admin/tenants/tenant-businesses-tab";
 import { TenantHeader } from "@/components/admin/tenants/tenant-header";
 import { TenantOverviewTab } from "@/components/admin/tenants/tenant-overview-tab";
@@ -12,7 +19,12 @@ import { TenantSubscriptionTab } from "@/components/admin/tenants/tenant-subscri
 import { TenantSupportTab } from "@/components/admin/tenants/tenant-support-tab";
 import { TenantTabs } from "@/components/admin/tenants/tenant-tabs";
 import { TenantUsageTab } from "@/components/admin/tenants/tenant-usage-tab";
-import { getAdminAccess, getAdminSelf, getAdminTenant } from "@/lib/server-api/admin";
+import {
+  getAdminAccess,
+  getAdminSelf,
+  getAdminTenant,
+  getAdminTenantActivity,
+} from "@/lib/server-api/admin";
 import type { AdminTenantDetail } from "@billsafi/contracts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -35,9 +47,26 @@ interface TabContentProps {
   tab: TenantTab;
   data: AdminTenantDetail;
   selfId: string;
+  raw: RawParams;
 }
 
-function TabContent({ tab, data, selfId }: TabContentProps) {
+async function ActivityTab({ data, raw }: { data: AdminTenantDetail; raw: RawParams }) {
+  const { page } = parseActivityPage(raw);
+  const feed = await getAdminTenantActivity(data.tenant.id, toQuery({ page }, { page: 1 }));
+  return (
+    <div className="space-y-4">
+      <TenantActivityFeed data={feed} />
+      <Panel
+        title="Admin actions"
+        description="The 20 latest admin actions about this account or its owner."
+      >
+        <AuditTimeline entries={data.recentAudit} targetId={data.tenant.id} />
+      </Panel>
+    </div>
+  );
+}
+
+function TabContent({ tab, data, selfId, raw }: TabContentProps) {
   switch (tab) {
     case "overview":
       return <TenantOverviewTab data={data} />;
@@ -48,14 +77,7 @@ function TabContent({ tab, data, selfId }: TabContentProps) {
     case "usage":
       return <TenantUsageTab usage={data.usage} overrides={data.subscription.overrides} />;
     case "activity":
-      return (
-        <Panel
-          title="Activity & Audit"
-          description="The 20 latest admin actions about this account or its owner."
-        >
-          <AuditTimeline entries={data.recentAudit} targetId={data.tenant.id} />
-        </Panel>
-      );
+      return <ActivityTab data={data} raw={raw} />;
     case "support":
       return <TenantSupportTab data={data} selfId={selfId} />;
   }
@@ -69,7 +91,7 @@ async function TenantDetail({ params, searchParams }: PageProps<"/admin/tenants/
       <TenantHeader data={data} selfId={self.id} />
       <TenantTabs id={data.tenant.id} current={tab} />
       <div className="space-y-3">
-        <TabContent tab={tab} data={data} selfId={self.id} />
+        <TabContent tab={tab} data={data} selfId={self.id} raw={raw} />
         <UpdatedAt iso={data.generatedAt} cached={false} />
       </div>
     </>

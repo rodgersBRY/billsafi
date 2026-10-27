@@ -9,6 +9,8 @@ import { SessionGuard } from "./auth/session.guard.js";
 import { ConfigModule, ENV } from "./config/config.module.js";
 import type { Env } from "./config/env.js";
 import { DATABASE, DatabaseModule } from "./database/database.module.js";
+import { ActivityRecorder } from "./activity/activity-recorder.js";
+import { ActivityModule } from "./activity/activity.module.js";
 import { AdminModule } from "./admin/admin.module.js";
 import { AuditModule } from "./audit/audit.module.js";
 import { BillingModule } from "./billing/billing.module.js";
@@ -28,14 +30,20 @@ import type { Mailer } from "./mail/mailer.js";
     SentryModule.forRoot(),
     ConfigModule,
     DatabaseModule,
+    ActivityModule,
     MailModule,
     AuditModule,
     // Registers Better Auth routes under /api/v1/auth. The global guard is SessionGuard
     // below: every route requires a session unless marked @AllowAnonymous().
     AuthModule.forRootAsync({
-      inject: [DATABASE, ENV, MAILER],
-      useFactory: (connection: DatabaseConnection, env: Env, mailer: Mailer) => ({
-        auth: createAuth({ db: connection.db, env, mailer }),
+      inject: [DATABASE, ENV, MAILER, ActivityRecorder],
+      useFactory: (
+        connection: DatabaseConnection,
+        env: Env,
+        mailer: Mailer,
+        recorder: ActivityRecorder,
+      ) => ({
+        auth: createAuth({ db: connection.db, env, mailer, recorder }),
         // CORS is configured once in app.setup.ts.
         disableTrustedOriginsCors: true,
       }),

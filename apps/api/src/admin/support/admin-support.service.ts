@@ -141,7 +141,7 @@ export class AdminSupportService {
     );
     const timeline = await this.rows<AdminSupportTimelineEntry>(sql`
       select a.id, ${iso(sql`a.occurred_at`)} as "occurredAt", a.action,
-        json_build_object('userId', a.actor_user_id, 'email', u.email) as actor,
+        json_build_object('userId', a.actor_user_id, 'name', u.name, 'email', u.email) as actor,
         a.reason, a.changes
       from audit_logs a left join users u on u.id = a.actor_user_id
       where a.outcome = 'success'

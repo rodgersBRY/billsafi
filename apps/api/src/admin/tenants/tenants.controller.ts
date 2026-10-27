@@ -1,5 +1,8 @@
 import { Controller, Get, Inject, Param, Query, UseGuards } from "@nestjs/common";
 import {
+  type AdminTenantActivityPage,
+  type AdminTenantActivityQuery,
+  adminTenantActivityQuerySchema,
   type AdminTenantDetail,
   type AdminTenantsPage,
   type AdminTenantsQuery,
@@ -11,6 +14,7 @@ import { ZodValidationPipe } from "../../common/zod-validation.pipe.js";
 import { cacheKey } from "../shared/cache-key.js";
 import { AdminGuard } from "../shared/admin.guard.js";
 import { ADMIN_CACHE, type TtlCache } from "../shared/ttl-cache.js";
+import { AdminTenantActivityService } from "./admin-tenant-activity.service.js";
 import { AdminTenantsService } from "./admin-tenants.service.js";
 
 /** Tenant read routes. The list is cached for 60 seconds; the detail is not. */
@@ -21,6 +25,7 @@ import { AdminTenantsService } from "./admin-tenants.service.js";
 export class TenantsController {
   constructor(
     private readonly tenants: AdminTenantsService,
+    private readonly activity: AdminTenantActivityService,
     @Inject(ADMIN_CACHE) private readonly cache: TtlCache,
   ) {}
 
@@ -34,5 +39,14 @@ export class TenantsController {
   @Get("tenants/:id")
   tenant(@Param("id", new UuidParamPipe("Tenant")) id: string): Promise<AdminTenantDetail> {
     return this.tenants.detail(id);
+  }
+
+  /** The account's product events and recorded failures. Not cached, like the detail. */
+  @Get("tenants/:id/activity")
+  tenantActivity(
+    @Param("id", new UuidParamPipe("Tenant")) id: string,
+    @Query(new ZodValidationPipe(adminTenantActivityQuerySchema)) query: AdminTenantActivityQuery,
+  ): Promise<AdminTenantActivityPage> {
+    return this.activity.activity(id, query);
   }
 }

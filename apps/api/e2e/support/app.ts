@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import type { INestApplication } from "@nestjs/common";
-import { Test } from "@nestjs/testing";
+import { Test, type TestingModuleBuilder } from "@nestjs/testing";
 import request from "supertest";
 import { AppModule } from "../../src/app.module.js";
 import { configureApp } from "../../src/app.setup.js";
@@ -20,6 +20,7 @@ loadRootEnvFile();
 process.env.MPESA_ENV = "fake";
 process.env.MPESA_CALLBACK_TOKEN = "e2e-callback-token-0123456789";
 process.env.BILLING_JOBS = "off";
+process.env.MAINTENANCE_JOBS = "off";
 // A pinned rate keeps charges predictable: USD 4 is KES 500, USD 2 is KES 250.
 process.env.USD_KES_RATE = "125";
 // Turns Google sign-in on; the Google spec stubs Google's token endpoint.
@@ -47,10 +48,13 @@ export class CapturingMailer implements Mailer {
 export async function createTestApp({
   adminRoleSync = false,
   adminActionLimit,
+  configure,
 }: {
   adminRoleSync?: boolean;
   /** Admin actions allowed per minute; the app's own limit (10) when not given. */
   adminActionLimit?: number;
+  /** Swaps providers, such as a recorder that cannot write or a PDF renderer that fails. */
+  configure?: (builder: TestingModuleBuilder) => TestingModuleBuilder;
 } = {}) {
   const mailer = new CapturingMailer();
   const mpesa = new FakeMpesaProvider({ autoSettleMs: null });
@@ -67,6 +71,7 @@ export async function createTestApp({
       .overrideProvider(ADMIN_ACTION_LIMITER)
       .useValue(new SlidingWindowLimiter(adminActionLimit, 60_000));
   }
+  if (configure) builder = configure(builder);
   const moduleRef = await builder.compile();
   const app: INestApplication = moduleRef.createNestApplication({ bodyParser: false });
   configureApp(app, { WEB_ORIGIN });

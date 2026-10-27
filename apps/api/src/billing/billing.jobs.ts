@@ -5,6 +5,8 @@ import {
   type OnApplicationBootstrap,
   type OnApplicationShutdown,
 } from "@nestjs/common";
+import { ActivityRecorder } from "../activity/activity-recorder.js";
+import type { JobName } from "@billsafi/contracts";
 import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
 import { BillingService } from "./billing.service.js";
@@ -18,6 +20,7 @@ export class BillingJobs implements OnApplicationBootstrap, OnApplicationShutdow
 
   constructor(
     private readonly billing: BillingService,
+    private readonly recorder: ActivityRecorder,
     @Inject(ENV) private readonly env: Env,
   ) {}
 
@@ -32,14 +35,29 @@ export class BillingJobs implements OnApplicationBootstrap, OnApplicationShutdow
     if (this.timer) clearInterval(this.timer);
   }
 
+  /**
+   * Three steps, each recorded as a job run. A failing step is logged and the next one
+   * still runs, so a stuck sweep does not stop reminders.
+   */
   async run() {
-    try {
+    await this.step("billing_sweep", async () => {
       await this.billing.sweepPending();
+    });
+    await this.step("renewal_reminders", async () => {
       const sent = await this.billing.sendReminders();
       if (sent > 0) this.logger.log(`Sent ${sent} renewal reminder(s)`);
+      return `sent ${sent} reminder${sent === 1 ? "" : "s"}`;
+    });
+    await this.step("idempotency_prune", async () => {
       await this.billing.pruneIdempotencyKeys();
+    });
+  }
+
+  private async step(job: JobName, work: () => Promise<string | void>) {
+    try {
+      await this.recorder.trackJob(job, work);
     } catch (error) {
-      this.logger.error(`Billing job failed: ${String(error)}`);
+      this.logger.error(`Billing job ${job} failed: ${String(error)}`);
     }
   }
 }

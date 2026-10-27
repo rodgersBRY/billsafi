@@ -195,7 +195,8 @@ const SECTIONS: LegalSection[] = [
           <li>
             <strong>Free invoice generator draft:</strong> if you use the generator before creating
             an account, your draft is saved in your own browser&apos;s storage. It does not reach us
-            until you choose to save it to an account.
+            until you choose to save it to an account. The generator also keeps a random ID there,
+            explained below.
           </li>
           <li>
             <strong>Small preferences:</strong> things like whether prices show in USD or KES, and
@@ -203,6 +204,42 @@ const SECTIONS: LegalSection[] = [
           </li>
         </ul>
         <p>We do not use advertising or cross-site tracking cookies.</p>
+      </>
+    ),
+  },
+  {
+    id: "product-use",
+    heading: "Product use and errors",
+    body: (
+      <>
+        <p>
+          We record a short list of facts so we can see what is used and what breaks: PDF downloads,
+          opens of a shared invoice link (once a day per link), the steps people take in the free
+          invoice generator, failed PDFs, emails and background jobs, each background job run,
+          backups, and failed sign-ins.
+        </p>
+        <ul>
+          <li>
+            <strong>Generator steps:</strong> these use a random ID kept in your browser&apos;s
+            storage, not your name or email. You can clear it by clearing site data.
+          </li>
+          <li>
+            <strong>Never stored with these records:</strong> your IP address, browser details,
+            invoice contents, client names, amounts or passwords.
+          </li>
+          <li>
+            <strong>Failed sign-ins:</strong> we keep the email that was typed and the network part
+            of the IP address, not the full address.
+          </li>
+          <li>
+            <strong>Failure messages:</strong> we remove email addresses, links, phone numbers and
+            tokens before saving them.
+          </li>
+        </ul>
+        <p>
+          We keep product records for 13 months, failures and failed sign-ins for 90 days, job runs
+          for 30 days and backup records for 13 months. Older records are deleted every day.
+        </p>
       </>
     ),
   },

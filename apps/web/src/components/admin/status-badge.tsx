@@ -11,6 +11,8 @@ import type {
   AdminLifecycleStage,
   AdminRole,
   AdminSubscriptionStatus,
+  FailedSignInReason,
+  OperationFailureKind,
 } from "@billsafi/contracts";
 import {
   Bug,
@@ -37,6 +39,11 @@ import {
   CircleX,
   Clock,
   Crown,
+  Mail,
+  KeyRound,
+  UserX,
+  DoorClosed,
+  Cog,
   type LucideIcon,
   Moon,
   Rocket,
@@ -144,7 +151,23 @@ const category: Record<SupportCategory, Variant> = {
   other: { label: "Other", icon: CircleDot, tone: "neutral" },
 };
 
+const signInReason: Record<FailedSignInReason, Variant> = {
+  wrong_password: { label: "Wrong password", icon: KeyRound, tone: "warn" },
+  unknown_email: { label: "Unknown email", icon: UserX, tone: "warn" },
+  banned: { label: "Suspended account", icon: Ban, tone: "bad" },
+  registration_closed: { label: "Sign-ups closed", icon: DoorClosed, tone: "neutral" },
+  other: { label: "Other", icon: CircleDot, tone: "neutral" },
+};
+
+const failureKind: Record<OperationFailureKind, Variant> = {
+  pdf: { label: "PDF", icon: FileText, tone: "bad" },
+  email: { label: "Email", icon: Mail, tone: "bad" },
+  job: { label: "Job", icon: Cog, tone: "bad" },
+};
+
 export const statusVariants = {
+  signInReason,
+  failureKind,
   health,
   supportStatus,
   severity,
@@ -159,6 +182,8 @@ export const statusVariants = {
   provider,
 };
 
+export const signInReasonLabels = labels(signInReason);
+export const failureKindLabels = labels(failureKind);
 export const accountStatusLabels = labels(account);
 export const subscriptionStatusLabels = labels(subscription);
 export const lifecycleLabels = labels(lifecycle);
@@ -188,7 +213,9 @@ type BadgeProps =
   | { kind: "role"; value: AdminRole }
   | { kind: "source"; value: AdminCurrentMonthSource }
   | { kind: "override"; value: AdminOverrideState }
-  | { kind: "provider"; value: PlanPaymentProvider };
+  | { kind: "provider"; value: PlanPaymentProvider }
+  | { kind: "signInReason"; value: FailedSignInReason }
+  | { kind: "failureKind"; value: OperationFailureKind };
 
 const kindNames: Record<BadgeProps["kind"], string> = {
   health: "Status",
@@ -203,6 +230,8 @@ const kindNames: Record<BadgeProps["kind"], string> = {
   source: "Current month",
   override: "Override",
   provider: "Source",
+  signInReason: "Reason",
+  failureKind: "Kind",
 };
 
 /** A status as text plus icon. `labelled` adds the dimension name for screen readers. */

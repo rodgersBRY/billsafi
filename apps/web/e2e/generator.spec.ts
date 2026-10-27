@@ -111,3 +111,25 @@ test("signed-in visitors save straight to their existing business", async ({ pag
   await expect(page.getByRole("dialog")).toBeHidden();
   await expect(page.getByText("The business details you typed weren't used.")).toBeVisible();
 });
+
+test("the first edit sends one generator_started event with an anonymous id", async ({ page }) => {
+  const events: { name: string; anonymousId: string }[] = [];
+  await page.route("**/api/v1/events", async (route) => {
+    events.push(route.request().postDataJSON());
+    await route.fulfill({ status: 204 });
+  });
+  await openGenerator(page);
+  expect(events).toHaveLength(0);
+
+  const started = page.waitForRequest(
+    (request) => request.url().endsWith("/api/v1/events") && request.method() === "POST",
+  );
+  await field(page, "Display name").fill("Wanjiru Designs");
+  await started;
+  await field(page, "Client name").fill("Karibu Coffee");
+
+  expect(events).toHaveLength(1);
+  expect(events[0]?.name).toBe("generator_started");
+  const stored = await page.evaluate(() => window.localStorage.getItem("billsafi.anonymous-id"));
+  expect(events[0]?.anonymousId).toBe(stored);
+});

@@ -8,6 +8,7 @@ export {
   eq,
   inArray,
   isNull,
+  lt,
   ne,
   notInArray,
   or,

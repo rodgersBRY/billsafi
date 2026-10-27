@@ -225,7 +225,11 @@ export const adminSupportTimelineEntrySchema = z.object({
   occurredAt: instant,
   /** support.case_create, support.case_update, support.case_resolve or support.case_reopen. */
   action: z.string(),
-  actor: z.object({ userId: z.string().nullable(), email: z.string().nullable() }),
+  actor: z.object({
+    userId: z.string().nullable(),
+    name: z.string().nullable(),
+    email: z.string().nullable(),
+  }),
   reason: z.string().nullable(),
   /** Before and after values, such as { status: { from: "open", to: "waiting" } }. */
   changes: z.unknown(),

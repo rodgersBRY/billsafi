@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  adminFailedOperationsSchema,
+  adminGeneratorFunnelSchema,
+  adminPdfDownloadsSchema,
+} from "./activity.js";
 import { blankToUndefined } from "./query-params.js";
 
 /*
@@ -71,6 +76,10 @@ export const adminAttentionSchema = z.object({
   proLapsed: count,
   freeLimitReached: count,
   overridesEnding: count,
+  /** Operation failures (PDF, email, jobs) since Nairobi midnight, plus failed M-Pesa checkouts today. */
+  failedOperationsToday: count,
+  /** Emails with 10 or more failed sign-ins inside one clock hour, in the last 24 hours. */
+  repeatedFailedSignIns: count,
 });
 export type AdminAttention = z.infer<typeof adminAttentionSchema>;
 
@@ -99,6 +108,8 @@ export const adminOverviewSchema = z.object({
   collected: z.object({ kes: pair(moneyString), usd: pair(moneyString) }),
   /** M-Pesa plan checkouts settled in the range, by checkout time; pending ones are left out. */
   mpesa: pair(z.object({ succeeded: count, failed: count, successRate: share })),
+  /** M-Pesa checkouts that failed plus recorded PDF, email and job failures in the range. */
+  failedOperations: pair(adminFailedOperationsSchema),
   /** count = sign-ups with a Ready invoice within 7 days, base = sign-ups at least 7 days old. */
   activation: pair(adminRateSchema),
   attention: adminAttentionSchema,
@@ -114,6 +125,7 @@ export const adminOverviewSchema = z.object({
     invoicesReady: z.string(),
     collected: z.string(),
     mpesa: z.string(),
+    failedOperations: z.string(),
     activation: z.string(),
   }),
   generatedAt: instant,
@@ -135,6 +147,10 @@ export const adminTrendPointSchema = z.object({
   activeAccounts: count,
   /** Paying accounts at the end of the bucket (now, for the last) times the Pro price in USD. */
   mrrUsd: moneyString,
+  /** PDFs downloaded in the bucket, from the app or from a shared link. */
+  pdfDownloads: adminPdfDownloadsSchema,
+  /** Shared links opened, once per link per Nairobi day. */
+  linkOpens: count,
 });
 export type AdminTrendPoint = z.infer<typeof adminTrendPointSchema>;
 
@@ -213,6 +229,8 @@ export const adminFeatureKeys = [
   "paymentRecorded",
   "secondBusiness",
   "googleSignIn",
+  "pdfDownloaded",
+  "shareLinkOpened",
 ] as const;
 export type AdminFeatureKey = (typeof adminFeatureKeys)[number];
 
@@ -293,6 +311,8 @@ export const adminAnalyticsSchema = z.object({
     base: count,
     items: z.array(adminFeatureAdoptionItemSchema),
   }),
+  /** The free invoice generator, from its anonymous events in the range. */
+  generatorFunnel: adminGeneratorFunnelSchema,
   /** The last 6 Nairobi months, oldest first, whatever the range. */
   planLimit: z.array(adminPlanLimitMonthSchema),
   /** Up to 10, most Ready invoices in the range first. */
@@ -300,6 +320,7 @@ export const adminAnalyticsSchema = z.object({
   definitions: z.object({
     invoiceVolume: z.string(),
     timeToFirstInvoice: z.string(),
+    generatorFunnel: z.string(),
     featureAdoption: z.string(),
     planLimit: z.string(),
     topAccounts: z.string(),

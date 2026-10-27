@@ -65,6 +65,11 @@ const envSchema = z
       .enum(["on", "off"])
       .default("on")
       .transform((value) => value === "on"),
+    /** Runs the daily job that deletes recorded facts past their retention (D066). */
+    MAINTENANCE_JOBS: z
+      .enum(["on", "off"])
+      .default("on")
+      .transform((value) => value === "on"),
   })
   .superRefine((env, ctx) => {
     if (Boolean(env.GOOGLE_CLIENT_ID) !== Boolean(env.GOOGLE_CLIENT_SECRET)) {

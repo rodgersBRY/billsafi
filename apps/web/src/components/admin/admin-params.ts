@@ -1,4 +1,7 @@
 import {
+  adminFailedSignInsQuerySchema,
+  adminFailuresQuerySchema,
+  adminTenantActivityQuerySchema,
   type AdminFunnelDays,
   type AdminRange,
   type AdminRetentionWeeks,
@@ -64,6 +67,29 @@ export function parseAuditParams(raw: RawParams) {
   return state;
 }
 export type AuditState = ReturnType<typeof parseAuditParams>;
+
+export const failedSignInsDefaults = { page: 1, range: "7d" } as const;
+
+export function parseFailedSignInsParams(raw: RawParams) {
+  return parseFields(adminFailedSignInsQuerySchema.shape, raw);
+}
+
+export function parseFailuresParams(raw: RawParams) {
+  return parseFields(adminFailuresQuerySchema.shape, raw);
+}
+
+export function parseActivityPage(raw: RawParams) {
+  return parseFields(adminTenantActivityQuerySchema.shape, raw);
+}
+
+const SECURITY_TABS = ["audit", "failed-sign-ins"] as const;
+export type SecurityTab = (typeof SECURITY_TABS)[number];
+export const securityTabs = SECURITY_TABS;
+
+export function parseSecurityTab(raw: RawParams): SecurityTab {
+  const value = first(raw.tab);
+  return SECURITY_TABS.find((tab) => tab === value) ?? "audit";
+}
 
 export const subscriptionsDefaults = { page: 1, sort: "registered", dir: "desc" } as const;
 

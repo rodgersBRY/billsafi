@@ -334,4 +334,32 @@ test.describe("as an admin", () => {
     await expect(page.getByRole("heading", { name: "Analytics", level: 1 })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Feature adoption" })).toBeVisible();
   });
+
+  test("lists a wrong-password sign-in under Failed sign-ins", async ({ browser, page }) => {
+    // A real account, then a wrong password from a separate browser context.
+    const victimEmail = uniqueEmail("admin-failed");
+    const victimContext = await browser.newContext();
+    await signUp(await victimContext.newPage(), "Chebet Rono", victimEmail);
+    await victimContext.close();
+    const attackerContext = await browser.newContext();
+    const attacker = await attackerContext.newPage();
+    await signIn(attacker, victimEmail, "not-the-right-password");
+    await expect(attacker.getByText("don't match", { exact: false })).toBeVisible();
+    await attackerContext.close();
+
+    await signIn(page, adminEmail!, adminPassword!);
+    await expect(page).not.toHaveURL(/\/sign-in/);
+    await page.goto("/admin/security");
+    await page.getByRole("link", { name: "Failed sign-ins" }).click();
+    await expect(page).toHaveURL(/tab=failed-sign-ins/);
+    // A filter of its own, so the API's one-minute cache can't hide the new row.
+    await page.getByRole("searchbox", { name: "Email" }).fill(victimEmail);
+    await expect(page).toHaveURL(/email=/);
+    await expect(async () => {
+      await page.reload();
+      const row = page.getByRole("row").filter({ hasText: victimEmail });
+      await expect(row).toContainText("Wrong password");
+    }).toPass({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Top emails" })).toBeVisible();
+  });
 });

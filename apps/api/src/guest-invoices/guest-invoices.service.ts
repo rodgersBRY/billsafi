@@ -1,6 +1,7 @@
 import { BadRequestException, Inject, Injectable } from "@nestjs/common";
 import type { ImportGuestInvoice, ImportGuestInvoiceResult } from "@billsafi/contracts";
 import { and, asc, type DatabaseConnection, eq, isNull, schema } from "@billsafi/db";
+import { ActivityRecorder } from "../activity/activity-recorder.js";
 import { BusinessesService } from "../businesses/businesses.service.js";
 import { ClientsService } from "../clients/clients.service.js";
 import { DATABASE } from "../database/database.module.js";
@@ -29,10 +30,11 @@ export class GuestInvoicesService {
     private readonly businesses: BusinessesService,
     private readonly clients: ClientsService,
     private readonly invoices: InvoicesService,
+    private readonly recorder: ActivityRecorder,
   ) {}
 
   async import(userId: string, input: ImportGuestInvoice): Promise<ImportGuestInvoiceResult> {
-    return this.connection.db.transaction(async (tx) => {
+    const result = await this.connection.db.transaction(async (tx) => {
       // Two imports at the same moment must not both create a first business.
       await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
 
@@ -64,5 +66,12 @@ export class GuestInvoicesService {
         usedExistingBusiness: existing !== undefined,
       };
     });
+    // After the commit, so a rolled back import is never counted (D066).
+    this.recorder.productEvent(
+      "guest_invoice_imported",
+      { usedExistingBusiness: result.usedExistingBusiness },
+      { accountId: userId, anonymousId: input.anonymousId, invoiceId: result.invoiceId },
+    );
+    return result;
   }
 }

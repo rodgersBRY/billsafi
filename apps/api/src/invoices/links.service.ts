@@ -11,7 +11,7 @@ import { and, type DatabaseConnection, desc, eq, schema, sql } from "@billsafi/d
 import { DATABASE } from "../database/database.module.js";
 import { InvoicesService } from "./invoices.service.js";
 
-const { invoiceLinks } = schema;
+const { invoiceLinks, businesses } = schema;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -25,6 +25,15 @@ export class InvoiceUnavailableException extends NotFoundException {
   constructor() {
     super({ code: "INVOICE_UNAVAILABLE", message: "This invoice link is no longer available" });
   }
+}
+
+/** What a public token opens, with the ids the activity records need. */
+export interface ResolvedLink {
+  businessId: string;
+  invoice: Invoice;
+  linkId: string;
+  /** The account that owns the invoice. */
+  ownerId: string;
 }
 
 const active = sql`${invoiceLinks.revokedAt} is null and ${invoiceLinks.expiresAt} > now()`;
@@ -102,18 +111,20 @@ export class LinksService {
   }
 
   /** The invoice behind a public token, if the link and invoice are both usable. */
-  async resolve(token: string): Promise<{ businessId: string; invoice: Invoice }> {
+  async resolve(token: string): Promise<ResolvedLink> {
     if (!/^[A-Za-z0-9_-]{43}$/.test(token)) throw new InvoiceUnavailableException();
-    const [link] = await this.connection.db
-      .select()
+    const [found] = await this.connection.db
+      .select({ link: invoiceLinks, ownerId: businesses.ownerUserId })
       .from(invoiceLinks)
+      .innerJoin(businesses, eq(businesses.id, invoiceLinks.businessId))
       .where(and(eq(invoiceLinks.tokenHash, hashToken(token)), active));
-    if (!link) throw new InvoiceUnavailableException();
+    if (!found) throw new InvoiceUnavailableException();
+    const { link } = found;
     const invoice = await this.invoices.load(this.connection.db, link.businessId, link.invoiceId);
     if (invoice.status === "draft" || invoice.status === "cancelled") {
       throw new InvoiceUnavailableException();
     }
-    return { businessId: link.businessId, invoice };
+    return { businessId: link.businessId, invoice, linkId: link.id, ownerId: found.ownerId };
   }
 }
 
