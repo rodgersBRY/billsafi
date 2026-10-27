@@ -66,6 +66,7 @@ export const productEvents = pgTable(
     check("product_events_name", sql`${table.name} in (${list(PRODUCT_EVENT_NAMES)})`),
     check("product_events_props_size", sql`pg_column_size(${table.props}) <= 1100`),
     index("product_events_name_created_idx").on(table.name, table.createdAt),
+    index("product_events_created_idx").on(table.createdAt),
     index("product_events_account_created_idx").on(table.accountId, table.createdAt),
     uniqueIndex("product_events_dedupe_key_idx")
       .on(table.dedupeKey)
@@ -110,6 +111,7 @@ export const jobRuns = pgTable(
   (table) => [
     check("job_runs_status", sql`${table.status} in ('succeeded', 'failed')`),
     index("job_runs_job_finished_idx").on(table.job, table.finishedAt),
+    index("job_runs_finished_idx").on(table.finishedAt),
   ],
 );
 
@@ -147,6 +149,7 @@ export const failedSignIns = pgTable(
     check("failed_sign_ins_reason", sql`${table.reason} in (${list(FAILED_SIGN_IN_REASONS)})`),
     check("failed_sign_ins_email_length", sql`char_length(${table.email}) <= 320`),
     index("failed_sign_ins_created_idx").on(table.createdAt),
+    index("failed_sign_ins_ip_created_idx").on(table.ipMasked, table.createdAt),
     index("failed_sign_ins_email_created_idx").on(table.email, table.createdAt),
   ],
 );

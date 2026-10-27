@@ -127,6 +127,13 @@
       "when": 1793083356512,
       "tag": "0017_activity_records",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793087000000,
+      "tag": "0018_pruning_and_throttle_indexes",
+      "breakpoints": true
     }
   ]
 }
