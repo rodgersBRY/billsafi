@@ -440,7 +440,7 @@ Implementation note: PDFs are generated with `@react-pdf/renderer` in the API ra
 Status: confirmed on 2026-10-17 by the user.
 
 - Production runs on one DigitalOcean droplet. Caddy, the web app, the API, and PostgreSQL 18 run as Docker Compose services; only Caddy is public, and the web app reaches the API over the internal network.
-- PostgreSQL runs on the droplet rather than as a managed database. Nightly `pg_dump` files are kept for 14 days, and weekly droplet backups provide the off-machine copy.
+- PostgreSQL runs on the droplet rather than as a managed database. Nightly `pg_dump` files are kept for 7 days (see D067), and weekly droplet backups provide the off-machine copy.
 - Only `main` is released. After CI passes, GitHub Actions publishes the images to GHCR tagged with the commit SHA and `latest`. Deploying stays manual for now: on the droplet, `deploy.sh` pulls, migrates, restarts, and runs a health check. Rollback runs the same script with an earlier SHA. There is no staging environment.
 
 Setup and operations steps live in [deploy/README.md](../deploy/README.md). This resolves the hosting item left open in D046 and the implementation plan. The production email provider and monitoring remain open.
@@ -695,3 +695,11 @@ User: asked for phase 5 of the super admin spec, so the checks and figures that 
 - Limits on the recording itself. Failed sign-ins skip a row when the same masked IP already has 20 in the last minute, and stop at 5,000 rows a day, with one log line when that cap is hit. The public intake keeps one of each generator step per visitor per Nairobi day, limits each IP to 60 requests a minute (IPv6 per /64), and drops events past 600 a minute across all addresses while still answering 204. Repeated failed sign-ins are counted per email per clock hour, so a burst that straddles an hour boundary can be missed. Job failures store only the error class and a fixed sentence. Failure messages also lose SQL text, query parameters and quoted values.
 - When account deletion is built, it must also erase that account's rows in `failed_sign_ins` (by email), `product_events` and `operation_failures`, because the tables have no foreign keys and won't cascade.
 - `link_opened` counts every request for the public invoice page, so it includes bots, link previews, prefetchers and the owner's own preview. Treat it as a rough signal, not a count of people.
+
+## D067 - Keep nightly database dumps for 7 days
+
+Status: confirmed on 2026-10-27 by the user.
+
+- `deploy/backup.sh` now deletes dumps older than 7 days instead of 14. This replaces the 14 day figure in D050.
+- Weekly droplet backups stay the off-machine copy, so a restore older than a week comes from those.
+- The privacy page states the same 7 days.

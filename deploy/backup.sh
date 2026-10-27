@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Nightly Postgres dump kept for 14 days. Run from cron on the droplet:
+# Nightly Postgres dump kept for 7 days. Run from cron on the droplet:
 #   15 2 * * * /opt/billsafi/backup.sh >> /home/deploy/backup.log 2>&1
 # These files live on the droplet's own disk; copy them off the droplet too (see deploy/README.md).
 # Each run, good or bad, also adds a row to the backup_runs table so the admin Health page can
@@ -47,6 +47,6 @@ mv "${file}.partial" "${file}"
 finished=1
 size="$(wc -c < "${file}" | tr -d ' ')"
 record succeeded "${size}" "${name}" ""
-find backups -name 'billsafi-*.dump' -mtime +14 -delete
+find backups -name 'billsafi-*.dump' -mtime +7 -delete
 
 echo "Backup written to ${file}"

@@ -17,7 +17,14 @@ import { BackupsHealthProvider } from "../src/admin/health/backups-health.provid
 import { BillingJobsHealthProvider } from "../src/admin/health/billing-jobs-health.provider.js";
 import { PdfEmailHealthProvider } from "../src/admin/health/pdf-email-health.provider.js";
 import { DATABASE } from "../src/database/database.module.js";
-import { createBusiness, createTestApp, signUp, uniqueEmail, WEB_ORIGIN } from "./support/app.js";
+import {
+  createBusiness,
+  createTestApp,
+  dropThrowawayDatabase,
+  signUp,
+  uniqueEmail,
+  WEB_ORIGIN,
+} from "./support/app.js";
 
 /**
  * Super admin phase 5 (what is recorded and where it shows). Health, the Overview counts
@@ -106,12 +113,10 @@ describe("admin activity", () => {
   afterAll(async () => {
     try {
       await app?.close();
-      // Let the closed connections finish ending before the database is dropped.
-      await new Promise((resolve) => setTimeout(resolve, 300));
     } finally {
       process.env.DATABASE_URL = ORIGINAL_URL;
       try {
-        await adminConnection?.pool.query(`drop database if exists "${DB_NAME}" with (force)`);
+        if (adminConnection) await dropThrowawayDatabase(adminConnection, DB_NAME);
       } finally {
         await adminConnection?.pool.end();
       }
