@@ -4,5 +4,5 @@ export const LEGAL = {
   product: "BillSafi",
   contactEmail: "support@billsafi.com",
   /** Bump when either document changes in a way users should notice. */
-  lastUpdated: "24 October 2026",
+  lastUpdated: "27 October 2026",
 } as const;
