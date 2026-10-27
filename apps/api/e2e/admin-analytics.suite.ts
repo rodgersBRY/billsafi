@@ -27,7 +27,8 @@ import { uniqueEmail } from "./support/app.js";
  * clock is fixed in March 2031 and every row is seeded straight into the tables inside that
  * window; nothing else writes there, so in-range figures are exact. Totals that cover all
  * time (accounts, feature adoption, global attention counts) are compared with a snapshot
- * taken just before seeding.
+ * taken just before seeding. That only holds while no other file runs at the same time, so
+ * `test:e2e` runs admin.e2e-spec.ts on its own, after the rest.
  *
  * Nairobi is UTC+3, so a Nairobi midnight is 21:00Z the day before. The clock is Tuesday
  * 18 March 2031, 12:00 in Nairobi. The 30 day range starts at Nairobi midnight on 17
@@ -346,30 +347,7 @@ export function analyticsSuite(ctx: AnalyticsSuiteContext) {
     overview: Awaited<ReturnType<AdminOverviewService["overview"]>>;
     trends: Awaited<ReturnType<AdminOverviewService["trends"]>>;
     analytics: Awaited<ReturnType<AdminAnalyticsService["analytics"]>>;
-    otherUsers: number;
   };
-
-  /** Users that are not part of this fixture. Other e2e files add them in parallel. */
-  async function otherUsers() {
-    const result = await db().execute(
-      sql`select count(*)::int as total from users where email not like 'an-%@example.test'`,
-    );
-    return (result.rows as { total: number }[])[0]!.total;
-  }
-
-  /**
-   * Runs `measure` with no other user created during it, so an all-time total can be
-   * corrected by exactly the users other files added since the snapshot. Real-time users
-   * are dated before the fixed clock, so they count as Free accounts at every instant.
-   */
-  async function settled<T>(measure: () => Promise<T>) {
-    for (let attempt = 0; attempt < 20; attempt++) {
-      const others = await otherUsers();
-      const value = await measure();
-      if ((await otherUsers()) === others) return { value, others };
-    }
-    throw new Error("Other e2e files kept adding users during the measurement");
-  }
 
   async function seed() {
     // Sign-ups in the current range, the 30 days to 18 March.
@@ -623,12 +601,11 @@ export function analyticsSuite(ctx: AnalyticsSuiteContext) {
     beforeAll(async () => {
       await removeFixture();
       // Taken right before seeding; the seeded rows are the only difference afterwards.
-      const snapshot = await settled(async () => ({
+      before = {
         overview: await overviews().overview("30d", NOW),
         trends: await overviews().trends("30d", NOW),
         analytics: await analytics().analytics("30d", NOW),
-      }));
-      before = { ...snapshot.value, otherUsers: snapshot.others };
+      };
       await seed();
     }, 120_000);
 
@@ -666,21 +643,15 @@ export function analyticsSuite(ctx: AnalyticsSuiteContext) {
     });
 
     it("returns each KPI as current and previous, exactly", async () => {
-      const { value: overview, others } = await settled(() => overviews().overview("30d", NOW));
-      const added = others - before.otherUsers;
+      const overview = await overviews().overview("30d", NOW);
       expect(overview.range).toBe("30d");
       expect(overview.signups).toEqual({
         current: { total: 8, google: 1, email: 7 },
         previous: { total: 3, google: 0, email: 3 },
       });
-      // All time: this fixture's 20 accounts, 12 of which existed before the range, plus
-      // whatever other files added meanwhile.
-      expect(overview.totalAccounts.current - before.overview.totalAccounts.current).toBe(
-        20 + added,
-      );
-      expect(overview.totalAccounts.previous - before.overview.totalAccounts.previous).toBe(
-        12 + added,
-      );
+      // All time: this fixture's 20 accounts, 12 of which existed before the range.
+      expect(overview.totalAccounts.current - before.overview.totalAccounts.current).toBe(20);
+      expect(overview.totalAccounts.previous - before.overview.totalAccounts.previous).toBe(12);
       // Meaningful actions: an invoice created, made Ready, a payment recorded or a client added.
       expect(overview.activeAccounts).toEqual({ current: 5, previous: 3 });
       expect(overview.payingAccounts).toEqual({ current: 3, previous: 4 });
@@ -961,17 +932,14 @@ export function analyticsSuite(ctx: AnalyticsSuiteContext) {
     });
 
     it("splits every account into a subscription mix that adds up", async () => {
-      const { value: trends, others } = await settled(() => overviews().trends("30d", NOW));
-      const mix = trends.subscriptionMix;
-      const added = others - before.otherUsers;
+      const { subscriptionMix: mix } = await overviews().trends("30d", NOW);
       expect(mix).toMatchObject({ proEnding: 2, proPaid: 1, proComplimentary: 2, lapsed: 3 });
       expect(mix.free + mix.proEnding + mix.proPaid + mix.proComplimentary + mix.lapsed).toBe(
         mix.total,
       );
-      // 20 new accounts, 8 of them in one of the Pro groups; the rest are Free, as are the
-      // accounts other files added meanwhile.
-      expect(mix.total - before.trends.subscriptionMix.total).toBe(20 + added);
-      expect(mix.free - before.trends.subscriptionMix.free).toBe(12 + added);
+      // 20 new accounts, 8 of them in one of the Pro groups; the rest are Free.
+      expect(mix.total - before.trends.subscriptionMix.total).toBe(20);
+      expect(mix.free - before.trends.subscriptionMix.free).toBe(12);
     });
 
     it("merges the feed newest first, cut to the limit, without failed admin actions", async () => {
