@@ -17,7 +17,13 @@ import request from "supertest";
 import { ActivityRecorder } from "../src/activity/activity-recorder.js";
 import { AdminHealthService } from "../src/admin/health/admin-health.service.js";
 import { DATABASE } from "../src/database/database.module.js";
-import { createTestApp, signUp, uniqueEmail, WEB_ORIGIN } from "./support/app.js";
+import {
+  createTestApp,
+  dropThrowawayDatabase,
+  signUp,
+  uniqueEmail,
+  WEB_ORIGIN,
+} from "./support/app.js";
 
 /**
  * Super admin phase 6 (health, support, configuration). Registration is a global switch and
@@ -125,7 +131,7 @@ describe("admin ops", () => {
     } finally {
       process.env.DATABASE_URL = ORIGINAL_URL;
       try {
-        await adminConnection?.pool.query(`drop database if exists "${DB_NAME}" with (force)`);
+        if (adminConnection) await dropThrowawayDatabase(adminConnection, DB_NAME);
       } finally {
         await adminConnection?.pool.end();
       }
