@@ -822,6 +822,8 @@ export function analyticsSuite(ctx: AnalyticsSuiteContext) {
         usdCollected: "0.00",
         activeAccounts: 0, // nothing happened that day
         mrrUsd: "12.00", // alpha not yet paying; p2, p5 and echo are
+        pdfDownloads: { app: 0, publicLink: 0 },
+        linkOpens: 0,
       });
       // Cumulative accounts run from the count at the start and end at the total now.
       const overview = await overviews().overview("30d", NOW);
@@ -1054,6 +1056,9 @@ export function analyticsSuite(ctx: AnalyticsSuiteContext) {
         paymentRecorded: 1,
         secondBusiness: 1,
         googleSignIn: 1,
+        // Nothing in this fixture downloads a PDF or opens a link.
+        pdfDownloaded: 0,
+        shareLinkOpened: 0,
       });
       for (const item of result.featureAdoption.items) {
         expect(item.base).toBe(result.featureAdoption.base);

@@ -55,7 +55,9 @@ export const productEvents = pgTable(
     anonymousId: uuid("anonymous_id"),
     invoiceId: uuid("invoice_id"),
     /** Small, validated per name, at most 1 KB. Never invoice contents or personal data. */
-    props: jsonb("props").notNull().default(sql`'{}'::jsonb`),
+    props: jsonb("props")
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     /** Lets a repeat of the same fact be dropped by the database, such as one link open a day. */
     dedupeKey: text("dedupe_key"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -80,6 +80,7 @@ const overview = {
   invoicesReady: pair(9),
   collected: { kes: pair("1120.00"), usd: pair("4.00") },
   mpesa: pair({ succeeded: 2, failed: 1, successRate: 0.6667 }),
+  failedOperations: pair({ total: 3, mpesa: 1, pdf: 1, email: 1, jobs: 0 }),
   activation: pair(rate),
   attention: {
     stuckPayments: 1,
@@ -88,6 +89,8 @@ const overview = {
     proLapsed: 3,
     freeLimitReached: 1,
     overridesEnding: 1,
+    failedOperationsToday: 2,
+    repeatedFailedSignIns: 0,
   },
   definitions: Object.fromEntries(
     [
@@ -101,6 +104,7 @@ const overview = {
       "invoicesReady",
       "collected",
       "mpesa",
+      "failedOperations",
       "activation",
     ].map((key) => [key, `What ${key} counts.`]),
   ),
@@ -154,6 +158,8 @@ describe("adminTrendsSchema", () => {
     usdCollected: "0.00",
     activeAccounts: 2,
     mrrUsd: "8.00",
+    pdfDownloads: { app: 3, publicLink: 1 },
+    linkOpens: 2,
   };
   const trends = {
     range: "30d",
@@ -247,8 +253,17 @@ describe("adminAnalyticsSchema", () => {
       items: [{ key: "logo", count: 1, base: 9, share: 0.1111 }],
     },
     planLimit: [{ month: "2031-03", reached: 1, boughtWithin14Days: 0 }],
+    generatorFunnel: {
+      steps: [
+        { key: "started", count: 4, share: 1 },
+        { key: "download_clicked", count: 2, share: 0.5 },
+        { key: "signup_clicked", count: 1, share: 0.25 },
+        { key: "imported", count: 1, share: 0.25 },
+      ],
+    },
     topAccounts: [{ accountId: "a", name: "Wanjiku", email: "w@example.com", readyInvoices: 3 }],
     definitions: {
+      generatorFunnel: "x",
       invoiceVolume: "x",
       timeToFirstInvoice: "x",
       featureAdoption: "x",

@@ -14,6 +14,7 @@ import {
 } from "@billsafi/contracts";
 import { and, createDatabase, type DatabaseConnection, eq, schema, sql } from "@billsafi/db";
 import request from "supertest";
+import { ActivityRecorder } from "../src/activity/activity-recorder.js";
 import { AdminHealthService } from "../src/admin/health/admin-health.service.js";
 import { DATABASE } from "../src/database/database.module.js";
 import { createTestApp, signUp, uniqueEmail, WEB_ORIGIN } from "./support/app.js";
@@ -199,14 +200,12 @@ describe("admin ops", () => {
       ]);
       expect(byKey.database).toMatchObject({ status: "ok", source: "Live query" });
       expect(byKey.database!.data!.responseMs).toBeGreaterThanOrEqual(0);
-      expect(byKey.migrations).toMatchObject({ status: "ok", value: "0016_support_and_settings" });
+      expect(byKey.migrations).toMatchObject({ status: "ok", value: "0017_activity_records" });
       expect(byKey.mpesa).toMatchObject({ status: "unknown", value: null });
-      for (const key of ["billing_jobs", "pdf_email", "backups"]) {
-        expect(byKey[key]).toMatchObject({ status: "unknown", value: null });
-        expect(byKey[key]!.detail).toMatch(
-          /aren't recorded yet|isn't recorded|not recorded|aren't reported/i,
-        );
-      }
+      // BILLING_JOBS is off in tests, nothing has failed and no backup has been recorded.
+      expect(byKey.billing_jobs).toMatchObject({ status: "unknown", value: null });
+      expect(byKey.pdf_email).toMatchObject({ status: "ok", value: "0 in 24h" });
+      expect(byKey.backups).toMatchObject({ status: "unknown", value: null });
       expect(health.links).toEqual([]);
     });
 
@@ -425,6 +424,7 @@ describe("admin ops", () => {
         "support.case_reopen",
       ]);
       expect(detail.timeline[1]).toMatchObject({
+        actor: { userId: adminId, name: "Wanjiku Kamau", email: adminEmail },
         reason: REASON,
         changes: {
           status: { from: "open", to: "waiting" },
@@ -933,6 +933,13 @@ describe("admin ops", () => {
       expect(location.searchParams.get("error_description")).toBe(CLOSED);
       const found = await db().select().from(schema.users).where(eq(schema.users.email, email));
       expect(found).toHaveLength(0);
+      await app.get(ActivityRecorder).flush();
+      const recorded = await db()
+        .select()
+        .from(schema.failedSignIns)
+        .where(eq(schema.failedSignIns.email, email));
+      expect(recorded).toHaveLength(1);
+      expect(recorded[0]).toMatchObject({ method: "google", reason: "registration_closed" });
     });
 
     it("keeps account_not_linked for a Google email that already has a password user", async () => {
@@ -961,6 +968,13 @@ describe("admin ops", () => {
         expect(
           await db().select().from(schema.users).where(eq(schema.users.email, email)),
         ).toHaveLength(0);
+        await app.get(ActivityRecorder).flush();
+        const recorded = await db()
+          .select()
+          .from(schema.failedSignIns)
+          .where(eq(schema.failedSignIns.email, email));
+        expect(recorded).toHaveLength(1);
+        expect(recorded[0]).toMatchObject({ method: "password", reason: "registration_closed" });
         // Existing users still sign in.
         await api()
           .post("/api/v1/auth/sign-in/email")

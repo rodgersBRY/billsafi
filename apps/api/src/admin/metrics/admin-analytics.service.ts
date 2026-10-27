@@ -55,7 +55,14 @@ export class AdminAnalyticsService {
           having count(*) >= 2) two)::int as "secondBusiness",
         (select count(distinct b.owner_user_id) from businesses b
           where exists (select 1 from accounts a where a.user_id = b.owner_user_id
-            and a.provider_id = 'google'))::int as "googleSignIn"
+            and a.provider_id = 'google'))::int as "googleSignIn",
+        -- Recorded events (D066); accounts with a business, as for the other items.
+        (select count(distinct b.owner_user_id) from product_events pe
+          join businesses b on b.owner_user_id = pe.account_id
+          where pe.name = 'pdf_downloaded')::int as "pdfDownloaded",
+        (select count(distinct b.owner_user_id) from product_events pe
+          join businesses b on b.owner_user_id = pe.account_id
+          where pe.name = 'link_opened')::int as "shareLinkOpened"
     `);
 
     const firstMonth = addNairobiMonths(nairobiCalendarMonth(now).start, -(LIMIT_MONTHS - 1));
@@ -211,6 +218,30 @@ export class AdminAnalyticsService {
       order by t.n desc, u.id
     `);
 
+    const [funnel] = await this.rows<
+      Record<"started" | "download" | "signup" | "imported", number>
+    >(
+      sql`
+        select
+          (count(distinct anonymous_id) filter (where name = 'generator_started'))::int as started,
+          (count(distinct anonymous_id) filter (where name = 'generator_download_clicked'))::int as download,
+          (count(distinct anonymous_id) filter (where name = 'generator_signup_clicked'))::int as signup,
+          (count(distinct anonymous_id) filter (where name = 'guest_invoice_imported'))::int as imported
+        from product_events
+        where anonymous_id is not null and ${inRange(sql`created_at`)}
+      `,
+    );
+    const generatorFunnel = {
+      steps: (
+        [
+          ["started", funnel!.started],
+          ["download_clicked", funnel!.download],
+          ["signup_clicked", funnel!.signup],
+          ["imported", funnel!.imported],
+        ] as const
+      ).map(([key, count]) => ({ key, count, share: ratio(count, funnel!.started) })),
+    };
+
     const { featureAdoption, planLimit } = allTime ?? (await this.allTime(now));
     return {
       range,
@@ -237,6 +268,7 @@ export class AdminAnalyticsService {
         },
         distribution,
       },
+      generatorFunnel,
       featureAdoption,
       planLimit,
       topAccounts: top.map((row) => ({ ...row, readyInvoices: Number(row.readyInvoices) })),
@@ -245,8 +277,10 @@ export class AdminAnalyticsService {
           "Invoices created and invoices made Ready in each part of the range. The median counts only accounts that made at least one invoice Ready in the range.",
         timeToFirstInvoice:
           "Hours from sign-up to the first invoice made Ready, for accounts that signed up in the range and have reached it so far. The activation rate counts a Ready invoice within 7 days, among sign-ups at least 7 days old. The distribution places only those sign-ups, so its first three bars add up to the activated accounts. Younger sign-ups are shown apart as too new to tell.",
+        generatorFunnel:
+          "Visitors to the free invoice generator, counted once each by their anonymous id: started editing, pressed Save and download, pressed Sign up in the dialog, and saved a draft into a new account. A visitor can appear at a later step without an earlier one, for example after clearing their browser data, so the steps are not strictly nested. Recording began with phase 5.",
         featureAdoption:
-          "Of accounts with at least one business, how many have ever used each feature. These are all time figures and do not follow the range.",
+          "Of accounts with at least one business, how many have ever used each feature. Downloaded a PDF and shared link opened count from the day BillSafi started recording them. These are all time figures and do not follow the range.",
         planLimit:
           "Free accounts that used their whole monthly allowance, extra invoices from limit overrides included, in each of the last 6 months. Bought means a Pro or credit payment that succeeded within 14 days of reaching the limit. These figures do not follow the range.",
         topAccounts:
