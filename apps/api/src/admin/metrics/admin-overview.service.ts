@@ -254,15 +254,15 @@ export class AdminOverviewService {
             and created_at >= ${at(todayStart)} and created_at <= ${at(now)})
       )::int as total
     `);
-    // Emails with this many failed sign-ins inside one hour, in the last 24 hours.
+    // Emails with this many failed sign-ins inside one clock hour, in the last 24 hours.
     const [repeated] = await this.rows<{ total: number }>(sql`
-      select count(distinct a.email)::int as total from failed_sign_ins a
-      where a.email is not null
-        and a.created_at >= ${at(new Date(now.getTime() - DAY_MS))} and a.created_at <= ${at(now)}
-        and (select count(*) from failed_sign_ins b
-          where b.email = a.email and b.created_at >= a.created_at
-            and b.created_at < a.created_at + interval '1 hour'
-            and b.created_at <= ${at(now)}) >= ${hourly}
+      select count(distinct email)::int as total from (
+        select email from failed_sign_ins
+        where email is not null
+          and created_at >= ${at(new Date(now.getTime() - DAY_MS))} and created_at <= ${at(now)}
+        group by email, date_trunc('hour', created_at at time zone 'UTC')
+        having count(*) >= ${hourly}
+      ) hammered
     `);
     return {
       ...row!,

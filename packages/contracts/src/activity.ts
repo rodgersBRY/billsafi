@@ -98,7 +98,7 @@ const count = z.number().int().min(0);
 
 export const ADMIN_ACTIVITY_PAGE_SIZE = 25;
 
-/** Ten failures for one email inside an hour count as repeated. */
+/** Ten failures for one email inside one clock hour count as repeated. */
 export const REPEATED_FAILED_SIGN_INS = 10;
 
 /* ---- Recent failures: GET /admin/health/failures ---- */

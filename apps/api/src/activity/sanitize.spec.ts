@@ -23,6 +23,48 @@ describe("sanitizeMessage", () => {
   });
 });
 
+describe("sanitizeMessage with real error strings", () => {
+  const SECRET = "hunter2-secret";
+  const cases: [string, string, string[]][] = [
+    [
+      "a Drizzle query error",
+      `Failed query: insert into "users" ("email", "name") values ($1, $2)\nparams: bob@example.test,${SECRET}`,
+      ["bob@example.test", SECRET, "insert", "users", "params"],
+    ],
+    ["a pg invalid input error", `invalid input syntax for type uuid: "${SECRET}"`, [SECRET]],
+    [
+      "a pg unique violation",
+      'duplicate key value violates unique constraint "users_email_key"\nKey (email)=(bob@example.test) already exists.',
+      ["bob@example.test", "users_email_key"],
+    ],
+    [
+      "an SMTP rejection",
+      "Can't send mail - all recipients were rejected: 550 5.1.1 <bob@example.test>: Recipient address rejected: User unknown in virtual mailbox table",
+      ["bob@example.test"],
+    ],
+    [
+      "an SMTP envelope error",
+      "Command failed: RCPT TO:<bob@example.test> 550 mailbox unavailable for bob@example.test",
+      ["bob@example.test"],
+    ],
+    [
+      "a Better Auth error",
+      `Reset link https://billsafi.test/reset-password/abcdefghijklmnopqrstuvwxyz012345?token=abcdefghijklmnopqrstuvwxyz012345 could not be sent to bob@example.test, user '${SECRET}'`,
+      ["bob@example.test", "abcdefghijklmnopqrstuvwxyz012345", SECRET, "https://"],
+    ],
+  ];
+
+  it.each(cases)("%s keeps nothing sensitive", (_name, text, forbidden) => {
+    const cleaned = sanitizeMessage(text);
+    for (const part of forbidden) expect(cleaned).not.toContain(part);
+    expect(cleaned.length).toBeGreaterThan(0);
+  });
+
+  it("turns a Failed query message into one fixed sentence", () => {
+    expect(sanitizeMessage("Failed query: select 1\nparams: 1")).toBe("Database query failed");
+  });
+});
+
 describe("errorClassOf", () => {
   it("uses the class name and never the message", () => {
     expect(errorClassOf(new TypeError("secret"))).toBe("TypeError");

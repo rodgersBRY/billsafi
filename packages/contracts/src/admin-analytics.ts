@@ -78,7 +78,7 @@ export const adminAttentionSchema = z.object({
   overridesEnding: count,
   /** Operation failures (PDF, email, jobs) since Nairobi midnight, plus failed M-Pesa checkouts today. */
   failedOperationsToday: count,
-  /** Emails with 10 or more failed sign-ins inside one hour, in the last 24 hours. */
+  /** Emails with 10 or more failed sign-ins inside one clock hour, in the last 24 hours. */
   repeatedFailedSignIns: count,
 });
 export type AdminAttention = z.infer<typeof adminAttentionSchema>;

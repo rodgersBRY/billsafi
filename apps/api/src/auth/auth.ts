@@ -1,11 +1,12 @@
 import { type FailedSignInReason, REGISTRATION_CLOSED_CODE } from "@billsafi/contracts";
 import type { Database } from "@billsafi/db";
-import { eq, schema } from "@billsafi/db";
+import { schema } from "@billsafi/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError, createAuthMiddleware, isAPIError } from "better-auth/api";
 import { admin } from "better-auth/plugins";
 import { defaultAc } from "better-auth/plugins/admin/access";
+import { clientIpFromForwardedFor } from "../common/client-ip.js";
 import type { ActivityRecorder } from "../activity/activity-recorder.js";
 import type { Env } from "../config/env.js";
 import type { Mailer } from "../mail/mailer.js";
@@ -26,7 +27,7 @@ export interface AuthDependencies {
     | "GOOGLE_CLIENT_SECRET"
   >;
   mailer: Mailer;
-  recorder: Pick<ActivityRecorder, "failedSignIn">;
+  recorder: Pick<ActivityRecorder, "failedSignIn" | "failedPasswordSignIn">;
 }
 
 const PROVIDER_TOKEN_FIELDS = [
@@ -87,12 +88,12 @@ function hideBanned(ctx: AfterContext) {
   if (returned && typeof returned === "object" && returned.user?.banned) return ctx.json(null);
 }
 
-/** The visitor's address as the proxy reports it (first X-Forwarded-For entry). */
+/** The visitor's address by Express's trusted proxy rule, as the intake route sees it. */
 function requestIp(
   source: { request?: Request | null; headers?: Headers | null } | null | undefined,
 ) {
   const headers = source?.request?.headers ?? source?.headers;
-  return headers?.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
+  return clientIpFromForwardedFor(headers?.get("x-forwarded-for"));
 }
 
 /** OAuth error codes that are not a person failing to sign in: noise, or already recorded. */
@@ -105,7 +106,7 @@ const IGNORED_OAUTH_ERRORS =
  * forget and never stores the password. A closed registration is recorded where the user
  * would be created, because that is the only place the email is known for Google.
  */
-function recordFailedSignIn(db: Database, recorder: AuthDependencies["recorder"]) {
+function recordFailedSignIn(recorder: AuthDependencies["recorder"]) {
   return async (ctx: AfterContext) => {
     const returned = ctx.context.returned;
     if (!isAPIError(returned)) return;
@@ -116,15 +117,9 @@ function recordFailedSignIn(db: Database, recorder: AuthDependencies["recorder"]
       let reason: FailedSignInReason | null = null;
       if (code === "BANNED_USER") reason = "banned";
       else if (code === "INVALID_EMAIL_OR_PASSWORD") {
-        const known = email
-          ? await db
-              .select({ id: schema.users.id })
-              .from(schema.users)
-              .where(eq(schema.users.email, email))
-              .limit(1)
-              .catch(() => null)
-          : null;
-        reason = known === null ? "other" : known.length > 0 ? "wrong_password" : "unknown_email";
+        // Wrong password or unknown email is worked out off the request path.
+        recorder.failedPasswordSignIn({ email, ip: requestIp(ctx) });
+        return;
       } else if (returned.statusCode === 401 || returned.statusCode === 403) reason = "other";
       if (reason) recorder.failedSignIn({ email, method: "password", reason, ip: requestIp(ctx) });
       return;
@@ -132,9 +127,12 @@ function recordFailedSignIn(db: Database, recorder: AuthDependencies["recorder"]
     if (ctx.path.startsWith("/callback/") && String(returned.status) === "FOUND") {
       const location =
         returned.headers instanceof Headers ? returned.headers.get("location") : null;
-      const error = location
-        ? new URL(location, "http://localhost").searchParams.get("error")
-        : null;
+      let error: string | null = null;
+      try {
+        error = location ? new URL(location, "http://localhost").searchParams.get("error") : null;
+      } catch {
+        // A header that doesn't parse must never turn a redirect into a 500.
+      }
       if (!error || IGNORED_OAUTH_ERRORS.test(error)) return;
       recorder.failedSignIn({
         email: null,
@@ -201,7 +199,7 @@ export function createAuth({ db, env, mailer, recorder }: AuthDependencies) {
     disabledPaths: DISABLED_ADMIN_PATHS,
     hooks: {
       after: createAuthMiddleware(async (ctx) => {
-        await recordFailedSignIn(db, recorder)(ctx);
+        await recordFailedSignIn(recorder)(ctx);
         return hideBanned(ctx);
       }),
     },
