@@ -10,7 +10,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import Link from "next/link";
-import { formatDuration, formatInstant, formatRelative } from "../admin-format";
+import { formatCount, formatDuration, formatInstant, formatRelative } from "../admin-format";
 import { StatusBadge } from "../status-badge";
 
 const cardTone: Record<AdminHealthIndicator["status"], string> = {
@@ -67,10 +67,10 @@ export function summarize(indicators: AdminHealthIndicator[]): {
   if (warning > 0) parts.push(`${warning} ${warning === 1 ? "warning" : "warnings"}`);
   if (parts.length === 0) {
     if (unknown === 0) return { status: "ok", text: "All checks passing" };
-    if (ok === 0) return { status: "unknown", text: "Nothing recorded yet" };
+    if (ok === 0) return { status: "unknown", text: "No data yet" };
     return {
       status: "unknown",
-      text: `${ok} ${ok === 1 ? "check" : "checks"} passing, ${unknown} not recorded yet`,
+      text: `${ok} ${ok === 1 ? "check" : "checks"} passing, ${unknown} unknown`,
     };
   }
   return { status, text: parts.join(", ") };
@@ -95,11 +95,12 @@ export function HealthSummary({ indicators }: { indicators: AdminHealthIndicator
 const emptyValues: Record<string, string> = {
   mpesa: "No checkouts yet",
   migrations: "Not available",
+  billing_jobs: "Not running",
+  pdf_email: "No data yet",
+  backups: "No backup yet",
 };
-const notRecordedKeys = new Set(["billing_jobs", "pdf_email", "backups"]);
 
 function unknownValue(indicator: AdminHealthIndicator): string {
-  if (notRecordedKeys.has(indicator.key)) return "Not recorded yet";
   return emptyValues[indicator.key] ?? "No data yet";
 }
 
@@ -122,6 +123,19 @@ function IndicatorCard({ indicator, now }: { indicator: AdminHealthIndicator; no
           {unknown ? unknownValue(indicator) : "No figure"}
         </p>
       )}
+      {indicator.key === "pdf_email" && indicator.data && (
+        <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm tabular-nums">
+          <span>
+            <span className="text-sub">PDF </span>
+            {formatCount(indicator.data.pdf ?? 0)}
+          </span>
+          <span>
+            <span className="text-sub">Email </span>
+            {formatCount(indicator.data.email ?? 0)}
+          </span>
+          <span className="text-sub">last 24 hours</span>
+        </p>
+      )}
       <p className="text-sm break-words text-sub">{indicator.detail}</p>
       {stale && indicator.staleAfterSeconds !== null && (
         <p className="flex items-start gap-1.5 text-xs text-amber-800 dark:text-amber-200">
@@ -137,7 +151,16 @@ function IndicatorCard({ indicator, now }: { indicator: AdminHealthIndicator; no
         {" · "}
         {indicator.source}
       </p>
-      {indicator.href?.startsWith("/") && (
+      {indicator.key === "pdf_email" && (
+        <Link
+          href="/admin/health#recent-failures"
+          className="inline-flex min-h-11 items-center gap-1.5 text-sm text-accent hover:underline md:min-h-0"
+        >
+          Recent failures
+          <ArrowRight aria-hidden className="size-4" />
+        </Link>
+      )}
+      {indicator.key !== "pdf_email" && indicator.href?.startsWith("/") && (
         <Link
           href={indicator.href}
           className="inline-flex min-h-11 items-center gap-1.5 text-sm text-accent hover:underline md:min-h-0"

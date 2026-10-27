@@ -7,12 +7,18 @@ import { RefreshButton } from "@/components/admin/health/refresh-button";
 import { InfoPopover } from "@/components/admin/info-popover";
 import { PageHeader } from "@/components/admin/page-header";
 import { PageSkeleton } from "@/components/admin/page-skeleton";
-import { getAdminHealth } from "@/lib/server-api/admin";
+import { parseFailuresParams, toQuery } from "@/components/admin/admin-params";
+import { RecentFailures } from "@/components/admin/health/recent-failures";
+import { getAdminFailures, getAdminHealth } from "@/lib/server-api/admin";
 
 export const generateMetadata = () => adminMetadata("System Health");
 
-async function Health() {
-  const health = await getAdminHealth();
+async function Health({ searchParams }: PageProps<"/admin/health">) {
+  const state = parseFailuresParams(await searchParams);
+  const [health, failures] = await Promise.all([
+    getAdminHealth(),
+    getAdminFailures(toQuery(state, { page: 1 })),
+  ]);
   return (
     <>
       <PageHeader
@@ -25,12 +31,13 @@ async function Health() {
         Checks
         <InfoPopover label="About these checks">
           <p>
-            Unknown means the figure is not recorded yet or is too old to trust. Nothing shows as
-            healthy without fresh data.
+            Unknown means there is no figure yet or it is too old to trust. Nothing shows as healthy
+            without fresh data.
           </p>
         </InfoPopover>
       </h2>
       <IndicatorGrid health={health} now={new Date(health.generatedAt).getTime()} />
+      <RecentFailures data={failures} kind={state.kind ?? "all"} />
       <HealthLinks links={health.links} />
       <div className="mt-4">
         <UpdatedAt iso={health.generatedAt} cached={false} />
@@ -39,11 +46,11 @@ async function Health() {
   );
 }
 
-export default function HealthPage() {
+export default function HealthPage(props: PageProps<"/admin/health">) {
   return (
     <Suspense fallback={<PageSkeleton />}>
       <AccessGate>
-        <Health />
+        <Health {...props} />
       </AccessGate>
     </Suspense>
   );
