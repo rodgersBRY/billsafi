@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { shouldShowTour } from "@billsafi/contracts";
+import { PlatformBanner } from "@/components/announcement/platform-banner";
 import { AccountMenu } from "@/components/shell/account-menu";
 import { AppShell } from "@/components/shell/app-shell";
 import { BusinessSwitcher } from "@/components/shell/business-switcher";
@@ -62,6 +63,11 @@ async function SetupChecklist({ params }: { params: Promise<{ businessId: string
 export default function BusinessLayout({ children, params }: LayoutProps<"/[businessId]">) {
   return (
     <AppShell
+      banner={
+        <Suspense fallback={null}>
+          <PlatformBanner />
+        </Suspense>
+      }
       sidebar={
         <>
           <BrandMark size={28} />

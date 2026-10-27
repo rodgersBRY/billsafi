@@ -34,6 +34,13 @@
   --brand-night: #0a363e;
   /* The app's dark-mode page colour; also the post-login splash backdrop in both modes. */
   --app-night: #142421;
+  /* Announcement banner tones (info and warning), lightened or darkened with the theme. */
+  --info-bg: #f0f9ff;
+  --info-line: #bae6fd;
+  --info-ink: #0c4a6e;
+  --warning-bg: #fffbeb;
+  --warning-line: #fde68a;
+  --warning-ink: #78350f;
 }
 
 /* Dark theme: follows the device until the user picks one with the switch in the
@@ -53,6 +60,12 @@
     --series-1: #3987e5;
     --series-2: #d95926;
     --series-3: #199e70;
+    --info-bg: #082f49;
+    --info-line: #075985;
+    --info-ink: #bae6fd;
+    --warning-bg: #451a03;
+    --warning-line: #92400e;
+    --warning-ink: #fde68a;
   }
 }
 
@@ -68,6 +81,12 @@
   --series-1: #3987e5;
   --series-2: #d95926;
   --series-3: #199e70;
+  --info-bg: #082f49;
+  --info-line: #075985;
+  --info-ink: #bae6fd;
+  --warning-bg: #451a03;
+  --warning-line: #92400e;
+  --warning-ink: #fde68a;
 }
 
 @theme inline {
@@ -84,6 +103,12 @@
   --color-series-3: var(--series-3);
   --color-brand-night: var(--brand-night);
   --color-app-night: var(--app-night);
+  --color-info-bg: var(--info-bg);
+  --color-info-line: var(--info-line);
+  --color-info-ink: var(--info-ink);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-line: var(--warning-line);
+  --color-warning-ink: var(--warning-ink);
   --font-sans: var(--font-inter);
   --radius-panel: 6px;
 }

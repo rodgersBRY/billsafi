@@ -1,16 +1,15 @@
-import { LifeBuoy } from "lucide-react";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { adminMetadata } from "@/components/admin/admin-metadata";
 import { parseTenantTab, type TenantTab } from "@/components/admin/admin-params";
 import { Panel, UpdatedAt } from "@/components/admin/admin-ui";
 import { AuditTimeline } from "@/components/admin/audit/audit-timeline";
-import { ComingSoon } from "@/components/admin/coming-soon";
 import { PageSkeleton } from "@/components/admin/page-skeleton";
 import { TenantBusinessesTab } from "@/components/admin/tenants/tenant-businesses-tab";
 import { TenantHeader } from "@/components/admin/tenants/tenant-header";
 import { TenantOverviewTab } from "@/components/admin/tenants/tenant-overview-tab";
 import { TenantSubscriptionTab } from "@/components/admin/tenants/tenant-subscription-tab";
+import { TenantSupportTab } from "@/components/admin/tenants/tenant-support-tab";
 import { TenantTabs } from "@/components/admin/tenants/tenant-tabs";
 import { TenantUsageTab } from "@/components/admin/tenants/tenant-usage-tab";
 import { getAdminAccess, getAdminSelf, getAdminTenant } from "@/lib/server-api/admin";
@@ -58,16 +57,7 @@ function TabContent({ tab, data, selfId }: TabContentProps) {
         </Panel>
       );
     case "support":
-      return (
-        <ComingSoon
-          phase={6}
-          icon={LifeBuoy}
-          planned={[
-            "Support cases for this account, with status, severity and category.",
-            "Internal notes the account owner never sees.",
-          ]}
-        />
-      );
+      return <TenantSupportTab data={data} selfId={selfId} />;
   }
 }
 

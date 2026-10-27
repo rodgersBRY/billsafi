@@ -1,37 +1,49 @@
-import { HeartPulse } from "lucide-react";
 import { Suspense } from "react";
 import { AccessGate } from "@/components/admin/access-gate";
 import { adminMetadata } from "@/components/admin/admin-metadata";
-import { ComingSoon } from "@/components/admin/coming-soon";
+import { UpdatedAt } from "@/components/admin/admin-ui";
+import { HealthLinks, HealthSummary, IndicatorGrid } from "@/components/admin/health/health-view";
+import { RefreshButton } from "@/components/admin/health/refresh-button";
+import { InfoPopover } from "@/components/admin/info-popover";
 import { PageHeader } from "@/components/admin/page-header";
 import { PageSkeleton } from "@/components/admin/page-skeleton";
+import { getAdminHealth } from "@/lib/server-api/admin";
 
 export const generateMetadata = () => adminMetadata("System Health");
+
+async function Health() {
+  const health = await getAdminHealth();
+  return (
+    <>
+      <PageHeader
+        title="System Health"
+        description="Is everything working?"
+        actions={<RefreshButton />}
+      />
+      <HealthSummary indicators={health.indicators} />
+      <h2 className="mb-3 flex items-center gap-1.5 text-base font-semibold">
+        Checks
+        <InfoPopover label="About these checks">
+          <p>
+            Unknown means the figure is not recorded yet or is too old to trust. Nothing shows as
+            healthy without fresh data.
+          </p>
+        </InfoPopover>
+      </h2>
+      <IndicatorGrid health={health} now={new Date(health.generatedAt).getTime()} />
+      <HealthLinks links={health.links} />
+      <div className="mt-4">
+        <UpdatedAt iso={health.generatedAt} cached={false} />
+      </div>
+    </>
+  );
+}
 
 export default function HealthPage() {
   return (
     <Suspense fallback={<PageSkeleton />}>
       <AccessGate>
-        <PageHeader
-          title="System Health"
-          description="Whether the database, payments and background jobs are working."
-        />
-        <ComingSoon
-          phase={6}
-          icon={HeartPulse}
-          planned={[
-            "Database connectivity, checked the same way as the API health check.",
-            "M-Pesa success rate and stuck payments.",
-            "When each billing job last ran, and failed PDF and email operations.",
-            "The last successful backup and how old it is.",
-            "Links to the uptime monitor and Sentry for availability, latency and errors.",
-          ]}
-          unavailable={[
-            "Job runs, PDF and email failures and backup status are not recorded yet. Recording them is phase 5.",
-            "API availability and latency live in the uptime monitor and Sentry. This page will link to them rather than copy them.",
-            "Storage capacity, restore tests and incidents are out of scope for now.",
-          ]}
-        />
+        <Health />
       </AccessGate>
     </Suspense>
   );

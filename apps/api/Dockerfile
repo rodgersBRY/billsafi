@@ -25,6 +25,8 @@ COPY --from=pruner /repo/out/json/ .
 RUN pnpm install --frozen-lockfile --prod
 COPY --from=builder /repo/packages/contracts/dist packages/contracts/dist
 COPY --from=builder /repo/packages/db/dist packages/db/dist
+# The Health page compares the applied migrations with this journal.
+COPY --from=builder /repo/packages/db/drizzle/meta/_journal.json packages/db/drizzle/meta/_journal.json
 COPY --from=builder /repo/packages/domain/dist packages/domain/dist
 COPY --from=builder /repo/apps/api/dist apps/api/dist
 USER node

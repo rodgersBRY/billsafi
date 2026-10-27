@@ -54,6 +54,12 @@ const envSchema = z
         ),
       ])
       .pipe(z.array(z.uuid("ADMIN_USER_IDS must be a comma-separated list of user IDs (UUIDs)"))),
+    /**
+     * Optional links shown on the admin Health page (D065): the Sentry project and the
+     * uptime monitor's status page. The page hides a card when its variable is unset.
+     */
+    ADMIN_SENTRY_URL: z.url({ protocol: /^https$/ }).optional(),
+    ADMIN_UPTIME_URL: z.url({ protocol: /^https$/ }).optional(),
     /** Runs the renewal reminder job inside the API process. */
     BILLING_JOBS: z
       .enum(["on", "off"])

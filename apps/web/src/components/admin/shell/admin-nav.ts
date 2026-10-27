@@ -42,6 +42,7 @@ export function activeNavItem(pathname: string): AdminNavItem | undefined {
 const detailLabels: Record<string, string> = {
   "/admin/tenants": "Account details",
   "/admin/users": "User details",
+  "/admin/support": "Case details",
 };
 
 export interface Crumb {

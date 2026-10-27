@@ -1,4 +1,8 @@
 import type {
+  AdminHealthStatus,
+  SupportCategory,
+  SupportSeverity,
+  SupportStatus,
   AdminCurrentMonthSource,
   AdminOverrideState,
   PlanPaymentProvider,
@@ -9,6 +13,16 @@ import type {
   AdminSubscriptionStatus,
 } from "@billsafi/contracts";
 import {
+  Bug,
+  CircleHelp,
+  FileText,
+  LogIn,
+  Minus,
+  Receipt,
+  TriangleAlert,
+  ChevronDown,
+  ChevronUp,
+  OctagonAlert,
   Ban,
   CalendarClock,
   Gift,
@@ -101,7 +115,40 @@ const provider: Record<PlanPaymentProvider, Variant> = {
   manual: { label: "Recorded manually", icon: HandCoins, tone: "info" },
 };
 
+const health: Record<AdminHealthStatus, Variant> = {
+  ok: { label: "OK", icon: CircleCheck, tone: "good" },
+  warning: { label: "Warning", icon: TriangleAlert, tone: "warn" },
+  failing: { label: "Failing", icon: CircleX, tone: "bad" },
+  unknown: { label: "Unknown", icon: CircleHelp, tone: "neutral" },
+};
+
+const supportStatus: Record<SupportStatus, Variant> = {
+  open: { label: "Open", icon: CircleDot, tone: "info" },
+  waiting: { label: "Waiting", icon: Clock, tone: "warn" },
+  resolved: { label: "Resolved", icon: CircleCheck, tone: "good" },
+};
+
+const severity: Record<SupportSeverity, Variant> = {
+  low: { label: "Low", icon: ChevronDown, tone: "neutral" },
+  normal: { label: "Normal", icon: Minus, tone: "neutral" },
+  high: { label: "High", icon: ChevronUp, tone: "warn" },
+  urgent: { label: "Urgent", icon: OctagonAlert, tone: "bad" },
+};
+
+const category: Record<SupportCategory, Variant> = {
+  billing: { label: "Billing", icon: Receipt, tone: "neutral" },
+  sign_in: { label: "Sign-in", icon: LogIn, tone: "neutral" },
+  invoices: { label: "Invoices", icon: FileText, tone: "neutral" },
+  payments: { label: "Payments", icon: Smartphone, tone: "neutral" },
+  bug: { label: "Bug", icon: Bug, tone: "neutral" },
+  other: { label: "Other", icon: CircleDot, tone: "neutral" },
+};
+
 export const statusVariants = {
+  health,
+  supportStatus,
+  severity,
+  category,
   account,
   subscription,
   lifecycle,
@@ -119,6 +166,9 @@ export const outcomeLabels = labels(outcome);
 export const roleLabels = labels(role);
 export const overrideStateLabels = labels(override);
 export const providerLabels = labels(provider);
+export const supportStatusLabels = labels(supportStatus);
+export const severityLabels = labels(severity);
+export const categoryLabels = labels(category);
 
 function labels<K extends string>(variants: Record<K, Variant>): Record<K, string> {
   return Object.fromEntries(
@@ -127,6 +177,10 @@ function labels<K extends string>(variants: Record<K, Variant>): Record<K, strin
 }
 
 type BadgeProps =
+  | { kind: "health"; value: AdminHealthStatus }
+  | { kind: "supportStatus"; value: SupportStatus }
+  | { kind: "severity"; value: SupportSeverity }
+  | { kind: "category"; value: SupportCategory }
   | { kind: "account"; value: AdminAccountStatus }
   | { kind: "subscription"; value: AdminSubscriptionStatus }
   | { kind: "lifecycle"; value: AdminLifecycleStage }
@@ -137,6 +191,10 @@ type BadgeProps =
   | { kind: "provider"; value: PlanPaymentProvider };
 
 const kindNames: Record<BadgeProps["kind"], string> = {
+  health: "Status",
+  supportStatus: "Status",
+  severity: "Severity",
+  category: "Category",
   account: "Account",
   subscription: "Subscription",
   lifecycle: "Lifecycle",

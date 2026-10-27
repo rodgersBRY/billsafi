@@ -11,6 +11,9 @@ import {
   adminAuditLogsQuerySchema,
   adminTenantsQuerySchema,
   adminUsersQuerySchema,
+  adminSupportCasesQuerySchema,
+  type SupportTab,
+  supportTabs,
 } from "@billsafi/contracts";
 import type { z } from "zod";
 
@@ -161,3 +164,18 @@ export const tenantHref = (id: string, tab?: TenantTab) =>
 export const userHref = (id: string) => `/admin/users/${encodeURIComponent(id)}`;
 
 export const auditHref = (filters: Values) => `/admin/security${toQuery(filters)}`;
+
+/** The Support list: the tab is Open unless the URL names another. */
+export const supportDefaults = { page: 1, sort: "updated", dir: "desc", tab: "open" } as const;
+
+export function parseSupportParams(raw: RawParams) {
+  const state = parseFields(adminSupportCasesQuerySchema.shape, raw);
+  const tab: SupportTab = supportTabs.find((value) => value === state.tab) ?? "open";
+  return { ...state, tab };
+}
+export type SupportState = ReturnType<typeof parseSupportParams>;
+
+export const supportHref = (filters: Values = {}) =>
+  `/admin/support${toQuery(filters, supportDefaults)}`;
+
+export const supportCaseHref = (id: string) => `/admin/support/${encodeURIComponent(id)}`;

@@ -1,5 +1,6 @@
 "use client";
 
+import { REGISTRATION_CLOSED_CODE } from "@billsafi/contracts";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -47,7 +48,9 @@ export function SignUpForm({ google }: { google?: React.ReactNode }) {
         form:
           error.code === "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL"
             ? "An account with this email already exists. Sign in instead."
-            : (error.message ?? "We couldn't create your account."),
+            : error.code === REGISTRATION_CLOSED_CODE
+              ? (error.message ?? "Sign-ups are paused for now.")
+              : (error.message ?? "We couldn't create your account."),
       });
 
       return;

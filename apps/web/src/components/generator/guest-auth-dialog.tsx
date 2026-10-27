@@ -1,9 +1,11 @@
 "use client";
 
+import { REGISTRATION_CLOSED_CODE } from "@billsafi/contracts";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { queueIntroSplash } from "@/components/brand/intro-splash";
 import { Button } from "@/components/ui/button";
+import { RegistrationClosedNotice } from "@/components/auth/registration-closed";
 import { Dialog } from "@/components/ui/dialog";
 import { TextField } from "@/components/ui/field";
 import { PasswordField } from "@/components/ui/password-field";
@@ -23,9 +25,16 @@ interface GuestAuthDialogProps {
   onClose: () => void;
   /** Server-rendered "Continue with Google" block (with its "or" divider), when available. */
   google?: React.ReactNode;
+  /** The admin's message while sign-ups are closed; null when they are open. */
+  closedMessage?: string | null;
 }
 
-export function GuestAuthDialog({ open, onClose, google }: GuestAuthDialogProps) {
+export function GuestAuthDialog({
+  open,
+  onClose,
+  google,
+  closedMessage = null,
+}: GuestAuthDialogProps) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("sign-up");
   const [errors, setErrors] = useState<{ name?: string; password?: string; form?: string }>({});
@@ -34,6 +43,7 @@ export function GuestAuthDialog({ open, onClose, google }: GuestAuthDialogProps)
   const formRef = useRef<HTMLFormElement>(null);
   const focusPassword = useRef(false);
   const signUp = mode === "sign-up";
+  const paused = signUp && closedMessage !== null;
 
   // The submit button unmounts on the auto-switch, so hand focus to the password field.
   useEffect(() => {
@@ -79,7 +89,12 @@ export function GuestAuthDialog({ open, onClose, google }: GuestAuthDialogProps)
             "You already have an account with this email. Sign in to save your invoice.",
           );
         }
-        return setErrors({ form: error.message ?? "We couldn't create your account." });
+        return setErrors({
+          form:
+            error.code === REGISTRATION_CLOSED_CODE
+              ? (error.message ?? "Sign-ups are paused for now.")
+              : (error.message ?? "We couldn't create your account."),
+        });
       }
     } else {
       setPending(true);
@@ -108,10 +123,20 @@ export function GuestAuthDialog({ open, onClose, google }: GuestAuthDialogProps)
     <Dialog
       open={open}
       onClose={close}
-      title={signUp ? "Save your invoice" : "Sign in to save your invoice"}
-      description="Your invoice is saved to your account as a draft. Check it, then mark it Ready to download the PDF."
+      title={
+        signUp
+          ? paused
+            ? "Sign-ups are paused"
+            : "Save your invoice"
+          : "Sign in to save your invoice"
+      }
+      description={
+        paused
+          ? "Your invoice stays in this browser. Sign in if you already have an account."
+          : "Your invoice is saved to your account as a draft. Check it, then mark it Ready to download the PDF."
+      }
     >
-      {google}
+      {paused ? <RegistrationClosedNotice message={closedMessage} /> : google}
       {/* Keyed so switching modes clears the typed values and field state. */}
       <form
         key={mode}
@@ -122,6 +147,7 @@ export function GuestAuthDialog({ open, onClose, google }: GuestAuthDialogProps)
           const field = event.nativeEvent.target as HTMLInputElement;
           if (field.name === "email") setEmail(field.value);
         }}
+        hidden={paused}
         className={google ? "" : "mt-4"}
       >
         {signUp && (

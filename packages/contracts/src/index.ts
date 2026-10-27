@@ -1,4 +1,5 @@
 export * from "./admin-analytics.js";
+export * from "./admin-ops.js";
 export * from "./admin.js";
 export * from "./admin-subscriptions.js";
 export * from "./billing.js";
