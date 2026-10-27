@@ -8,6 +8,8 @@ import {
 import { UpdatedAt } from "@/components/admin/admin-ui";
 import {
   FeatureAdoption,
+  GeneratorFunnel,
+  PdfAndLinks,
   InvoiceVolume,
   PlanLimit,
   TimeToFirstInvoice,
@@ -18,7 +20,12 @@ import { RetentionPanel } from "@/components/admin/metrics/retention-panel";
 import { PageHeader } from "@/components/admin/page-header";
 import { PageSkeleton } from "@/components/admin/page-skeleton";
 import { RangePicker } from "@/components/admin/range-picker";
-import { getAdminAnalytics, getAdminFunnel, getAdminRetention } from "@/lib/server-api/admin";
+import {
+  getAdminAnalytics,
+  getAdminFunnel,
+  getAdminRetention,
+  getAdminTrends,
+} from "@/lib/server-api/admin";
 
 export const generateMetadata = () => adminMetadata("Analytics");
 
@@ -29,10 +36,11 @@ const header = (
 
 async function Analytics({ searchParams }: PageProps<"/admin/analytics">) {
   const { range } = parseRangeParams(await searchParams);
-  const [analytics, funnel, retention] = await Promise.all([
+  const [analytics, funnel, retention, trends] = await Promise.all([
     getAdminAnalytics(range),
     getAdminFunnel(funnelDaysFor[range]),
     getAdminRetention(retentionWeeksFor[range]),
+    getAdminTrends(range),
   ]);
 
   return (
@@ -44,6 +52,8 @@ async function Analytics({ searchParams }: PageProps<"/admin/analytics">) {
         <RetentionPanel data={retention} />
         <InvoiceVolume data={analytics} />
         <TimeToFirstInvoice data={analytics} />
+        <PdfAndLinks data={trends} />
+        <GeneratorFunnel data={analytics} />
         <FeatureAdoption data={analytics} />
         <PlanLimit data={analytics} />
         <TopAccounts data={analytics} />

@@ -1,4 +1,9 @@
-import type { AdminAnalytics, AdminFeatureKey } from "@billsafi/contracts";
+import type {
+  AdminAnalytics,
+  AdminFeatureKey,
+  AdminTrends,
+  GeneratorFunnelKey,
+} from "@billsafi/contracts";
 import { BarList } from "../charts/bar-list";
 import { bucketFullLabel, bucketLabel } from "../charts/chart-utils";
 import { FirstInvoiceChart, type FirstInvoiceBar } from "../charts/first-invoice-chart";
@@ -18,6 +23,15 @@ const featureLabels: Record<AdminFeatureKey, string> = {
   paymentRecorded: "Recorded a payment",
   secondBusiness: "Added a second business",
   googleSignIn: "Signed in with Google",
+  pdfDownloaded: "Downloaded a PDF",
+  shareLinkOpened: "Had a shared link opened",
+};
+
+const generatorStepLabels: Record<GeneratorFunnelKey, string> = {
+  started: "Started an invoice",
+  download_clicked: "Pressed Save & download",
+  signup_clicked: "Pressed sign up",
+  imported: "Signed up and imported",
 };
 
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
@@ -128,7 +142,7 @@ export function FeatureAdoption({ data }: { data: AdminAnalytics }) {
     <Section id="adoption-title" title="Feature adoption" note={data.definitions.featureAdoption}>
       <BarList
         title="Accounts that have used each feature"
-        summary={`Out of ${formatCount(base)} accounts with a business, ever, not only in this range. PDF downloads and link opens need event tracking.`}
+        summary={`Out of ${formatCount(base)} accounts with a business, ever, not only in this range.`}
         items={items.map((item) => ({
           label: featureLabels[item.key],
           value: item.share ?? 0,
@@ -137,6 +151,50 @@ export function FeatureAdoption({ data }: { data: AdminAnalytics }) {
         max={1}
         valueHeading="Share of accounts"
         emptyText="No accounts with a business yet."
+      />
+    </Section>
+  );
+}
+
+export function PdfAndLinks({ data }: { data: AdminTrends }) {
+  const app = data.points.map((p) => p.pdfDownloads.app);
+  const publicLink = data.points.map((p) => p.pdfDownloads.publicLink);
+  const opens = data.points.map((p) => p.linkOpens);
+  return (
+    <Section id="pdf-links-title" title="PDFs and shared links">
+      <GroupedBars
+        title="PDF downloads and link opens"
+        summary={`${formatCount(sum(app))} PDFs downloaded in the app, ${formatCount(sum(publicLink))} from shared links, and ${formatCount(sum(opens))} shared links opened, side by side per ${data.bucketSize}. A link counts once a day, however often it is opened.`}
+        labels={data.points.map((p) => bucketLabel(p.bucketStart, data.bucketSize))}
+        fullLabels={data.points.map((p) => bucketFullLabel(p.bucketStart, data.bucketSize))}
+        series={[
+          { name: "Downloaded in the app", values: app },
+          { name: "Downloaded from a link", values: publicLink },
+          { name: "Links opened", values: opens },
+        ]}
+        unit="count"
+        emptyText="No PDFs downloaded or links opened in this range."
+      />
+    </Section>
+  );
+}
+
+export function GeneratorFunnel({ data }: { data: AdminAnalytics }) {
+  const { steps } = data.generatorFunnel;
+  const top = Math.max(1, ...steps.map((step) => step.count));
+  return (
+    <Section id="generator-title" title="Free generator">
+      <BarList
+        title="Free generator steps"
+        summary={`${data.definitions.generatorFunnel} Steps count distinct visitors and are not strictly nested, so a step can be larger than the one before it.`}
+        items={steps.map((step) => ({
+          label: generatorStepLabels[step.key],
+          value: step.count,
+          display: `${formatCount(step.count)} (${formatShare(step.share)})`,
+        }))}
+        max={top}
+        valueHeading="Visitors (share of started)"
+        emptyText="No one has used the free generator in this range."
       />
     </Section>
   );
