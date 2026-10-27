@@ -36,7 +36,7 @@ GitHub never connects to the droplet. Images are built on GitHub's runners, so t
 | `deploy/Caddyfile`              | HTTPS and reverse proxy to `web`                                            |
 | `deploy/.env.example`           | Template for the secrets file on the droplet                                |
 | `deploy/deploy.sh`              | Pull, migrate, restart, health check. Also used for rollbacks               |
-| `deploy/backup.sh`              | Nightly `pg_dump` with 14 days of retention                                 |
+| `deploy/backup.sh`              | Nightly `pg_dump` with 7 days of retention                                  |
 
 Local development and CI behave exactly as before.
 
@@ -218,7 +218,7 @@ Add this line:
 15 2 * * * /opt/billsafi/backup.sh >> /home/deploy/backup.log 2>&1
 ```
 
-This writes a dump to `/opt/billsafi/backups` at 02:15 UTC every night and deletes dumps older than 14 days. Run it once by hand to check it works:
+This writes a dump to `/opt/billsafi/backups` at 02:15 UTC every night and deletes dumps older than 7 days. Run it once by hand to check it works:
 
 ```sh
 /opt/billsafi/backup.sh
