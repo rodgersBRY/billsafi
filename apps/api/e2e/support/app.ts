@@ -1,5 +1,6 @@
 import "reflect-metadata";
 import type { INestApplication } from "@nestjs/common";
+import type { DatabaseConnection } from "@billsafi/db";
 import { Test, type TestingModuleBuilder } from "@nestjs/testing";
 import request from "supertest";
 import { AppModule } from "../../src/app.module.js";
@@ -139,4 +140,21 @@ export async function createClient(
     .send({ ...sampleClient, ...overrides })
     .expect(201);
   return response.body.id;
+}
+
+/**
+ * Drops a throwaway database once the closed app's connections have really gone. A pool can
+ * finish `end()` while its sessions are still closing on the server; forcing the drop then
+ * kills them mid-close and the client raises an unhandled 57P01 error that fails the run.
+ */
+export async function dropThrowawayDatabase(admin: Pick<DatabaseConnection, "pool">, name: string) {
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const { rows } = await admin.pool.query<{ open: number }>(
+      "select count(*)::int as open from pg_stat_activity where datname = $1",
+      [name],
+    );
+    if (rows[0]!.open === 0) break;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  await admin.pool.query(`drop database if exists "${name}" with (force)`);
 }
