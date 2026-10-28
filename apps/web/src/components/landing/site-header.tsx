@@ -13,7 +13,7 @@ const LINKS = [
   { href: "#faq", label: "FAQs" },
 ];
 
-export function SiteHeader() {
+export function SiteHeader({ appOrigin = "" }: { appOrigin?: string }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -31,15 +31,18 @@ export function SiteHeader() {
             {link.label}
           </a>
         ))}
-        <Link className={s.navSignIn} href="/sign-in">
+        <Link className={s.navSignIn} href={`${appOrigin}/sign-in`}>
           Sign in
         </Link>
       </nav>
       <div className={s.headerActions}>
-        <Link className={s.signIn} href="/sign-in">
+        <Link className={s.signIn} href={`${appOrigin}/sign-in`}>
           Sign in
         </Link>
-        <Link className={`${s.button} ${s.small} ${s.dark} ${s.navCta}`} href="/sign-up">
+        <Link
+          className={`${s.button} ${s.small} ${s.dark} ${s.navCta}`}
+          href={`${appOrigin}/sign-up`}
+        >
           Create account{" "}
           <span>
             <ArrowUpRight className={s.icon} aria-hidden />

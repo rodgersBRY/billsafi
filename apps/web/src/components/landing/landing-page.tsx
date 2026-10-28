@@ -90,7 +90,7 @@ function Trail() {
   );
 }
 
-function Hero() {
+function Hero({ appOrigin = "" }: { appOrigin?: string }) {
   return (
     <section className={`${s.hero} ${s.wrap}`}>
       <div className={s.heroCopy}>
@@ -109,10 +109,10 @@ function Hero() {
           still owes you.
         </p>
         <div className={s.heroActions}>
-          <Link className={`${s.button} ${s.dark}`} href="/free-invoice-generator">
+          <Link className={`${s.button} ${s.dark}`} href={`${appOrigin}/free-invoice-generator`}>
             Create an invoice free <Trail />
           </Link>
-          <Link className={s.textButton} href="/sign-up">
+          <Link className={s.textButton} href={`${appOrigin}/sign-up`}>
             Create an account
           </Link>
         </div>
@@ -126,7 +126,7 @@ function Hero() {
           </span>
         </div>
         <p className={s.returning}>
-          Already have an account? <Link href="/sign-in">Sign in</Link>
+          Already have an account? <Link href={`${appOrigin}/sign-in`}>Sign in</Link>
         </p>
       </div>
 
@@ -330,7 +330,7 @@ function Benefits() {
   );
 }
 
-function Features() {
+function Features({ appOrigin = "" }: { appOrigin?: string }) {
   return (
     <section className={`${s.features} ${s.section} ${s.wrap}`} id="features">
       <div className={s.featureBlock}>
@@ -401,7 +401,7 @@ function Features() {
               "Bank or M-Pesa details right on the invoice",
             ]}
           />
-          <Link className={s.linkButton} href="/free-invoice-generator">
+          <Link className={s.linkButton} href={`${appOrigin}/free-invoice-generator`}>
             Try the free invoice generator{" "}
             <span>
               <ArrowUpRight className={s.inlineIcon} aria-hidden />
@@ -530,7 +530,7 @@ function Faq() {
   );
 }
 
-function FinalCta() {
+function FinalCta({ appOrigin = "" }: { appOrigin?: string }) {
   return (
     <section className={`${s.finalCta} ${s.wrap}`}>
       <Asterisk className={s.ctaSpark} aria-hidden />
@@ -540,17 +540,17 @@ function FinalCta() {
         <em>Light on the admin.</em>
       </h2>
       <p>Give your good work the invoice it deserves.</p>
-      <Link className={`${s.button} ${s.dark}`} href="/free-invoice-generator">
+      <Link className={`${s.button} ${s.dark}`} href={`${appOrigin}/free-invoice-generator`}>
         Create an invoice free <Trail />
       </Link>
       <small>
-        Already with us? <Link href="/sign-in">Sign in</Link>
+        Already with us? <Link href={`${appOrigin}/sign-in`}>Sign in</Link>
       </small>
     </section>
   );
 }
 
-function Footer() {
+function Footer({ appOrigin = "" }: { appOrigin?: string }) {
   return (
     <footer className={`${s.footer} ${s.wrap}`}>
       <div className={s.footerTop}>
@@ -561,8 +561,8 @@ function Footer() {
         <a href="#features">Features</a>
         <a href="#pricing">Pricing</a>
         <a href="#faq">FAQs</a>
-        <Link href="/sign-in">Sign in</Link>
-        <Link href="/sign-up">Create account</Link>
+        <Link href={`${appOrigin}/sign-in`}>Sign in</Link>
+        <Link href={`${appOrigin}/sign-up`}>Create account</Link>
       </div>
       <div className={s.footerBottom}>
         <span>© 2026 BillSafi · Invoicing for independent professionals.</span>
@@ -579,24 +579,24 @@ function Footer() {
 }
 
 /** The BillSafi marketing page. Product previews use sample data. */
-export function LandingPage() {
+export function LandingPage({ appOrigin = "" }: { appOrigin?: string }) {
   return (
     <div className={`${s.page} ${manrope.variable}`} data-landing>
       <Suspense fallback={null}>
         <PlatformBanner />
       </Suspense>
-      <SiteHeader />
+      <SiteHeader appOrigin={appOrigin} />
       <main>
-        <Hero />
+        <Hero appOrigin={appOrigin} />
         <Audience />
         <Benefits />
-        <Features />
+        <Features appOrigin={appOrigin} />
         <Workflow />
-        <Pricing />
+        <Pricing appOrigin={appOrigin} />
         <Faq />
-        <FinalCta />
+        <FinalCta appOrigin={appOrigin} />
       </main>
-      <Footer />
+      <Footer appOrigin={appOrigin} />
     </div>
   );
 }

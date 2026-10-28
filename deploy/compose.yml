@@ -16,6 +16,7 @@ services:
       - "443:443/udp"
     environment:
       DOMAIN: ${DOMAIN:?}
+      LANDING_DOMAIN: ${LANDING_DOMAIN:?}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
@@ -29,6 +30,8 @@ services:
     environment:
       # Server-side fetches read this at runtime; the /api rewrite has it baked in at build time.
       API_INTERNAL_URL: http://api:4000
+      APP_ORIGIN: https://${DOMAIN:?}
+      MARKETING_ORIGIN: https://${LANDING_DOMAIN:?}
       SENTRY_DSN: ${SENTRY_WEB_DSN:-}
     depends_on:
       api:

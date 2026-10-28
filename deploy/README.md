@@ -2,6 +2,9 @@
 
 This guide explains how production works and lists every step to get it running, starting from an empty DigitalOcean account. Do the one-time setup in order. After that, each release is a merge to `main` followed by one command on the droplet.
 
+For the production split between `billsafi.com` and `account.billsafi.com`, follow
+[the domain rollout guide](DOMAIN-SPLIT.md) as well.
+
 ## How it works
 
 Production runs on one droplet with Docker Compose. Five containers share a private Docker network:
@@ -149,7 +152,8 @@ nano .env
 
 Paste the template from `deploy/.env.example` and fill it in:
 
-- `DOMAIN`: your domain, without `https://`.
+- `DOMAIN`: the account domain, without `https://` (production: `account.billsafi.com`).
+- `LANDING_DOMAIN`: the marketing domain, without `https://` (production: `billsafi.com`).
 - `IMAGE_PREFIX`: `ghcr.io/<your GitHub username in lowercase>/billsafi`. For `rodgersBRY/billsafi` that is `ghcr.io/rodgersbry/billsafi`. It changes only if the repository moves to another owner.
 - `IMAGE_TAG`: leave it as `latest`. `deploy.sh` manages this line.
 - `POSTGRES_PASSWORD` and `BETTER_AUTH_SECRET`: run `openssl rand -hex 32` once for each. Use hex values because the password goes into a connection URL, where characters like `/` or `@` would break it.
@@ -200,7 +204,7 @@ The first deploy takes a little longer because Caddy has to request the certific
 
 ## Step 9: Check it works
 
-- Open your domain in a browser. You should land on the BillSafi landing page over HTTPS, with **Sign in** and **Create account** in the header.
+- Open `https://<LANDING_DOMAIN>` for the landing page, and `https://<DOMAIN>` for sign-in and the account app.
 - Visit `https://<your domain>/api/v1/health`. It should return `{"status":"ok","database":"ok"}`.
 - Create an account, then trigger a password reset to confirm email delivery.
 
