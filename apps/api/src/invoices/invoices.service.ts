@@ -78,11 +78,17 @@ export class InvoicesService {
 
   async createDraft(businessId: string, input: SaveInvoice, db: Executor = this.db) {
     return db.transaction(async (tx) => {
+      await this.lockNumbering(tx, businessId);
+      await this.checkNumber(tx, businessId, input.invoiceNumber);
       await this.selectableClient(tx, businessId, input.clientId);
       const totals = this.calculate(input);
       const [invoice] = await tx
         .insert(invoices)
-        .values({ businessId, ...this.invoiceColumns(input, totals) })
+        .values({
+          businessId,
+          invoiceNumber: input.invoiceNumber || null,
+          ...this.invoiceColumns(input, totals),
+        })
         .returning();
       await this.replaceItems(tx, businessId, invoice!.id, input, totals.lineTotals);
       return this.load(tx, businessId, invoice!.id);
@@ -97,6 +103,17 @@ export class InvoicesService {
           "Payments have been recorded, so only the notes on this invoice can change",
         );
       }
+      await this.lockNumbering(tx, businessId);
+      const invoiceNumber =
+        input.invoiceNumber === undefined
+          ? current.invoiceNumber
+          : input.invoiceNumber ||
+            (current.status === "draft" ? null : current.systemInvoiceNumber);
+      await this.checkNumber(tx, businessId, invoiceNumber, invoiceId);
+      const reservedInvoiceNumbers =
+        current.status === "draft"
+          ? current.reservedInvoiceNumbers
+          : [...new Set([...current.reservedInvoiceNumbers, invoiceNumber!])];
       // Archived clients stay valid on invoices that already use them.
       if (input.clientId !== current.clientId) {
         await this.selectableClient(tx, businessId, input.clientId);
@@ -109,7 +126,12 @@ export class InvoicesService {
         current.status === "draft" ? {} : await this.snapshots(tx, businessId, input.clientId);
       await tx
         .update(invoices)
-        .set({ ...this.invoiceColumns(input, totals), ...snapshots })
+        .set({
+          ...this.invoiceColumns(input, totals),
+          invoiceNumber,
+          reservedInvoiceNumbers,
+          ...snapshots,
+        })
         .where(eq(invoices.id, invoiceId));
       await this.replaceItems(tx, businessId, invoiceId, input, totals.lineTotals);
       return this.load(tx, businessId, invoiceId);
@@ -190,13 +212,19 @@ export class InvoicesService {
       const now = new Date();
       const { usagePeriodId, source } = await this.allowance.reserve(tx, userId, now);
 
-      // The row update serializes numbering within the business.
-      const [numbering] = await tx
-        .update(businesses)
-        .set({ nextInvoiceSequence: sql`${businesses.nextInvoiceSequence} + 1` })
-        .where(eq(businesses.id, businessId))
-        .returning({ next: businesses.nextInvoiceSequence });
-      const sequence = numbering!.next - 1;
+      await this.lockNumbering(tx, businessId);
+      await this.checkNumber(tx, businessId, current.invoiceNumber, invoiceId);
+      let sequence: number;
+      let systemInvoiceNumber: string;
+      do {
+        const [numbering] = await tx
+          .update(businesses)
+          .set({ nextInvoiceSequence: sql`${businesses.nextInvoiceSequence} + 1` })
+          .where(eq(businesses.id, businessId))
+          .returning({ next: businesses.nextInvoiceSequence });
+        sequence = numbering!.next - 1;
+        systemInvoiceNumber = formatInvoiceNumber(sequence);
+      } while (await this.numberTaken(tx, businessId, systemInvoiceNumber, invoiceId));
 
       await tx.insert(invoiceIssuances).values({
         userId,
@@ -211,7 +239,11 @@ export class InvoicesService {
         .set({
           status: "ready",
           sequenceNumber: sequence,
-          invoiceNumber: formatInvoiceNumber(sequence),
+          invoiceNumber: current.invoiceNumber || systemInvoiceNumber,
+          systemInvoiceNumber,
+          reservedInvoiceNumbers: [
+            ...new Set([systemInvoiceNumber, current.invoiceNumber || systemInvoiceNumber]),
+          ],
           readyAt: now,
           ...(await this.snapshots(tx, businessId, current.clientId)),
         })
@@ -232,6 +264,49 @@ export class InvoicesService {
         throw invalid("discount.value", error.message);
       }
       throw error;
+    }
+  }
+
+  /** Serialize number reservations per business, including drafts and renames. */
+  private async lockNumbering(tx: Transaction, businessId: string) {
+    await tx
+      .select({ id: businesses.id })
+      .from(businesses)
+      .where(eq(businesses.id, businessId))
+      .for("update");
+  }
+
+  private async numberTaken(
+    tx: Transaction,
+    businessId: string,
+    value: string,
+    invoiceId?: string,
+  ) {
+    const [found] = await tx
+      .select({ id: invoices.id })
+      .from(invoices)
+      .where(
+        and(
+          eq(invoices.businessId, businessId),
+          invoiceId ? sql`${invoices.id} <> ${invoiceId}` : undefined,
+          sql`(lower(${invoices.invoiceNumber}) = lower(${value}) or exists (
+        select 1 from unnest(${invoices.reservedInvoiceNumbers}) as reserved(number)
+        where lower(reserved.number) = lower(${value})
+      ))`,
+        ),
+      )
+      .limit(1);
+    return Boolean(found);
+  }
+
+  private async checkNumber(
+    tx: Transaction,
+    businessId: string,
+    value: string | null | undefined,
+    invoiceId?: string,
+  ) {
+    if (value && (await this.numberTaken(tx, businessId, value, invoiceId))) {
+      throw invalid("invoiceNumber", "This invoice number is already used by another invoice");
     }
   }
 

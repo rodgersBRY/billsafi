@@ -68,6 +68,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   const router = useRouter();
   const [clients, setClients] = useState(props.clients);
   const [clientId, setClientId] = useState(invoice?.clientId ?? "");
+  const [invoiceNumber, setInvoiceNumber] = useState(invoice?.invoiceNumber ?? "");
   const [issueDate, setIssueDate] = useState(invoice?.issueDate ?? props.today);
   const [dueDate, setDueDate] = useState(
     invoice?.dueDate ?? addDays(props.today, props.defaultPaymentTermsDays),
@@ -121,6 +122,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   function body(): SaveInvoiceInput {
     return {
       clientId,
+      invoiceNumber,
       issueDate,
       dueDate,
       items: items.map(({ description, quantity, unitPrice }) => ({
@@ -315,6 +317,18 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         <fieldset disabled={!editable || pending !== null} className="min-w-0">
           <section className="mb-3.5 rounded-panel border border-line bg-panel p-5">
             <h2 className="text-base font-semibold">Client &amp; dates</h2>
+            <TextField
+              label="Invoice number · Optional"
+              value={invoiceNumber}
+              onChange={(event) => setInvoiceNumber(event.target.value)}
+              maxLength={80}
+              error={errors.invoiceNumber}
+              hint={
+                isDraft
+                  ? "Leave blank to generate automatically when marked as Ready."
+                  : "Clear to restore the original system-generated number."
+              }
+            />
             <div className="flex items-end gap-2">
               <div className="min-w-0 flex-1">
                 <SelectField
@@ -411,7 +425,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                 : null
             }
             client={previewClient ?? null}
-            invoiceNumber={invoice?.invoiceNumber ?? null}
+            invoiceNumber={invoiceNumber.trim() || (isDraft ? null : "Automatic number on save")}
             status={status}
             issueDate={issueDate}
             dueDate={dueDate}
@@ -450,7 +464,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         open={confirmDelete}
         onClose={() => setConfirmDelete(false)}
         title="Delete this draft?"
-        description="Drafts have no invoice number yet, so nothing is kept once it's deleted."
+        description="Deleting this draft releases its invoice number and removes its details."
       >
         <div className="mt-5 flex justify-end gap-2.5">
           <Button type="button" variant="secondary" onClick={() => setConfirmDelete(false)}>

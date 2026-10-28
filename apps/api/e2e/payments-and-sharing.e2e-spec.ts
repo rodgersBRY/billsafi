@@ -94,6 +94,7 @@ describe("payments, cancellation, sharing and dashboard", () => {
           issueDate: today,
           dueDate: today,
           items: [{ description: "Changed", quantity: "1", unitPrice: "1" }],
+          invoiceNumber: "RENAMED-AFTER-PAYMENT",
         })
         .expect(409);
       const notes = await api()

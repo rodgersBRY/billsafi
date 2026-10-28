@@ -12,6 +12,6 @@ export class PdfService {
   }
 
   fileName(invoice: PublicInvoice): string {
-    return `${invoice.invoiceNumber}.pdf`;
+    return `${invoice.invoiceNumber.replace(/[^A-Za-z0-9_.-]/g, "_")}.pdf`;
   }
 }

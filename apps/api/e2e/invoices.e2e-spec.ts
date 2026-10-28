@@ -45,6 +45,46 @@ describe("invoices", () => {
     return { cookie, businessId, clientId, path, draft, ready };
   }
 
+  it("keeps custom numbers, reserves issued history, and restores the automatic fallback", async () => {
+    const { cookie, clientId, path, draft, ready } = await setup();
+    const first = await draft({ invoiceNumber: "  ACME/2026/001  " });
+    expect((await ready(first.id).expect(200)).body.invoiceNumber).toBe("ACME/2026/001");
+    const update = (invoiceNumber: string) =>
+      api()
+        .put(`${path}/${first.id}`)
+        .set("Cookie", cookie)
+        .send(draftBody(clientId, { invoiceNumber }));
+    expect((await update("ACME-002").expect(200)).body.invoiceNumber).toBe("ACME-002");
+    const unchanged = await api()
+      .put(`${path}/${first.id}`)
+      .set("Cookie", cookie)
+      .send(draftBody(clientId))
+      .expect(200);
+    expect(unchanged.body.invoiceNumber).toBe("ACME-002");
+
+    await api()
+      .post(path)
+      .set("Cookie", cookie)
+      .send(draftBody(clientId, { invoiceNumber: "acme/2026/001" }))
+      .expect(400);
+    expect((await update("").expect(200)).body.invoiceNumber).toBe("INV-00001");
+    const second = await draft();
+    expect((await ready(second.id).expect(200)).body.invoiceNumber).toBe("INV-00002");
+  });
+
+  it("skips automatic numbers reserved by custom drafts and rejects concurrent duplicates", async () => {
+    const { cookie, clientId, path, draft, ready } = await setup();
+    await draft({ invoiceNumber: "inv-00001" });
+    const automatic = await draft();
+    expect((await ready(automatic.id).expect(200)).body.invoiceNumber).toBe("INV-00002");
+    const responses = await Promise.all(
+      ["CUSTOM-1", "custom-1"].map((invoiceNumber) =>
+        api().post(path).set("Cookie", cookie).send(draftBody(clientId, { invoiceNumber })),
+      ),
+    );
+    expect(responses.map((response) => response.status).sort()).toEqual([201, 400]);
+  });
+
   it("creates a draft with calculated totals and no number", async () => {
     const { cookie, clientId, path } = await setup();
     const response = await api()

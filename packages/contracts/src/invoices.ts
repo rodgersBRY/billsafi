@@ -65,7 +65,17 @@ const dueDateIssue = {
 
 /** Draft create and update. Drafts may be incomplete; Mark as Ready checks the rest. */
 export const saveInvoiceSchema = z
-  .object({ clientId: z.uuid("Choose a client"), ...invoiceDetailFields })
+  .object({
+    clientId: z.uuid("Choose a client"),
+    invoiceNumber: z
+      .string()
+      .trim()
+      .max(80, "Use 80 characters or fewer")
+      .regex(/^[A-Za-z0-9 /_.-]*$/, "Use letters, numbers, spaces, /, _, . or -")
+      .nullable()
+      .optional(),
+    ...invoiceDetailFields,
+  })
   .refine(dueDateIsValid, dueDateIssue);
 export type SaveInvoiceInput = z.input<typeof saveInvoiceSchema>;
 export type SaveInvoice = z.output<typeof saveInvoiceSchema>;
