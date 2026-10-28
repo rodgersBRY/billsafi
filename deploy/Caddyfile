@@ -1,5 +1,5 @@
-# Caddy obtains and renews the TLS certificate for $DOMAIN automatically.
-{$DOMAIN} {
+# Caddy obtains and renews certificates for both domains automatically.
+{$LANDING_DOMAIN}, {$DOMAIN} {
 	encode zstd gzip
 	reverse_proxy web:3000
 }
