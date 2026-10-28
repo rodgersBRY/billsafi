@@ -1,6 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
-// Browser tests run against built apps: `pnpm build` first, with Postgres and Mailpit up.
+// Browser tests run against built apps: `pnpm build` first, with Postgres up.
+// Email browser coverage additionally requires MAILPIT_URL and an API SMTP relay to that inbox.
 // PLAYWRIGHT_BASE_URL points them at servers you started yourself (none are started then).
 const externalBaseUrl = process.env.PLAYWRIGHT_BASE_URL;
 

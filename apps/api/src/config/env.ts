@@ -11,7 +11,8 @@ const envSchema = z
     /** Google OAuth web client; Google sign-in is off unless both are set (D055). */
     GOOGLE_CLIENT_ID: z.string().min(1).optional(),
     GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
-    SMTP_URL: z.url({ protocol: /^smtps?$/ }),
+    RESEND_API_KEY: z.string().min(1).optional(),
+    SMTP_URL: z.url({ protocol: /^smtps?$/ }).optional(),
     MAIL_FROM: z.string().min(3).default("BillSafi <no-reply@billsafi.local>"),
     /**
      * fake never calls Safaricom; sandbox and production use Daraja; disabled
@@ -72,6 +73,13 @@ const envSchema = z
       .transform((value) => value === "on"),
   })
   .superRefine((env, ctx) => {
+    if (!env.RESEND_API_KEY && !env.SMTP_URL) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["RESEND_API_KEY"],
+        message: "Set RESEND_API_KEY or SMTP_URL for email delivery",
+      });
+    }
     if (Boolean(env.GOOGLE_CLIENT_ID) !== Boolean(env.GOOGLE_CLIENT_SECRET)) {
       ctx.addIssue({
         code: "custom",
