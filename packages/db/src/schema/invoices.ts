@@ -64,6 +64,11 @@ export const invoices = pgTable(
     /** Assigned on first transition to Ready; never reused. */
     sequenceNumber: integer("sequence_number"),
     invoiceNumber: text("invoice_number"),
+    systemInvoiceNumber: text("system_invoice_number"),
+    reservedInvoiceNumbers: text("reserved_invoice_numbers")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     issueDate: date("issue_date").notNull(),
     dueDate: date("due_date").notNull(),
     currency: char("currency", { length: 3 }).notNull().default("KES"),
@@ -107,7 +112,7 @@ export const invoices = pgTable(
     check(
       "invoices_number_once_ready",
       sql`(${table.status} = 'draft') = (${table.sequenceNumber} is null)
-        and (${table.sequenceNumber} is null) = (${table.invoiceNumber} is null)`,
+        and (${table.status} = 'draft' or ${table.invoiceNumber} is not null)`,
     ),
     check("invoices_tax_rate_range", sql`${table.taxRate} between 0 and 100`),
   ],
