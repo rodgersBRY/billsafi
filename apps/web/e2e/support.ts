@@ -1,6 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 
-const MAILPIT = process.env.MAILPIT_URL ?? "http://localhost:8025";
+const MAILPIT = process.env.MAILPIT_URL;
 
 export const PASSWORD = "correct-horse-battery";
 
@@ -59,6 +59,8 @@ export async function skipIntro(page: Page) {
 
 /** Polls Mailpit for the newest message to `to` and returns its plain text. */
 export async function latestEmailText(to: string): Promise<string> {
+  if (!MAILPIT)
+    throw new Error("Set MAILPIT_URL to an external test inbox for email browser tests.");
   for (let attempt = 0; attempt < 20; attempt++) {
     const search = await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:${to}`)}`);
     const { messages } = (await search.json()) as { messages: { ID: string }[] };

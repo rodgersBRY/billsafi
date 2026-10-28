@@ -37,7 +37,7 @@ export class RecordingMailer implements Mailer {
   }
 }
 
-/** SMTP keeps the production provider open: Mailpit locally, any SMTP relay in production. */
+/** SMTP transport for Resend or an explicitly configured alternative relay. */
 export class SmtpMailer implements Mailer {
   private readonly transport: Transporter;
 

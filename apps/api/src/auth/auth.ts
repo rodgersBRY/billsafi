@@ -214,7 +214,7 @@ export function createAuth({ db, env, mailer, recorder }: AuthDependencies) {
       sendResetPassword: async ({ user, url }) => {
         // Not awaited so response timing does not reveal whether the account exists.
         void mailer
-          .send(passwordResetEmail(user.email, user.name, url), {
+          .send(passwordResetEmail(user.email, user.name, url, env.RESET_TOKEN_TTL_SECONDS), {
             operation: "password_reset_email",
             accountId: user.id,
           })

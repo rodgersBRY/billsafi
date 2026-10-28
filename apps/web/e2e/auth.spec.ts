@@ -81,6 +81,10 @@ test("signing in again after signing out does not leave the button spinning", as
 });
 
 test("reset a forgotten password through the emailed link", async ({ page }) => {
+  test.skip(
+    !process.env.MAILPIT_URL,
+    "Requires an explicitly configured external Mailpit test inbox",
+  );
   const email = uniqueEmail("reset");
   await signUp(page, "Kamau Njoroge", email);
   await createFirstBusiness(page);

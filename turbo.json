@@ -26,7 +26,7 @@
     "test:e2e": {
       "dependsOn": ["^build"],
       "cache": false,
-      "env": ["DATABASE_URL", "BETTER_AUTH_SECRET", "SMTP_URL"]
+      "env": ["DATABASE_URL", "BETTER_AUTH_SECRET", "SMTP_URL", "RESEND_API_KEY", "MAIL_FROM"]
     }
   }
 }
