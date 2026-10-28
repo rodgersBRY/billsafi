@@ -7,7 +7,7 @@ import s from "./landing.module.css";
 const proPrice = Number(PRO_PLAN.priceUsd);
 const creditPrice = Number(CREDIT_PACK.priceUsd);
 
-export function Pricing() {
+export function Pricing({ appOrigin = "" }: { appOrigin?: string }) {
   return (
     <section className={`${s.pricing} ${s.section}`} id="pricing">
       <div className={s.wrap}>
@@ -25,7 +25,7 @@ export function Pricing() {
               $<b>0</b>
               <span>/ month</span>
             </div>
-            <Link className={`${s.button} ${s.outline}`} href="/sign-up">
+            <Link className={`${s.button} ${s.outline}`} href={`${appOrigin}/sign-up`}>
               Start free{" "}
               <span>
                 <ArrowUpRight className={s.icon} aria-hidden />
@@ -48,7 +48,7 @@ export function Pricing() {
               $<b>{proPrice}</b>
               <span>/ month</span>
             </div>
-            <Link className={`${s.button} ${s.dark}`} href="/sign-up">
+            <Link className={`${s.button} ${s.dark}`} href={`${appOrigin}/sign-up`}>
               Get Pro{" "}
               <span>
                 <ArrowUpRight className={s.icon} aria-hidden />

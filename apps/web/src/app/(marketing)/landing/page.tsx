@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import { connection } from "next/server";
+import { Suspense } from "react";
 import { LandingPage } from "@/components/landing/landing-page";
 
 export const metadata: Metadata = {
@@ -11,6 +13,15 @@ export const viewport: Viewport = {
   themeColor: "#102e30",
 };
 
+async function RuntimeLanding() {
+  await connection();
+  return <LandingPage appOrigin={process.env.APP_ORIGIN ?? ""} />;
+}
+
 export default function Page() {
-  return <LandingPage />;
+  return (
+    <Suspense fallback={null}>
+      <RuntimeLanding />
+    </Suspense>
+  );
 }

@@ -20,6 +20,31 @@ const PUBLIC_PATHS = [
  */
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  // Split production hosts before session handling. Local development keeps one origin.
+  const appOrigin = process.env.APP_ORIGIN;
+  const marketingOrigin = process.env.MARKETING_ORIGIN;
+  const splitDomains = Boolean(appOrigin && marketingOrigin && appOrigin !== marketingOrigin);
+  const marketingPath = pathname === "/" || pathname === "/terms" || pathname === "/privacy";
+  if (splitDomains) {
+    const host = request.headers.get("host");
+    const onMarketing = host === new URL(marketingOrigin!).host;
+    const onApp = host === new URL(appOrigin!).host;
+    if (onMarketing && pathname === "/landing") {
+      return NextResponse.redirect(new URL("/", marketingOrigin));
+    }
+    if (onMarketing && !marketingPath) {
+      return NextResponse.redirect(new URL(pathname + request.nextUrl.search, appOrigin));
+    }
+    if (onApp && (pathname === "/landing" || pathname === "/terms" || pathname === "/privacy")) {
+      const target = pathname === "/landing" ? "/" : pathname;
+      return NextResponse.redirect(new URL(target + request.nextUrl.search, marketingOrigin));
+    }
+    if (onMarketing) {
+      return pathname === "/"
+        ? NextResponse.rewrite(new URL("/landing" + request.nextUrl.search, request.url))
+        : NextResponse.next();
+    }
+  }
   // Signed in, anyone the API doesn't list as an admin gets a real 404, the same as
   // an unknown page. Signed out, there is no check: /admin falls through to the
   // sign-in redirect below, the same as any private page, so it can't be told apart.
@@ -42,7 +67,7 @@ export async function proxy(request: NextRequest) {
   if (pathname === "/landing") {
     return NextResponse.redirect(new URL("/", request.url));
   }
-  if (!hasSession && pathname === "/") {
+  if (!splitDomains && !hasSession && pathname === "/") {
     return NextResponse.rewrite(new URL("/landing", request.url));
   }
 
