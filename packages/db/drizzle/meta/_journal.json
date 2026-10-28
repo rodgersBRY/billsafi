@@ -131,8 +131,15 @@
     {
       "idx": 18,
       "version": "7",
-      "when": 1793087000000,
+      "when": 1793084736011,
       "tag": "0018_pruning_and_throttle_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793195472193,
+      "tag": "0019_custom_invoice_numbers",
       "breakpoints": true
     }
   ]

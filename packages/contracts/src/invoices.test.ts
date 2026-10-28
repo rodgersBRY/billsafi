@@ -9,6 +9,22 @@ const base = {
 };
 
 describe("saveInvoiceSchema", () => {
+  it("accepts optional custom invoice numbers and trims them", () => {
+    expect(
+      saveInvoiceSchema.parse({ ...base, invoiceNumber: "  ACME/2026-001  " }).invoiceNumber,
+    ).toBe("ACME/2026-001");
+    for (const invoiceNumber of [undefined, null, ""]) {
+      expect(saveInvoiceSchema.safeParse({ ...base, invoiceNumber }).success).toBe(true);
+    }
+  });
+
+  it.each(["x".repeat(81), "INV\n001", 'INV"001', "INV\\001"])(
+    "rejects unsupported invoice number %s",
+    (invoiceNumber) => {
+      expect(saveInvoiceSchema.safeParse({ ...base, invoiceNumber }).success).toBe(false);
+    },
+  );
+
   it("accepts a valid draft and defaults optional pricing to off", () => {
     expect(saveInvoiceSchema.parse(base)).toMatchObject({ discount: null, taxRate: null });
   });
