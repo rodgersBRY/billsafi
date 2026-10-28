@@ -37,7 +37,31 @@ export class RecordingMailer implements Mailer {
   }
 }
 
-/** SMTP transport for Resend or an explicitly configured alternative relay. */
+/** Resend uses HTTPS so delivery works on hosts that block outbound SMTP. */
+export class ResendMailer implements Mailer {
+  constructor(
+    private readonly apiKey: string,
+    private readonly from: string,
+  ) {}
+
+  async send(message: MailMessage, _context?: MailContext): Promise<void> {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ...message, from: this.from, to: [message.to] }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!response.ok) {
+      // Do not log provider bodies: they may contain recipients or message content.
+      throw new Error(`Resend email delivery failed (HTTP ${response.status})`);
+    }
+  }
+}
+
+/** SMTP transport for an explicitly configured alternative relay. */
 export class SmtpMailer implements Mailer {
   private readonly transport: Transporter;
 
