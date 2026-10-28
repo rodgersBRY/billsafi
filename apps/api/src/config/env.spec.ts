@@ -3,7 +3,7 @@ import { loadEnv } from "./env.js";
 const required = {
   DATABASE_URL: "postgres://billsafi:billsafi@localhost:5434/billsafi",
   BETTER_AUTH_SECRET: "x".repeat(32),
-  SMTP_URL: "smtp://localhost:1025",
+  SMTP_URL: "smtps://smtp.example.test:465",
   RESET_TOKEN_TTL_SECONDS: "3600",
 };
 
@@ -13,6 +13,13 @@ describe("loadEnv", () => {
       API_PORT: 4000,
       WEB_ORIGIN: "http://localhost:3000",
     });
+  });
+
+  it("accepts Resend without an SMTP URL and requires a mail provider", () => {
+    expect(loadEnv({ ...required, SMTP_URL: undefined, RESEND_API_KEY: "re_test" })).toMatchObject({
+      RESEND_API_KEY: "re_test",
+    });
+    expect(() => loadEnv({ ...required, SMTP_URL: undefined })).toThrow(/RESEND_API_KEY/);
   });
 
   it("reads the admin user IDs as a clean lowercase list", () => {

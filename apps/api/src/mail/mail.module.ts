@@ -13,7 +13,15 @@ export const MAILER = Symbol("MAILER");
       provide: MAILER,
       inject: [ENV, ActivityRecorder],
       useFactory: (env: Env, recorder: ActivityRecorder): Mailer =>
-        new RecordingMailer(new SmtpMailer(env.SMTP_URL, env.MAIL_FROM), recorder),
+        new RecordingMailer(
+          new SmtpMailer(
+            env.RESEND_API_KEY
+              ? `smtps://resend:${encodeURIComponent(env.RESEND_API_KEY)}@smtp.resend.com:465`
+              : env.SMTP_URL!,
+            env.MAIL_FROM,
+          ),
+          recorder,
+        ),
     },
   ],
   exports: [MAILER],
