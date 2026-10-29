@@ -1,4 +1,9 @@
-import { passwordResetEmail, renewalReminderEmail } from "./templates.js";
+import {
+  passwordResetEmail,
+  renewalReminderEmail,
+  welcomeEmail,
+  registrationAdminEmail,
+} from "./templates.js";
 
 describe("transactional email templates", () => {
   it("escapes user content and reset link query parameters in HTML", () => {
@@ -39,4 +44,23 @@ describe("transactional email templates", () => {
       expect(email.subject).toContain(kind === "on_expiry" ? "today" : "soon");
     },
   );
+});
+
+describe("registration templates", () => {
+  it("escapes names and emails while retaining plain-text content", () => {
+    const user = { id: "user-id", name: "<script>bad</script>", email: "<user>@example.test" };
+    for (const message of [
+      welcomeEmail(user.email, user.name, "https://account.billsafi.com/onboarding"),
+      registrationAdminEmail(
+        "admin@example.test",
+        user.name,
+        user,
+        "https://account.billsafi.com/admin/users",
+      ),
+    ]) {
+      expect(message.html).not.toContain("<script>");
+      expect(message.html).toContain("&lt;script&gt;");
+      expect(message.text).toContain(user.name);
+    }
+  });
 });

@@ -144,3 +144,63 @@ export function renewalReminderEmail(
     ].join("\n"),
   };
 }
+
+/** A warm introduction after an account is created. */
+export function welcomeEmail(to: string, name: string, url: string): MailMessage {
+  const paragraphs = [
+    "Welcome to BillSafi! We're happy you're here. Thank you for trusting us with your business.",
+    "Your account is ready. Start by setting up your business, then create your first invoice and keep track of payments in one place.",
+    "Here's to less paperwork and more time for the work you love.",
+  ];
+  return {
+    to,
+    subject: "Welcome to BillSafi — we're glad you're here!",
+    html: emailLayout({
+      preview: "Your account is ready. Let's make invoicing simpler.",
+      title: "Welcome to BillSafi!",
+      name,
+      paragraphs,
+      action: "Set up your business",
+      url,
+      note: "With a warm welcome, the BillSafi team.",
+    }),
+    text: [
+      `Hi ${name},`,
+      "",
+      ...paragraphs,
+      "",
+      `Set up your business: ${url}`,
+      "",
+      "With a warm welcome, the BillSafi team.",
+    ].join("\n\n"),
+  };
+}
+
+export function registrationAdminEmail(
+  to: string,
+  name: string,
+  user: { id: string; name: string; email: string },
+  url: string,
+): MailMessage {
+  const paragraphs = [
+    "Good news — someone new has joined BillSafi!",
+    `Name: ${user.name}`,
+    `Email: ${user.email}`,
+    `Account ID: ${user.id}`,
+    "Thank you for helping make their experience a welcoming one.",
+  ];
+  return {
+    to,
+    subject: "A new user has joined BillSafi",
+    html: emailLayout({
+      preview: "A new BillSafi account has been created.",
+      title: "A new user has joined!",
+      name,
+      paragraphs,
+      action: "View accounts",
+      url,
+      note: "You're receiving this notification as a configured BillSafi administrator.",
+    }),
+    text: [`Hi ${name},`, ...paragraphs, `View accounts: ${url}`].join("\n\n"),
+  };
+}
