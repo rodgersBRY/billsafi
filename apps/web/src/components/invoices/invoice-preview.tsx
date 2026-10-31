@@ -44,19 +44,21 @@ export function InvoicePreview(props: PreviewProps) {
       className="rounded-panel border border-line bg-panel p-5 text-sm shadow-sm sm:p-7"
     >
       <header className="flex flex-wrap items-start justify-between gap-4 border-b border-line pb-5">
-        <div>
+        <div className="flex items-start gap-3">
           {props.logoSrc && (
             // eslint-disable-next-line @next/next/no-img-element -- served by the API, sized by CSS
             <img
               src={props.logoSrc}
               alt={`${business.displayName} logo`}
-              className="mb-2.5 max-h-12 max-w-32 object-contain"
+              className="max-h-12 max-w-32 shrink-0 object-contain"
             />
           )}
-          <p className="text-base font-semibold">{business.displayName}</p>
-          <p className="text-xs text-sub">{business.contactEmail}</p>
-          {business.phone && <p className="text-xs text-sub">{formatPhone(business.phone)}</p>}
-          {business.address && <p className="text-xs text-sub">{business.address}</p>}
+          <div className="min-w-0">
+            <p className="text-base font-semibold">{business.displayName}</p>
+            <p className="text-xs text-sub">{business.contactEmail}</p>
+            {business.phone && <p className="text-xs text-sub">{formatPhone(business.phone)}</p>}
+            {business.address && <p className="text-xs text-sub">{business.address}</p>}
+          </div>
         </div>
         <div className="text-right">
           <p className="text-xs tracking-widest text-sub">INVOICE</p>

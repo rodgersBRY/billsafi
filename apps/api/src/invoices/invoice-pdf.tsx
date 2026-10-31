@@ -17,7 +17,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.75,
     borderColor: line,
   },
-  logo: { maxWidth: 120, maxHeight: 48, objectFit: "contain", marginBottom: 8 },
+  businessBlock: { flexDirection: "row", alignItems: "flex-start" },
+  logo: { maxWidth: 120, maxHeight: 48, objectFit: "contain", marginRight: 2 },
   businessName: { fontSize: 15, fontFamily: "Helvetica-Bold" },
   muted: { color: muted },
   label: { fontSize: 8, color: muted, letterSpacing: 1, marginBottom: 3 },
@@ -98,18 +99,20 @@ export function InvoicePdf({
     >
       <Page size="A4" style={styles.page} wrap>
         <View style={styles.header}>
-          <View>
+          <View style={styles.businessBlock}>
             {logo && (
               <Image
                 style={styles.logo}
                 src={{ data: logo.data, format: logo.contentType === "image/png" ? "png" : "jpg" }}
               />
             )}
-            <Text style={styles.businessName}>{business.displayName}</Text>
-            <Text style={styles.muted}>{business.contactEmail}</Text>
-            <Text style={styles.muted}>{formatPhone(business.phone)}</Text>
-            {business.address && <Text style={styles.muted}>{business.address}</Text>}
-            {business.kraPin && <Text style={styles.muted}>Tax ID {business.kraPin}</Text>}
+            <View>
+              <Text style={styles.businessName}>{business.displayName}</Text>
+              <Text style={styles.muted}>{business.contactEmail}</Text>
+              <Text style={styles.muted}>{formatPhone(business.phone)}</Text>
+              {business.address && <Text style={styles.muted}>{business.address}</Text>}
+              {business.kraPin && <Text style={styles.muted}>Tax ID {business.kraPin}</Text>}
+            </View>
           </View>
           <View>
             <Text style={[styles.label, { textAlign: "right" }]}>INVOICE</Text>
