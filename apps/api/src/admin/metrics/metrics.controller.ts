@@ -4,6 +4,7 @@ import {
   type AdminActivityQuery,
   adminActivityQuerySchema,
   type AdminAnalytics,
+  type AdminCheckIns,
   type AdminFunnel,
   type AdminFunnelQuery,
   adminFunnelQuerySchema,
@@ -21,6 +22,7 @@ import { AdminGuard } from "../shared/admin.guard.js";
 import { ADMIN_CACHE, type TtlCache } from "../shared/ttl-cache.js";
 import { AdminActivityService } from "./admin-activity.service.js";
 import { AdminAnalyticsService } from "./admin-analytics.service.js";
+import { AdminCheckInsService } from "./admin-check-ins.service.js";
 import { AdminMetricsService } from "./admin-metrics.service.js";
 import { AdminOverviewService } from "./admin-overview.service.js";
 
@@ -38,6 +40,7 @@ export class MetricsController {
     private readonly overviews: AdminOverviewService,
     private readonly activities: AdminActivityService,
     private readonly analytics: AdminAnalyticsService,
+    private readonly checkIns: AdminCheckInsService,
     @Inject(ADMIN_CACHE) private readonly cache: TtlCache,
   ) {}
 
@@ -70,6 +73,14 @@ export class MetricsController {
     @Query(new ZodValidationPipe(adminRangeQuerySchema)) query: AdminRangeQuery,
   ): Promise<AdminAnalytics> {
     return this.cache.get(`analytics:${query.range}`, () => this.analytics.analytics(query.range));
+  }
+
+  /** Check-in emails sent in `range` and how many brought the account back (D069). */
+  @Get("check-ins")
+  checkInEmails(
+    @Query(new ZodValidationPipe(adminRangeQuerySchema)) query: AdminRangeQuery,
+  ): Promise<AdminCheckIns> {
+    return this.cache.get(`check-ins:${query.range}`, () => this.checkIns.checkIns(query.range));
   }
 
   @Get("funnel")

@@ -97,6 +97,7 @@ const emptyValues: Record<string, string> = {
   migrations: "Not available",
   billing_jobs: "Not running",
   pdf_email: "No data yet",
+  check_in_emails: "Not running",
   backups: "No backup yet",
 };
 

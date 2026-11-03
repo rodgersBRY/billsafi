@@ -3,6 +3,7 @@ import { formatDay } from "../admin-format";
 import { Panel } from "../admin-ui";
 import { roleLabels, StatusBadge } from "../status-badge";
 import { accountStatusHelp, lifecycleHelp, subscriptionStatusHelp } from "./status-explanations";
+import { TenantCheckIns } from "./tenant-check-ins";
 import { planText } from "./tenant-text";
 
 const methodLabels = { email: "Email and password", google: "Google" } as const;
@@ -83,6 +84,7 @@ export function TenantOverviewTab({ data }: { data: AdminTenantDetail }) {
           ]}
         />
       </Panel>
+      <TenantCheckIns data={data.checkIns} />
     </div>
   );
 }

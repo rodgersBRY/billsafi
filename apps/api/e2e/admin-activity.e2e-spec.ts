@@ -282,7 +282,7 @@ describe("admin activity", () => {
   describe("GET /admin/health", () => {
     beforeEach(clearRecords);
 
-    it("returns the six indicators with the new three filled from what is recorded", async () => {
+    it("returns every indicator, with the recorded ones filled from what is recorded", async () => {
       await failure("pdf", new Date());
       const health = adminHealthSchema.parse((await get("admin/health").expect(200)).body);
       const byKey = Object.fromEntries(health.indicators.map((i) => [i.key, i]));
@@ -292,6 +292,7 @@ describe("admin activity", () => {
         "mpesa",
         "billing_jobs",
         "pdf_email",
+        "check_in_emails",
         "backups",
       ]);
       // BILLING_JOBS is off in tests.
