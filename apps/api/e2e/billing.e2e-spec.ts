@@ -358,10 +358,11 @@ describe("billing", () => {
 
     await billing.sendReminders();
     await billing.sendReminders();
-    const forActive = mailer.sent.filter((message) => message.to === active.email);
-    expect(forActive).toHaveLength(1);
-    expect(forActive[0]!.subject).toBe("Your BillSafi Pro ends soon");
-    expect(mailer.sent.some((message) => message.to === cancelled.email)).toBe(false);
+    // Sign-up also sends a welcome email; count only renewal reminders.
+    const reminder = "Your BillSafi Pro ends soon";
+    const reminders = mailer.sent.filter((message) => message.subject === reminder);
+    expect(reminders.filter((message) => message.to === active.email)).toHaveLength(1);
+    expect(reminders.some((message) => message.to === cancelled.email)).toBe(false);
     expect((await active.overview()).subscription.renewalDue).toBe(true);
   });
 
