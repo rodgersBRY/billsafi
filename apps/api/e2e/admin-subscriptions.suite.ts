@@ -425,6 +425,28 @@ export function subscriptionSuite(ctx: SubscriptionSuiteContext) {
       expect((await billingOf(account.cookie)).subscription.status).toBe("active");
     });
 
+    it("shows the reason an account gave for cancelling", async () => {
+      const account = await newAccount();
+      await ctx.payPro(account.cookie);
+      let detail = (await get(`tenants/${account.id}`).expect(200)).body;
+      expect(detail.subscription.cancelFeedback).toBeNull();
+
+      await api()
+        .post("/api/v1/billing/cancel")
+        .set("Cookie", account.cookie)
+        .send({ reason: "too_expensive", note: "Prices went up" })
+        .expect(200);
+      detail = (await get(`tenants/${account.id}`).expect(200)).body;
+      expect(detail.subscription.cancelFeedback).toEqual({
+        reason: "too_expensive",
+        note: "Prices went up",
+      });
+
+      await api().post("/api/v1/billing/resume").set("Cookie", account.cookie).expect(200);
+      detail = (await get(`tenants/${account.id}`).expect(200)).body;
+      expect(detail.subscription.cancelFeedback).toBeNull();
+    });
+
     it("adds granted months after a paid run and keeps the account's cancellation", async () => {
       const account = await newAccount();
       await ctx.payPro(account.cookie);

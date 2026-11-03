@@ -451,6 +451,7 @@ Status: confirmed on 2026-10-17 by the user's answers before Phase 4.
 
 - Subscription payments go to a platform Paybill through Safaricom Daraja M-Pesa Express (STK Push). This replaces the personal-number plan in D021 and restores D020's business collection account. Activation still waits for a confirmed successful payment matched to the pending purchase.
 - Development and CI never touch real money. Automated tests and local work use a fake provider. Manual end-to-end checks use the Daraja sandbox (shortcode 174379 with its test passkey), with a tunnel exposing the callback URL. Production needs Safaricom's go-live approval for the Paybill first.
+- Sandbox checkouts charge KES 1, not the real price. The sandbox paybill (174379) takes real money from the phone that approves the prompt. The KES 1 is stored as the expected amount, so the callback amount check still applies. Added on 2026-11-03 after a full KES 520 test payment was taken.
 - Confirmation arrives by callback to a URL carrying a secret token. The API also asks Daraja for the status of a request that stays pending, so a lost callback cannot leave a payment stuck. A checkout request or M-Pesa receipt is applied once only, and the paid amount must match the expected amount.
 - Every confirmed KES 500 Pro payment grants exactly one month. A duplicate payment extends access by a month instead of needing a refund. A payment confirmed while Pro is active extends from the current expiry. A payment confirmed after expiry starts a new period from the confirmation time, which becomes the new anniversary anchor. Paying while cancelled also clears the cancellation.
 - Reactivating Pro after it expired carries over only the invoices issued on Free in the current calendar month since Pro ended. Invoices issued on the previous Pro period do not count against the new 100. The first upgrade follows the same rule (D044).
@@ -703,3 +704,12 @@ Status: confirmed on 2026-10-27 by the user.
 - `deploy/backup.sh` now deletes dumps older than 7 days instead of 14. This replaces the 14 day figure in D050.
 - Weekly droplet backups stay the off-machine copy, so a restore older than a week comes from those.
 - The privacy page states the same 7 days.
+
+## D068 - Confirm before cancelling Pro and ask why
+
+Status: confirmed on 2026-11-03 by the user.
+
+- Cancel Pro opens a dialog first. It shows when Pro ends and what changes after that (10 invoices a month instead of 100; invoices, clients and unused credits stay). Keep Pro is the main button. Cancelling takes a second click on "Yes, cancel Pro".
+- The dialog asks for a reason from a fixed list (too expensive, not sending enough invoices, missing a feature, moving to another tool, something else) and an optional note of up to 500 characters. Both are optional, so nobody has to answer to cancel.
+- The answer is stored in the `details` of the `cancelled` subscription event, next to `accessUntil`. No new table or column.
+- Admin tenant detail shows the reason and note from the latest cancellation while the account is still cancelled. Once the account keeps Pro, the row goes away. The event history keeps the answer.

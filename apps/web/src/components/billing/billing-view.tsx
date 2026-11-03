@@ -3,6 +3,7 @@
 import type {
   BillingGrant,
   BillingOverview,
+  CancelProInput,
   SubscriptionPayment,
   SubscriptionPurpose,
 } from "@billsafi/contracts";
@@ -13,7 +14,8 @@ import {
   PRO_PLAN,
   priceCurrencies,
 } from "@billsafi/domain";
-import { CircleCheck, CircleX, Smartphone } from "lucide-react";
+import { CancelProDialog } from "./cancel-pro-dialog";
+import { PaymentFailed, PaymentSucceeded, PaymentWaiting } from "./payment-status";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
@@ -149,6 +151,9 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
   const [payment, setPayment] = useState<SubscriptionPayment | null>(billing.pendingPayment);
   const [waitedTooLong, setWaitedTooLong] = useState(false);
   const [changingPlan, setChangingPlan] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelError, setCancelError] = useState<string>();
+  const [cancelNoteError, setCancelNoteError] = useState<string>();
   // The server renders USD; the browser then applies any saved choice.
   const currency = useSyncExternalStore(subscribeToCurrency, priceCurrency, () => "USD" as const);
 
@@ -203,14 +208,25 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
     }
   }
 
-  async function changePlan(action: "cancel" | "resume") {
+  async function changePlan(action: "cancel" | "resume", body: CancelProInput = {}) {
     setChangingPlan(true);
     setFormError(undefined);
+    setCancelError(undefined);
+    setCancelNoteError(undefined);
     try {
-      await apiPost(`/billing/${action}`, {});
+      await apiPost(`/billing/${action}`, body);
+      setCancelOpen(false);
       router.refresh();
     } catch (error) {
-      setFormError(error instanceof ApiError ? error.message : "Something went wrong.");
+      const message = error instanceof ApiError ? error.message : "Something went wrong.";
+      if (action === "cancel" && cancelOpen) {
+        if (error instanceof ApiError && error.issues.length) {
+          setCancelNoteError(error.fieldErrors().note);
+        }
+        setCancelError(message);
+      } else {
+        setFormError(message);
+      }
     } finally {
       setChangingPlan(false);
     }
@@ -349,11 +365,25 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
             <Button
               variant="ghost"
               className="mt-3.5 px-0"
-              pending={changingPlan}
-              onClick={() => changePlan("cancel")}
+              onClick={() => {
+                setCancelError(undefined);
+                setCancelNoteError(undefined);
+                setCancelOpen(true);
+              }}
             >
               Cancel Pro
             </Button>
+          )}
+          {subscription.status === "active" && subscription.paidUntil && (
+            <CancelProDialog
+              open={cancelOpen}
+              until={formatInstant(subscription.paidUntil)}
+              pending={changingPlan}
+              error={cancelError}
+              noteError={cancelNoteError}
+              onClose={() => setCancelOpen(false)}
+              onConfirm={(feedback) => changePlan("cancel", feedback)}
+            />
           )}
           {subscription.status === "cancelled" && (
             <Button
@@ -501,56 +531,44 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
           className="mt-4.5 rounded-panel border border-line bg-panel p-5"
         >
           {payment.status === "pending" && (
-            <div className="flex gap-3">
-              <Smartphone aria-hidden className="mt-0.5 size-5 shrink-0 text-accent" />
-              <div>
-                <h2 className="text-base font-semibold">Waiting for payment confirmation</h2>
-                <p className="mt-1 text-sm text-sub">
-                  Approve the {formatMoney(payment.amount)} request on{" "}
-                  {localPhone(payment.phone ?? "")}.{" "}
-                  {payment.purpose === "pro_month"
-                    ? "Pro activates after your payment is confirmed."
-                    : "Credits are added after your payment is confirmed."}
-                </p>
-                <p className="mt-1 text-xs text-sub">
-                  {waitedTooLong
-                    ? "This is taking longer than usual. We'll keep checking, so you can come back later."
-                    : "Your payment can still be confirmed if you close this page."}
-                </p>
-              </div>
-            </div>
+            <PaymentWaiting
+              amount={formatMoney(payment.amount)}
+              phone={localPhone(payment.phone ?? "")}
+              note={
+                payment.purpose === "pro_month"
+                  ? "Pro activates once it's confirmed."
+                  : "Credits are added once it's confirmed."
+              }
+              waitedTooLong={waitedTooLong}
+            />
           )}
           {payment.status === "succeeded" && (
-            <div className="flex gap-3">
-              <CircleCheck aria-hidden className="mt-0.5 size-5 shrink-0 text-accent" />
-              <div>
-                <h2 className="text-base font-semibold">Payment confirmed</h2>
-                <p className="mt-1 text-sm text-sub">
-                  {payment.purpose === "pro_month" && payment.grantedUntil
-                    ? `Pro is active until ${formatInstant(payment.grantedUntil)}.`
-                    : `${payment.creditsGranted} invoice credits were added to your account.`}
-                  {payment.receipt && ` M-Pesa receipt ${payment.receipt}.`}
-                </p>
-              </div>
-            </div>
+            <PaymentSucceeded
+              title={
+                payment.purpose === "pro_month" && payment.grantedUntil
+                  ? `Pro is active until ${formatInstant(payment.grantedUntil)}.`
+                  : `${payment.creditsGranted} invoice credits added.`
+              }
+              rows={[
+                { label: "Amount", value: formatMoney(payment.amount) },
+                ...(payment.receipt
+                  ? [{ label: "M-Pesa receipt", value: payment.receipt, mono: true }]
+                  : []),
+              ]}
+              onDone={() => setPayment(null)}
+            />
           )}
           {payment.status === "failed" && (
-            <div className="flex gap-3">
-              <CircleX
-                aria-hidden
-                className="mt-0.5 size-5 shrink-0 text-red-700 dark:text-red-300"
-              />
-              <div>
-                <h2 className="text-base font-semibold">Payment was not completed</h2>
-                <p className="mt-1 text-sm text-sub">
-                  {payment.resultDescription ? `${payment.resultDescription}. ` : ""}
-                  {payment.purpose === "pro_month"
-                    ? "Pro has not been activated."
-                    : "No credits were added."}{" "}
-                  You can try again.
-                </p>
-              </div>
-            </div>
+            <PaymentFailed
+              reason={payment.resultDescription}
+              note={
+                payment.purpose === "pro_month"
+                  ? "Pro has not been activated."
+                  : "No credits were added."
+              }
+              onRetry={() => startCheckout(payment.purpose)}
+              onClose={() => setPayment(null)}
+            />
           )}
         </section>
       )}

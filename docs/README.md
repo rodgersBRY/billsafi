@@ -25,6 +25,8 @@ The available conversation contains summarized/truncated assistant responses. Th
 
 - [Database model](database-model.md): adopted entities, ownership, calculations, constraints, and open migration details.
 
+- [Feature ideas](feature-ideas.md): proposed features from competitor comparison, ranked; none confirmed.
+
 - [Design previews](designs/README.md): all nine interactive screen concepts, with browser previews and editable sources.
 
 ## Maintenance

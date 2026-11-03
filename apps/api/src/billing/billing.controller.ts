@@ -12,7 +12,9 @@ import {
 } from "@nestjs/common";
 import {
   type BillingOverview,
+  type CancelPro,
   type Checkout,
+  cancelProSchema,
   checkoutSchema,
   type SubscriptionPayment,
 } from "@billsafi/contracts";
@@ -53,8 +55,11 @@ export class BillingController {
 
   @Post("cancel")
   @HttpCode(200)
-  cancel(@CurrentUserId() userId: string): Promise<BillingOverview> {
-    return this.billing.cancel(userId);
+  cancel(
+    @CurrentUserId() userId: string,
+    @Body(new ZodValidationPipe(cancelProSchema)) body: CancelPro,
+  ): Promise<BillingOverview> {
+    return this.billing.cancel(userId, body);
   }
 
   @Post("resume")

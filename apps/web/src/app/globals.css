@@ -89,6 +89,61 @@
   --warning-ink: #fde68a;
 }
 
+/* Payment status motion: sliding bar while waiting, pop and burst on success, shake on failure. */
+@theme {
+  --animate-indeterminate: indeterminate 1.4s ease-in-out infinite;
+
+  --animate-pop: pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-burst: burst 0.9s ease-out both;
+  --animate-shake: shake 0.45s ease-in-out both;
+
+  @keyframes pop {
+    0% {
+      transform: scale(0.4);
+      opacity: 0;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes burst {
+    0% {
+      transform: scale(0.75);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1.6);
+      opacity: 0;
+    }
+  }
+
+  @keyframes shake {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    20%,
+    60% {
+      transform: translateX(-4px);
+    }
+    40%,
+    80% {
+      transform: translateX(4px);
+    }
+  }
+
+  @keyframes indeterminate {
+    0% {
+      left: -33%;
+    }
+    100% {
+      left: 100%;
+    }
+  }
+}
+
 @theme inline {
   --color-teal: var(--teal);
   --color-accent: var(--accent);
