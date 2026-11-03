@@ -30,3 +30,10 @@ The available conversation contains summarized/truncated assistant responses. Th
 ## Maintenance
 
 As important discussions are finalized, update the relevant document and decision log. Record the decision date and source, distinguish proposals from confirmed requirements, and mark replaced decisions as superseded. Never silently promote an unresolved choice into a requirement. These are living specifications, not evidence of an implemented application.
+
+Registration emails: newly created accounts receive a warm welcome with a link to business
+setup. Each existing user listed in `ADMIN_USER_IDS` receives a separate registration
+alert at their account email address. This applies to email sign-up and first-time Google
+sign-in, and does not send again for returning sign-ins. Configure the existing Resend or
+SMTP transport and `MAIL_FROM` for delivery. Email failures are recorded in admin Health
+and do not prevent registration; delivery currently has no automatic retry.

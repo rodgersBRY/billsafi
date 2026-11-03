@@ -30,6 +30,18 @@ describe("authentication", () => {
       .expect(200);
 
     expect(session.body.user).toMatchObject({ email, name: "Wanjiku Kamau" });
+    expect(mailer.lastTo(email)).toMatchObject({
+      subject: "Welcome to BillSafi — we're glad you're here!",
+      text: expect.stringContaining(`${WEB_ORIGIN}/onboarding`),
+    });
+
+    const before = mailer.sent.filter((message) => message.to === email).length;
+    await request(app.getHttpServer())
+      .post("/api/v1/auth/sign-in/email")
+      .set("Origin", WEB_ORIGIN)
+      .send({ email, password: "correct-horse-battery" })
+      .expect(200);
+    expect(mailer.sent.filter((message) => message.to === email)).toHaveLength(before);
   });
 
   it("serves Better Auth under /api/v1/auth", async () => {
