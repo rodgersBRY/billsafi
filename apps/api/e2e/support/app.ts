@@ -22,6 +22,7 @@ process.env.MPESA_ENV = "fake";
 process.env.MPESA_CALLBACK_TOKEN = "e2e-callback-token-0123456789";
 process.env.BILLING_JOBS = "off";
 process.env.MAINTENANCE_JOBS = "off";
+process.env.REENGAGEMENT_JOBS = "off";
 // A pinned rate keeps charges predictable: USD 4 is KES 500, USD 2 is KES 250.
 process.env.USD_KES_RATE = "125";
 // Turns Google sign-in on; the Google spec stubs Google's token endpoint.

@@ -22,7 +22,7 @@ function webLink(value: string): string {
   return escapeHtml(value);
 }
 
-function emailLayout(options: {
+export function emailLayout(options: {
   preview: string;
   title: string;
   name: string;
@@ -30,8 +30,13 @@ function emailLayout(options: {
   action: string;
   url: string;
   note: string;
+  /** Shown in the footer of emails people can opt out of. */
+  unsubscribeUrl?: string;
 }): string {
   const link = webLink(options.url);
+  const unsubscribe = options.unsubscribeUrl
+    ? `<br>You're getting this because you have a BillSafi account. <a href="${webLink(options.unsubscribeUrl)}" style="color:#627570;">Unsubscribe from check-in emails</a>.`
+    : "";
   return `<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(options.title)}</title></head>
@@ -49,7 +54,7 @@ ${options.paragraphs.map((paragraph) => `<p style="margin:0 0 16px;font-size:16p
 <p style="margin:0 0 8px;font-size:12px;line-height:1.6;color:#627570;">If the button doesn't work, copy this link into your browser:</p>
 <p style="margin:0;font-size:12px;line-height:1.6;word-break:break-all;overflow-wrap:anywhere;"><a href="${link}" style="color:#0f766e;">${link}</a></p>
 </td></tr>
-<tr><td style="padding:24px 32px;border-top:1px solid #e3ebe7;color:#627570;font-size:12px;line-height:1.6;">BillSafi · Invoices made simple.</td></tr>
+<tr><td style="padding:24px 32px;border-top:1px solid #e3ebe7;color:#627570;font-size:12px;line-height:1.6;">BillSafi · Invoices made simple.${unsubscribe}</td></tr>
 </table>
 </td></tr></table>
 </body></html>`;

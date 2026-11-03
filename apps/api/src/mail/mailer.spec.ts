@@ -28,6 +28,22 @@ describe("Resend HTTPS delivery", () => {
     });
   });
 
+  it("passes reply-to and extra headers to Resend", async () => {
+    const request = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: "email-id" })));
+    vi.stubGlobal("fetch", request);
+    await new ResendMailer("re_test", "sender@example.test").send(
+      {
+        ...message,
+        replyTo: "hello@example.test",
+        headers: { "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
+      },
+      context,
+    );
+    const body = JSON.parse(request.mock.calls[0]![1].body);
+    expect(body.reply_to).toBe("hello@example.test");
+    expect(body.headers).toEqual({ "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" });
+  });
+
   it("records provider rejection without exposing the response body", async () => {
     vi.stubGlobal(
       "fetch",

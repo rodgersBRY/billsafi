@@ -19,6 +19,7 @@ const JOB_FAILURE_TEXT: Record<string, string> = {
   renewal_reminders: "The renewal reminders job failed. The API log has the error.",
   idempotency_prune: "The key clean-up job failed. The API log has the error.",
   maintenance: "The maintenance job failed. The API log has the error.",
+  reengagement_emails: "The check-in emails job failed. The API log has the error.",
 };
 
 export const FAILED_SIGN_IN_IP_PER_MINUTE = 20;

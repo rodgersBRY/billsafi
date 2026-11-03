@@ -713,3 +713,16 @@ Status: confirmed on 2026-11-03 by the user.
 - The dialog asks for a reason from a fixed list (too expensive, not sending enough invoices, missing a feature, moving to another tool, something else) and an optional note of up to 500 characters. Both are optional, so nobody has to answer to cancel.
 - The answer is stored in the `details` of the `cancelled` subscription event, next to `accessUntil`. No new table or column.
 - Admin tenant detail shows the reason and note from the latest cancellation while the account is still cancelled. Once the account keeps Pro, the row goes away. The event history keeps the answer.
+
+## D069 - Send check-in emails to quiet accounts
+
+Status: proposed on 2026-11-03. Built behind `REENGAGEMENT_JOBS`, which is off by default.
+
+- Quiet accounts get up to three check-in emails per quiet spell. The group comes from the lifecycle stage the admin already uses: `registered` gets "no business yet", `onboarding` gets "no invoice yet", and `inactive` gets "lapsed". Activated and Pro accounts get none.
+- A quiet spell starts at the latest of registration, sign-in or session use, a business created, and any meaningful action. Any of those ends the spell, which stops the sequence.
+- Timing in days quiet: 3, 10 and 30 for the first two groups, and 30, 45 and 75 for lapsed. Two emails in one spell are at least 7 days apart, so older accounts aren't sent the whole sequence in a few days. After a sequence, a new spell waits 90 days before its first email. Accounts quiet for more than a year are skipped because old addresses bounce.
+- Emails 1 and 2 use the branded layout with one button. Email 3 is plain text, signed with `REENGAGEMENT_SIGNATURE`, and asks for a reply to `REENGAGEMENT_REPLY_TO`. The API refuses to start with the job on and no reply-to address.
+- The job runs hourly and sends only between 09:00 and 17:00 Nairobi time, at most `REENGAGEMENT_DAILY_LIMIT` (default 40) in any 24 hours. Recent spells go first. Each email is claimed in `reengagement_emails` before sending and released if the send fails, so one step goes out at most once per spell.
+- Every email has an unsubscribe link and the `List-Unsubscribe` and `List-Unsubscribe-Post` headers for one-click unsubscribe in mail apps. The token is the user ID plus an HMAC derived from `BETTER_AUTH_SECRET`. `/unsubscribe` needs a click, so link scanners can't unsubscribe people. Forged tokens get the same 204 response. Opt-outs are stored in `email_opt_outs` and cover check-in emails only. Password resets and renewal reminders still go out.
+- Button links carry `utm_campaign=<group>_<step>` so returns can be traced to an email.
+- Open: the privacy page says no marketing email is sent without agreement. Before switching the job on, either reword that line to cover check-in emails with one-click opt-out, or ask for consent first.
