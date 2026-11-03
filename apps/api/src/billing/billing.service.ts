@@ -10,6 +10,7 @@ import {
 import type {
   BillingGrant,
   BillingOverview,
+  CancelPro,
   Checkout,
   PlanPrices,
   SubscriptionPayment,
@@ -22,10 +23,10 @@ import {
   nairobiDate,
   PRO_PLAN,
   REMINDER_DAYS_BEFORE,
-  usdToKes,
 } from "@billsafi/domain";
 import { ENV } from "../config/config.module.js";
 import type { Env } from "../config/env.js";
+import { checkoutChargeKes } from "./charge-amount.js";
 import { DATABASE } from "../database/database.module.js";
 import { MAILER } from "../mail/mail.module.js";
 import type { Mailer } from "../mail/mailer.js";
@@ -68,13 +69,13 @@ const PRICES_USD = {
   invoice_credits: CREDIT_PACK.priceUsd,
 } as const;
 
-function planPrices(rate: UsdKesRate | null): PlanPrices {
+function planPrices(rate: UsdKesRate | null, mpesaEnv: Env["MPESA_ENV"]): PlanPrices {
   return {
     usd: PRICES_USD,
     kes: rate
       ? {
-          pro_month: usdToKes(PRICES_USD.pro_month, rate.rate),
-          invoice_credits: usdToKes(PRICES_USD.invoice_credits, rate.rate),
+          pro_month: checkoutChargeKes(mpesaEnv, PRICES_USD.pro_month, rate.rate),
+          invoice_credits: checkoutChargeKes(mpesaEnv, PRICES_USD.invoice_credits, rate.rate),
         }
       : null,
     usdKesRate: rate?.rate ?? null,
@@ -179,7 +180,7 @@ export class BillingService {
     const cancelled = active && subscription!.cancelledAt !== null;
     return {
       usage: await this.allowance.usageFor(this.db, userId, subscription ?? null, at),
-      prices: planPrices(await this.rates.usdKes()),
+      prices: planPrices(await this.rates.usdKes(), this.env.MPESA_ENV),
       subscription: {
         status: active ? (cancelled ? "cancelled" : "active") : "free",
         paidUntil: until?.toISOString() ?? null,
@@ -273,7 +274,7 @@ export class BillingService {
       });
     }
     const priceUsd = PRICES_USD[input.purpose];
-    const amount = usdToKes(priceUsd, rate.rate);
+    const amount = checkoutChargeKes(this.env.MPESA_ENV, priceUsd, rate.rate);
     const [payment] = await this.db
       .insert(subscriptionPayments)
       .values({
@@ -342,7 +343,11 @@ export class BillingService {
     await this.settle(row.userId, checkoutRequestId, outcome);
   }
 
-  async cancel(userId: string, at = new Date()): Promise<BillingOverview> {
+  async cancel(
+    userId: string,
+    feedback: CancelPro = {},
+    at = new Date(),
+  ): Promise<BillingOverview> {
     await this.db.transaction(async (tx) => {
       const subscription = await this.allowance.lockAccount(tx, userId);
       const until = paidThrough(subscription);
@@ -357,7 +362,11 @@ export class BillingService {
       await tx.insert(subscriptionEvents).values({
         subscriptionId: subscription.id,
         kind: "cancelled",
-        details: { accessUntil: until.toISOString() },
+        details: {
+          accessUntil: until.toISOString(),
+          reason: feedback.reason ?? null,
+          note: feedback.note ?? null,
+        },
       });
     });
     return this.overview(userId, at);

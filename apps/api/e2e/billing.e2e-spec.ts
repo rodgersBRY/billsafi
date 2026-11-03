@@ -1,5 +1,5 @@
 import type { INestApplication } from "@nestjs/common";
-import { type DatabaseConnection, eq, schema, sql } from "@billsafi/db";
+import { and, type DatabaseConnection, eq, schema, sql } from "@billsafi/db";
 import { addNairobiMonths, FREE_PLAN, PRO_PLAN } from "@billsafi/domain";
 import request from "supertest";
 import { BillingService } from "../src/billing/billing.service.js";
@@ -344,6 +344,34 @@ describe("billing", () => {
     await shiftAccess(await account.userId(), -60_000);
     await api().post("/api/v1/billing/resume").set("Cookie", account.cookie).expect(409);
     expect((await account.overview()).subscription.status).toBe("free");
+  });
+
+  it("stores the reason given when cancelling and rejects unknown reasons", async () => {
+    const account = await setup();
+    await pay(account);
+    const cancel = (body: object) =>
+      api().post("/api/v1/billing/cancel").set("Cookie", account.cookie).send(body);
+    await cancel({ reason: "bored" }).expect(400);
+    await cancel({ note: "x".repeat(501) }).expect(400);
+    await cancel({ reason: "missing_feature", note: "  Need recurring invoices  " }).expect(200);
+
+    const [event] = await db()
+      .select({ details: schema.subscriptionEvents.details })
+      .from(schema.subscriptionEvents)
+      .innerJoin(
+        schema.subscriptions,
+        eq(schema.subscriptions.id, schema.subscriptionEvents.subscriptionId),
+      )
+      .where(
+        and(
+          eq(schema.subscriptions.userId, await account.userId()),
+          eq(schema.subscriptionEvents.kind, "cancelled"),
+        ),
+      );
+    expect(event!.details).toMatchObject({
+      reason: "missing_feature",
+      note: "Need recurring invoices",
+    });
   });
 
   it("emails one renewal reminder per expiry, and none while cancelled", async () => {
