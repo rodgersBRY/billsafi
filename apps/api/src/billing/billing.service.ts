@@ -10,6 +10,7 @@ import {
 import type {
   BillingGrant,
   BillingOverview,
+  CancelPro,
   Checkout,
   PlanPrices,
   SubscriptionPayment,
@@ -342,7 +343,11 @@ export class BillingService {
     await this.settle(row.userId, checkoutRequestId, outcome);
   }
 
-  async cancel(userId: string, at = new Date()): Promise<BillingOverview> {
+  async cancel(
+    userId: string,
+    feedback: CancelPro = {},
+    at = new Date(),
+  ): Promise<BillingOverview> {
     await this.db.transaction(async (tx) => {
       const subscription = await this.allowance.lockAccount(tx, userId);
       const until = paidThrough(subscription);
@@ -357,7 +362,11 @@ export class BillingService {
       await tx.insert(subscriptionEvents).values({
         subscriptionId: subscription.id,
         kind: "cancelled",
-        details: { accessUntil: until.toISOString() },
+        details: {
+          accessUntil: until.toISOString(),
+          reason: feedback.reason ?? null,
+          note: feedback.note ?? null,
+        },
       });
     });
     return this.overview(userId, at);

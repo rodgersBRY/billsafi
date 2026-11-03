@@ -23,6 +23,7 @@ import {
   searchParam,
   sortDirParam,
 } from "./query-params.js";
+import type { CancelReason } from "./billing.js";
 import type { InvoiceStatus } from "./invoices.js";
 
 /*
@@ -362,6 +363,8 @@ export interface AdminTenantSubscription {
   paidUntil: string | null;
   /** Set while the account has asked not to continue after paid access. */
   cancelledAt: string | null;
+  /** What the account said when it cancelled; null when not cancelled or no answer given. */
+  cancelFeedback: { reason: CancelReason | null; note: string | null } | null;
   /**
    * The 25 latest plan payments, M-Pesa and manual, newest first. The rest are in
    * GET /admin/subscription-payments?search=<account id>.

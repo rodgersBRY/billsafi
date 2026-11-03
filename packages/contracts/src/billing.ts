@@ -13,6 +13,38 @@ export const checkoutSchema = z.object({
 export type CheckoutInput = z.input<typeof checkoutSchema>;
 export type Checkout = z.output<typeof checkoutSchema>;
 
+export const cancelReasons = [
+  "too_expensive",
+  "not_invoicing_enough",
+  "missing_feature",
+  "switching_tool",
+  "other",
+] as const;
+export type CancelReason = (typeof cancelReasons)[number];
+
+export const cancelReasonLabels: Record<CancelReason, string> = {
+  too_expensive: "Too expensive",
+  not_invoicing_enough: "Not sending enough invoices",
+  missing_feature: "Missing a feature I need",
+  switching_tool: "Moving to another tool",
+  other: "Something else",
+};
+
+/** Cancelling Pro, with an optional reason the account may give. A missing body means no answer. */
+export const cancelProSchema = z
+  .object({
+    reason: z.enum(cancelReasons).optional(),
+    note: z
+      .string()
+      .trim()
+      .max(500, "Keep it under 500 characters")
+      .transform((value) => value || undefined)
+      .optional(),
+  })
+  .default({});
+export type CancelProInput = z.input<typeof cancelProSchema>;
+export type CancelPro = z.output<typeof cancelProSchema>;
+
 export type SubscriptionPaymentStatus = "pending" | "succeeded" | "failed";
 
 export interface SubscriptionPayment {

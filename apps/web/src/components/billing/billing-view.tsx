@@ -3,6 +3,7 @@
 import type {
   BillingGrant,
   BillingOverview,
+  CancelProInput,
   SubscriptionPayment,
   SubscriptionPurpose,
 } from "@billsafi/contracts";
@@ -13,6 +14,7 @@ import {
   PRO_PLAN,
   priceCurrencies,
 } from "@billsafi/domain";
+import { CancelProDialog } from "./cancel-pro-dialog";
 import { PaymentFailed, PaymentSucceeded, PaymentWaiting } from "./payment-status";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -149,6 +151,9 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
   const [payment, setPayment] = useState<SubscriptionPayment | null>(billing.pendingPayment);
   const [waitedTooLong, setWaitedTooLong] = useState(false);
   const [changingPlan, setChangingPlan] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelError, setCancelError] = useState<string>();
+  const [cancelNoteError, setCancelNoteError] = useState<string>();
   // The server renders USD; the browser then applies any saved choice.
   const currency = useSyncExternalStore(subscribeToCurrency, priceCurrency, () => "USD" as const);
 
@@ -203,14 +208,25 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
     }
   }
 
-  async function changePlan(action: "cancel" | "resume") {
+  async function changePlan(action: "cancel" | "resume", body: CancelProInput = {}) {
     setChangingPlan(true);
     setFormError(undefined);
+    setCancelError(undefined);
+    setCancelNoteError(undefined);
     try {
-      await apiPost(`/billing/${action}`, {});
+      await apiPost(`/billing/${action}`, body);
+      setCancelOpen(false);
       router.refresh();
     } catch (error) {
-      setFormError(error instanceof ApiError ? error.message : "Something went wrong.");
+      const message = error instanceof ApiError ? error.message : "Something went wrong.";
+      if (action === "cancel" && cancelOpen) {
+        if (error instanceof ApiError && error.issues.length) {
+          setCancelNoteError(error.fieldErrors().note);
+        }
+        setCancelError(message);
+      } else {
+        setFormError(message);
+      }
     } finally {
       setChangingPlan(false);
     }
@@ -349,11 +365,25 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
             <Button
               variant="ghost"
               className="mt-3.5 px-0"
-              pending={changingPlan}
-              onClick={() => changePlan("cancel")}
+              onClick={() => {
+                setCancelError(undefined);
+                setCancelNoteError(undefined);
+                setCancelOpen(true);
+              }}
             >
               Cancel Pro
             </Button>
+          )}
+          {subscription.status === "active" && subscription.paidUntil && (
+            <CancelProDialog
+              open={cancelOpen}
+              until={formatInstant(subscription.paidUntil)}
+              pending={changingPlan}
+              error={cancelError}
+              noteError={cancelNoteError}
+              onClose={() => setCancelOpen(false)}
+              onConfirm={(feedback) => changePlan("cancel", feedback)}
+            />
           )}
           {subscription.status === "cancelled" && (
             <Button

@@ -31,7 +31,18 @@ test("upgrade to Pro with M-Pesa, then cancel and keep it", async ({ page }) => 
   await expect(page.getByRole("cell", { name: "Pro, one month" })).toBeVisible();
 
   await waitUntilInteractive(page, "Cancel Pro");
+  // Cancelling asks first; backing out changes nothing.
   await page.getByRole("button", { name: "Cancel Pro" }).click();
+  const dialog = page.getByRole("dialog", { name: "Cancel Pro?" });
+  await expect(dialog.getByText("10 invoices a month instead of 100.")).toBeVisible();
+  await dialog.getByRole("button", { name: "Keep Pro" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText(/Active until/)).toBeVisible();
+
+  await page.getByRole("button", { name: "Cancel Pro" }).click();
+  await dialog.getByLabel("Missing a feature I need").check();
+  await dialog.getByLabel("Anything we could do better? · Optional").fill("Recurring invoices");
+  await dialog.getByRole("button", { name: "Yes, cancel Pro" }).click();
   await expect(page.getByText(/Cancelled\. Pro stays active until/)).toBeVisible();
   await page.getByRole("button", { name: "Keep Pro" }).click();
   await expect(page.getByText(/Active until/)).toBeVisible();

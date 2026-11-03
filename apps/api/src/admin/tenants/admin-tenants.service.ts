@@ -10,10 +10,12 @@ import {
   type AdminTenantSort,
   type AdminTenantsPage,
   type AdminTenantsQuery,
+  type CancelReason,
+  cancelReasons,
   invoiceStatuses,
   type InvoiceStatus,
 } from "@billsafi/contracts";
-import { type DatabaseConnection, desc, eq, schema, type SQL, sql } from "@billsafi/db";
+import { and, type DatabaseConnection, desc, eq, schema, type SQL, sql } from "@billsafi/db";
 import { maskPhone } from "@billsafi/domain";
 import { AllowanceService } from "../../billing/allowance.service.js";
 import { containsPattern } from "../../common/like-pattern.js";
@@ -43,7 +45,7 @@ import {
   toAdminRole,
 } from "../shared/admin-sql.js";
 
-const { subscriptionPayments, users } = schema;
+const { subscriptionEvents, subscriptionPayments, subscriptions, users } = schema;
 
 /** The rest are in GET /admin/subscription-payments, searched by the account id. */
 const TENANT_PAYMENTS = 25;
@@ -325,6 +327,7 @@ export class AdminTenantsService {
         paidMonths: row.paidMonths,
         paidUntil: row.proEndsAt,
         cancelledAt: row.cancelledAt,
+        cancelFeedback: row.cancelledAt ? await this.cancelFeedback(id) : null,
         payments: payments.map(toAdminPlanPayment),
         paymentCount: paymentCount!.total,
         currentMonthSource: await this.subscriptions.currentMonthSource(id, now),
@@ -333,6 +336,28 @@ export class AdminTenantsService {
       },
       recentAudit: await this.audit.recentForAccount(id),
       generatedAt: now.toISOString(),
+    };
+  }
+
+  /** Reason and note from the latest cancellation, if the account gave either. */
+  private async cancelFeedback(
+    userId: string,
+  ): Promise<AdminTenantDetail["subscription"]["cancelFeedback"]> {
+    const [event] = await this.connection.db
+      .select({ details: subscriptionEvents.details })
+      .from(subscriptionEvents)
+      .innerJoin(subscriptions, eq(subscriptions.id, subscriptionEvents.subscriptionId))
+      .where(and(eq(subscriptions.userId, userId), eq(subscriptionEvents.kind, "cancelled")))
+      .orderBy(desc(subscriptionEvents.createdAt))
+      .limit(1);
+    const reason = event?.details?.reason;
+    const note = event?.details?.note;
+    const known =
+      typeof reason === "string" && (cancelReasons as readonly string[]).includes(reason);
+    if (!known && typeof note !== "string") return null;
+    return {
+      reason: known ? (reason as CancelReason) : null,
+      note: typeof note === "string" ? note : null,
     };
   }
 }

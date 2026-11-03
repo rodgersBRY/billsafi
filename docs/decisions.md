@@ -704,3 +704,12 @@ Status: confirmed on 2026-10-27 by the user.
 - `deploy/backup.sh` now deletes dumps older than 7 days instead of 14. This replaces the 14 day figure in D050.
 - Weekly droplet backups stay the off-machine copy, so a restore older than a week comes from those.
 - The privacy page states the same 7 days.
+
+## D068 - Confirm before cancelling Pro and ask why
+
+Status: confirmed on 2026-11-03 by the user.
+
+- Cancel Pro opens a dialog first. It shows when Pro ends and what changes after that (10 invoices a month instead of 100; invoices, clients and unused credits stay). Keep Pro is the main button. Cancelling takes a second click on "Yes, cancel Pro".
+- The dialog asks for a reason from a fixed list (too expensive, not sending enough invoices, missing a feature, moving to another tool, something else) and an optional note of up to 500 characters. Both are optional, so nobody has to answer to cancel.
+- The answer is stored in the `details` of the `cancelled` subscription event, next to `accessUntil`. No new table or column.
+- Admin tenant detail shows the reason and note from the latest cancellation while the account is still cancelled. Once the account keeps Pro, the row goes away. The event history keeps the answer.

@@ -1,4 +1,4 @@
-import type { AdminTenantDetail } from "@billsafi/contracts";
+import { type AdminTenantDetail, cancelReasonLabels } from "@billsafi/contracts";
 import { ArrowRight, CreditCard, Gauge, Gift } from "lucide-react";
 import Link from "next/link";
 import { formatCount, formatDay } from "../admin-format";
@@ -64,6 +64,25 @@ export function TenantSubscriptionTab({
     ["Paid run started", day(subscription.anchorAt)],
     ["Months in this run", formatCount(subscription.paidMonths)],
     ["Asked not to renew", subscription.cancelledAt ? formatDay(subscription.cancelledAt) : "No"],
+    ...(subscription.cancelFeedback
+      ? ([
+          [
+            "Reason for cancelling",
+            <span key="feedback" className="flex flex-col gap-0.5">
+              <span>
+                {subscription.cancelFeedback.reason
+                  ? cancelReasonLabels[subscription.cancelFeedback.reason]
+                  : "No reason picked"}
+              </span>
+              {subscription.cancelFeedback.note && (
+                <span className="text-xs whitespace-pre-line text-sub">
+                  {subscription.cancelFeedback.note}
+                </span>
+              )}
+            </span>,
+          ],
+        ] as [string, React.ReactNode][])
+      : []),
     ["Invoice credits", `${formatCount(usage.credits)} (bought and granted, not used yet)`],
     [
       "Limit overrides",
