@@ -158,7 +158,8 @@ describe("activity recording", () => {
       const render = vi.spyOn(pdf, "render").mockRejectedValueOnce(new Error("render exploded"));
       await api().get(`${path}/pdf`).set("Cookie", cookie).expect(500);
       render.mockRestore();
-      const rows = await failuresFor(userId);
+      // Sign-up mail also fails under FailingMailer; count only the PDF failure.
+      const rows = (await failuresFor(userId)).filter((row) => row.kind === "pdf");
       expect(rows).toHaveLength(1);
       expect(rows[0]).toMatchObject({ kind: "pdf", operation: "invoice_pdf" });
       expect(await events("pdf_downloaded", userId)).toHaveLength(0);
@@ -173,7 +174,9 @@ describe("activity recording", () => {
         .set("Origin", WEB_ORIGIN)
         .send({ email, redirectTo: `${WEB_ORIGIN}/reset-password` });
       await vi.waitFor(async () => {
-        const rows = await failuresFor(userId);
+        const rows = (await failuresFor(userId)).filter(
+          (row) => row.operation === "password_reset_email",
+        );
         expect(rows).toHaveLength(1);
         expect(rows[0]).toMatchObject({ kind: "email", operation: "password_reset_email" });
         expect(rows[0]!.message).toBe("SMTP refused [email] with token [token]");
