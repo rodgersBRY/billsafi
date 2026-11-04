@@ -1,8 +1,10 @@
 import type { INestApplication } from "@nestjs/common";
-import { type DatabaseConnection, eq, schema } from "@billsafi/db";
+import { and, type DatabaseConnection, eq, schema } from "@billsafi/db";
 import { addCalendarDays, nairobiDate } from "@billsafi/domain";
 import request from "supertest";
+import { ActivityRecorder } from "../src/activity/activity-recorder.js";
 import { DATABASE } from "../src/database/database.module.js";
+import { type Mailer, RecordingMailer } from "../src/mail/mailer.js";
 import {
   CapturingMailer,
   createBusiness,
@@ -143,8 +145,10 @@ describe("quotes", () => {
       .expect(409);
     expect(locked.body.code).toBe("QUOTE_LOCKED");
 
-    const email = mailer.lastTo(sampleBusiness.contactEmail);
-    expect(email?.subject).toContain("accepted quote QT-00001");
+    const emails = mailer.sent.filter(
+      (m) => m.to === sampleBusiness.contactEmail && m.subject.includes("accepted quote QT-00001"),
+    );
+    expect(emails).toHaveLength(1);
   });
 
   it("lets only one of two simultaneous accepts through", async () => {
@@ -305,6 +309,14 @@ describe("quotes", () => {
       .send({ confirmUnaccepted: true })
       .expect(404);
     await api().get(`${foreign}/pdf`).set("Cookie", other.cookie).expect(404);
+    await api().delete(foreign).set("Cookie", other.cookie).expect(404);
+    await api().post(`${foreign}/duplicate`).set("Cookie", other.cookie).expect(404);
+    await api().get(`${foreign}/versions/1`).set("Cookie", other.cookie).expect(404);
+    await api().get(`${foreign}/link`).set("Cookie", other.cookie).expect(404);
+    await api().post(`${foreign}/link`).set("Cookie", other.cookie).expect(404);
+    await api().delete(`${foreign}/link`).set("Cookie", other.cookie).expect(404);
+    // The owner's link is untouched.
+    await api().get(`${owner.path}/${id}/link`).set("Cookie", owner.cookie).expect(200);
   });
 
   it("only deletes drafts and duplicates any quote as a new draft", async () => {
@@ -326,5 +338,209 @@ describe("quotes", () => {
       .get(`${pub(token)}/pdf`)
       .expect(200);
     expect(shared.headers["content-disposition"]).toContain("QT-00001.pdf");
+  });
+
+  it("records a failed notification email without undoing the answer", async () => {
+    const { path, cookie, businessId, sentQuote, pub } = await setup();
+    const { id, token } = await sentQuote();
+    const [business] = await db
+      .select({ ownerId: schema.businesses.ownerUserId })
+      .from(schema.businesses)
+      .where(eq(schema.businesses.id, businessId));
+    const recorder = app.get(ActivityRecorder);
+    const original = mailer.send.bind(mailer);
+    const failing = new RecordingMailer(
+      {
+        send: async () => {
+          throw new Error("SMTP down");
+        },
+      },
+      recorder,
+    );
+    (mailer as { send: Mailer["send"] }).send = (message, context) =>
+      failing.send(message, context);
+    try {
+      await api()
+        .post(`${pub(token)}/accept`)
+        .send({ name: "Otieno Ouma", agreed: true })
+        .expect(200);
+    } finally {
+      mailer.send = original;
+    }
+    const quote = await api().get(`${path}/${id}`).set("Cookie", cookie).expect(200);
+    expect(quote.body.status).toBe("accepted");
+    await recorder.flush();
+    const failures = await db
+      .select()
+      .from(schema.operationFailures)
+      .where(
+        and(
+          eq(schema.operationFailures.operation, "quote_response_email"),
+          eq(schema.operationFailures.accountId, business!.ownerId),
+        ),
+      );
+    expect(failures).toHaveLength(1);
+  });
+
+  it("answers 404 for malformed tokens and closed links", async () => {
+    const { path, cookie, sentQuote, pub } = await setup();
+    const malformed = await api().get(pub("not-a-token")).expect(404);
+    expect(malformed.body.code).toBe("QUOTE_UNAVAILABLE");
+
+    const { id, token } = await sentQuote();
+    await api().delete(`${path}/${id}/link`).set("Cookie", cookie).expect(204);
+    await api().get(pub(token)).expect(404);
+    await api()
+      .get(`${pub(token)}/pdf`)
+      .expect(404);
+    await api()
+      .get(`${pub(token)}/logo`)
+      .expect(404);
+  });
+
+  it("does not serve a withdrawn quote's PDF and refuses a draft PDF to the owner", async () => {
+    const { path, cookie, draft, sentQuote, pub } = await setup();
+    const { id, token } = await sentQuote();
+    await api().post(`${path}/${id}/withdraw`).set("Cookie", cookie).expect(200);
+    await api()
+      .get(`${pub(token)}/pdf`)
+      .expect(404);
+
+    const { id: draftId } = await draft();
+    await api().get(`${path}/${draftId}/pdf`).set("Cookie", cookie).expect(409);
+  });
+
+  it("refuses to convert drafts and withdrawn quotes", async () => {
+    const { path, cookie, draft, sentQuote } = await setup();
+    const { id: draftId } = await draft();
+    await api()
+      .post(`${path}/${draftId}/convert`)
+      .set("Cookie", cookie)
+      .send({ confirmUnaccepted: true })
+      .expect(409);
+    const { id } = await sentQuote();
+    await api().post(`${path}/${id}/withdraw`).set("Cookie", cookie).expect(200);
+    await api()
+      .post(`${path}/${id}/convert`)
+      .set("Cookie", cookie)
+      .send({ confirmUnaccepted: true })
+      .expect(409);
+  });
+
+  it("leaves the quote accepted and creates no invoice when the client is archived", async () => {
+    const { businessId, clientId, path, cookie, sentQuote, pub } = await setup();
+    const { id, token } = await sentQuote();
+    await api()
+      .post(`${pub(token)}/accept`)
+      .send({ name: "Otieno Ouma", agreed: true })
+      .expect(200);
+    await api()
+      .post(`/api/v1/businesses/${businessId}/clients/${clientId}/archive`)
+      .set("Cookie", cookie)
+      .expect(200);
+    await api()
+      .post(`${path}/${id}/convert`)
+      .set("Cookie", cookie)
+      .send({})
+      .expect((res) => {
+        if (res.status < 400) throw new Error(`Expected a failure, got ${res.status}`);
+      });
+    const quote = await api().get(`${path}/${id}`).set("Cookie", cookie).expect(200);
+    expect(quote.body).toMatchObject({ status: "accepted", convertedInvoiceId: null });
+    const invoices = await api()
+      .get(`/api/v1/businesses/${businessId}/invoices`)
+      .set("Cookie", cookie)
+      .expect(200);
+    expect(invoices.body).toHaveLength(0);
+  });
+
+  it("stores the client's address and browser with the acceptance", async () => {
+    const { sentQuote, pub } = await setup();
+    const { id, token } = await sentQuote();
+    await api()
+      .post(`${pub(token)}/accept`)
+      .set("User-Agent", "QuoteTest/1.0")
+      .send({ name: "Otieno Ouma", agreed: true })
+      .expect(200);
+    const [row] = await db
+      .select()
+      .from(schema.quoteAcceptances)
+      .where(eq(schema.quoteAcceptances.quoteId, id));
+    expect(row?.ip).toBeTruthy();
+    expect(row?.userAgent).toBe("QuoteTest/1.0");
+  });
+
+  it("refuses an answer given on a version that has since changed", async () => {
+    const { path, cookie, clientId, sentQuote, pub } = await setup();
+    const { id, token } = await sentQuote();
+    const view = await api().get(pub(token)).expect(200);
+    expect(view.body.version).toBe(1);
+    await api()
+      .put(`${path}/${id}`)
+      .set("Cookie", cookie)
+      .send(quoteBody(clientId, { discount: { type: "percentage", value: "20" } }))
+      .expect(200);
+
+    const stale = await api()
+      .post(`${pub(token)}/accept`)
+      .send({ name: "Otieno Ouma", agreed: true, version: 1 })
+      .expect(409);
+    expect(stale.body.code).toBe("QUOTE_CHANGED");
+    await api().get(pub(token)).expect(200);
+    const current = await api().get(pub(token)).expect(200);
+    expect(current.body.version).toBe(2);
+    await api()
+      .post(`${pub(token)}/accept`)
+      .send({ name: "Otieno Ouma", agreed: true, version: 2 })
+      .expect(200);
+  });
+
+  it("returns an unaccepted converted quote to sent when its draft is deleted", async () => {
+    const { businessId, path, cookie, sentQuote } = await setup();
+    const { id } = await sentQuote();
+    const converted = await api()
+      .post(`${path}/${id}/convert`)
+      .set("Cookie", cookie)
+      .send({ confirmUnaccepted: true })
+      .expect(200);
+    await api()
+      .delete(`/api/v1/businesses/${businessId}/invoices/${converted.body.invoiceId}`)
+      .set("Cookie", cookie)
+      .expect(204);
+    const quote = await api().get(`${path}/${id}`).set("Cookie", cookie).expect(200);
+    expect(quote.body).toMatchObject({ status: "sent", convertedInvoiceId: null });
+  });
+
+  it("records quote_sent and quote_converted only when something changed", async () => {
+    const { businessId, path, cookie, draft, send } = await setup();
+    const [business] = await db
+      .select({ ownerId: schema.businesses.ownerUserId })
+      .from(schema.businesses)
+      .where(eq(schema.businesses.id, businessId));
+    const { id } = await draft();
+    await send(id);
+    await send(id);
+    for (let i = 0; i < 2; i++) {
+      await api()
+        .post(`${path}/${id}/convert`)
+        .set("Cookie", cookie)
+        .send({ confirmUnaccepted: true })
+        .expect(200);
+    }
+    await app.get(ActivityRecorder).flush();
+    const count = async (name: string) =>
+      (
+        await db
+          .select()
+          .from(schema.productEvents)
+          .where(
+            and(
+              eq(schema.productEvents.name, name),
+              eq(schema.productEvents.accountId, business!.ownerId),
+            ),
+          )
+      ).length;
+    expect(await count("quote_converted")).toBe(1);
+    expect(await count("quote_sent")).toBe(1);
   });
 });
