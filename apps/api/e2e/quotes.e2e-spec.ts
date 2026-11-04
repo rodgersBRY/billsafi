@@ -542,4 +542,16 @@ describe("quotes", () => {
     expect(await count("quote_converted")).toBe(1);
     expect(await count("quote_sent")).toBe(1);
   });
+
+  it("counts sent, unexpired quotes on the dashboard", async () => {
+    const { businessId, cookie, sentQuote, draft } = await setup();
+    await sentQuote();
+    await sentQuote();
+    await draft();
+    const dashboard = await api()
+      .get(`/api/v1/businesses/${businessId}/dashboard`)
+      .set("Cookie", cookie)
+      .expect(200);
+    expect(dashboard.body.openQuotes).toEqual({ count: 2, total: "41400.00" });
+  });
 });
