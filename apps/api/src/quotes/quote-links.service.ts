@@ -80,6 +80,16 @@ export class QuoteLinksService {
     return Boolean(link);
   }
 
+  /** True while the link has not been revoked. */
+  async isActive(tx: Transaction, linkId: string): Promise<boolean> {
+    const [link] = await tx
+      .select({ id: quoteLinks.id })
+      .from(quoteLinks)
+      .where(and(eq(quoteLinks.id, linkId), active))
+      .limit(1);
+    return Boolean(link);
+  }
+
   async disable(businessId: string, quoteId: string): Promise<void> {
     await this.quotes.get(businessId, quoteId);
     await this.connection.db

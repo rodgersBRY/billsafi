@@ -51,11 +51,14 @@ export const acceptQuoteSchema = z.object({
     .min(QUOTE_LIMITS.signerNameMin, "Type your full name")
     .max(QUOTE_LIMITS.signerNameMax, `Use ${QUOTE_LIMITS.signerNameMax} characters or fewer`),
   agreed: z.literal(true, { error: "Tick the box to accept" }),
+  /** The version the client was looking at. A newer saved version refuses the answer. */
+  version: z.number().int().positive().optional(),
 });
 export type AcceptQuote = z.output<typeof acceptQuoteSchema>;
 
 export const declineQuoteSchema = z.object({
   reason: optionalText(QUOTE_LIMITS.declineReasonLength),
+  version: z.number().int().positive().optional(),
 });
 export type DeclineQuote = z.output<typeof declineQuoteSchema>;
 
@@ -155,6 +158,8 @@ export interface SentQuote {
 /** What the client sees on /q/[token]. Converted shows as Accepted. */
 export interface PublicQuote {
   quoteNumber: string;
+  /** The current version, sent back with an answer so a changed quote is caught. */
+  version: number;
   status: "sent" | "accepted" | "declined";
   expired: boolean;
   issueDate: string;

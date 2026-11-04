@@ -46,6 +46,18 @@ describe("acceptQuoteSchema", () => {
   });
 });
 
+describe("quote answer version", () => {
+  it("takes an optional positive whole version on accept and decline", () => {
+    expect(acceptQuoteSchema.parse({ name: "Otieno", agreed: true }).version).toBeUndefined();
+    expect(acceptQuoteSchema.parse({ name: "Otieno", agreed: true, version: 2 }).version).toBe(2);
+    expect(acceptQuoteSchema.safeParse({ name: "Otieno", agreed: true, version: 0 }).success).toBe(
+      false,
+    );
+    expect(declineQuoteSchema.parse({ version: 3 }).version).toBe(3);
+    expect(declineQuoteSchema.safeParse({ version: 1.5 }).success).toBe(false);
+  });
+});
+
 describe("declineQuoteSchema", () => {
   it("takes an optional reason up to 500 characters", () => {
     expect(declineQuoteSchema.parse({}).reason).toBeUndefined();

@@ -55,7 +55,7 @@ export class QuoteResponsesService {
   accept(token: string, input: AcceptQuote, meta: RequestMeta) {
     return this.respond(
       token,
-      { decision: "accepted", signerName: input.name, reason: null },
+      { decision: "accepted", signerName: input.name, reason: null, version: input.version },
       meta,
     );
   }
@@ -63,7 +63,12 @@ export class QuoteResponsesService {
   decline(token: string, input: DeclineQuote, meta: RequestMeta) {
     return this.respond(
       token,
-      { decision: "declined", signerName: null, reason: input.reason ?? null },
+      {
+        decision: "declined",
+        signerName: null,
+        reason: input.reason ?? null,
+        version: input.version,
+      },
       meta,
     );
   }
@@ -74,12 +79,15 @@ export class QuoteResponsesService {
       decision: "accepted" | "declined";
       signerName: string | null;
       reason: string | null;
+      version?: number | undefined;
     },
     meta: RequestMeta,
   ): Promise<PublicQuote> {
-    const { businessId, quote: resolved, ownerId } = await this.links.resolve(token);
+    const { businessId, quote: resolved, ownerId, linkId } = await this.links.resolve(token);
     await this.connection.db.transaction(async (tx) => {
       const current = await this.quotes.lockQuote(tx, businessId, resolved.id);
+      // The link may have been closed between resolving it and locking the quote.
+      if (!(await this.links.isActive(tx, linkId))) throw new QuoteUnavailableException();
       const status = quoteDisplayStatus(current.status, current.validUntil);
       if (status === "expired") {
         throw new ConflictException({
@@ -94,6 +102,12 @@ export class QuoteResponsesService {
         });
       }
       if (status !== "sent" || !current.currentVersion) throw new QuoteUnavailableException();
+      if (response.version !== undefined && response.version !== current.currentVersion) {
+        throw new ConflictException({
+          code: "QUOTE_CHANGED",
+          message: "This quote was updated. Check the new version before you answer.",
+        });
+      }
       const version = await this.quotes.currentVersionRow(tx, current.id, current.currentVersion);
       const now = new Date();
       await tx.insert(quoteAcceptances).values({

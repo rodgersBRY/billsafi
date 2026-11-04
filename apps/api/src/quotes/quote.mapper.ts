@@ -130,6 +130,7 @@ export function toPublicQuote(
     (quote.status === "accepted" || quote.status === "converted");
   return {
     quoteNumber: quote.quoteNumber!,
+    version: quote.version!,
     status: quote.status === "converted" ? "accepted" : (quote.status as PublicQuote["status"]),
     expired: quote.expired,
     issueDate: quote.issueDate,
