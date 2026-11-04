@@ -727,3 +727,13 @@ Status: proposed on 2026-11-03. Built behind `REENGAGEMENT_JOBS`, which is off b
 - Button links carry `utm_campaign=<group>_<step>` so returns can be traced to an email.
 - Admin. Analytics has a Check-in emails section for the chosen range: emails sent and to how many accounts, the share that came back, emails still inside their return window, unsubscribes, and a table by group and email. An email counts as bringing the account back when, within 14 days after it, the owner starts a new session, adds a business, or does a meaningful action. Session refreshes don't count, so a long-lived session can't make an email look successful. The tenant overview lists the account's check-in emails and when it unsubscribed. Health has a Check-in emails card: unknown when the job is off or hasn't run, ok within 90 minutes of the last run, warning after that, failing after 3 hours or when the last run failed. Its value is the emails sent in the last 24 hours against the daily limit.
 - The privacy policy (updated 3 November 2026) names check-in emails, bases them on legitimate interest in helping people use the account they created, and states the limit of three per quiet spell and the unsubscribe link. Other marketing email still needs agreement.
+
+## D070 - Print email to the console instead of sending it outside production
+
+Status: confirmed on 2026-11-04 by the user.
+
+- Local runs and agents were sending real email through Resend and using up the quota. `MAIL_DRIVER` now picks where email goes: `log`, `resend` or `smtp`.
+- `log` prints each email (operation, recipient, subject and text body, which carries any reset or verify link) to the API console and sends nothing.
+- Unset means `log` outside production. In production, unset keeps the old rule from D052: Resend when `RESEND_API_KEY` is set, otherwise `SMTP_URL`. Existing deployments need no change.
+- The API refuses to start with `log` in production, the same guard as `MPESA_ENV=fake`. An explicit `resend` or `smtp` needs its key or URL.
+- To test real delivery locally, set `MAIL_DRIVER=resend` for that run.
