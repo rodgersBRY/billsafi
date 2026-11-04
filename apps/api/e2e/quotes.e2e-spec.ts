@@ -438,13 +438,12 @@ describe("quotes", () => {
       .post(`/api/v1/businesses/${businessId}/clients/${clientId}/archive`)
       .set("Cookie", cookie)
       .expect(200);
-    await api()
+    const refused = await api()
       .post(`${path}/${id}/convert`)
       .set("Cookie", cookie)
       .send({})
-      .expect((res) => {
-        if (res.status < 400) throw new Error(`Expected a failure, got ${res.status}`);
-      });
+      .expect(400);
+    expect(refused.body.issues[0].path).toBe("clientId");
     const quote = await api().get(`${path}/${id}`).set("Cookie", cookie).expect(200);
     expect(quote.body).toMatchObject({ status: "accepted", convertedInvoiceId: null });
     const invoices = await api()
