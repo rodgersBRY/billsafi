@@ -1,4 +1,4 @@
-import { FilePlus, UserPlus, Wallet } from "lucide-react";
+import { FilePlus, FileSignature, UserPlus, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -15,6 +15,7 @@ export const metadata: Metadata = { title: "Overview · BillSafi" };
 
 const QUICK_ACTIONS = [
   { label: "Create invoice", icon: FilePlus, path: "invoices/new" },
+  { label: "Create quote", icon: FileSignature, path: "quotes/new" },
   { label: "Add client", icon: UserPlus, path: "clients" },
   { label: "Record payment", icon: Wallet, path: "invoices" },
 ] as const;
@@ -83,6 +84,21 @@ async function Overview({
           </div>
         ))}
       </dl>
+
+      {dashboard.openQuotes.count > 0 && (
+        <Link
+          href={`${base}/quotes?status=sent`}
+          className="mb-6.25 flex items-center justify-between gap-3 rounded-panel border border-line bg-panel p-5 hover:bg-soft"
+        >
+          <span className="flex items-center gap-2.5 text-sm">
+            <FileSignature aria-hidden className="size-4.5 text-accent" />
+            Open quotes: {dashboard.openQuotes.count}
+          </span>
+          <span className="text-sm font-medium tabular-nums">
+            {dashboard.currency} {formatAmount(dashboard.openQuotes.total)}
+          </span>
+        </Link>
+      )}
 
       <section
         aria-labelledby="recent"
