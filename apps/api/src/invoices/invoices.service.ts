@@ -185,10 +185,17 @@ export class InvoicesService {
       if (current.status !== "draft") {
         throw new ConflictException("Only draft invoices can be deleted");
       }
-      // A quote converted into this draft can be converted again.
+      // A quote converted into this draft can be converted again. It goes back to Accepted
+      // only if the client accepted on the link; a verbal yes returns it to Sent.
       await tx
         .update(quotes)
-        .set({ status: "accepted", convertedInvoiceId: null })
+        .set({
+          status: sql`(case when exists (
+            select 1 from quote_acceptances qa
+            where qa.quote_id = ${quotes.id} and qa.decision = 'accepted'
+          ) then 'accepted' else 'sent' end)::quote_status`,
+          convertedInvoiceId: null,
+        })
         .where(and(eq(quotes.businessId, businessId), eq(quotes.convertedInvoiceId, invoiceId)));
       await tx.delete(invoices).where(eq(invoices.id, invoiceId));
     });
