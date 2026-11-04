@@ -148,6 +148,13 @@
       "when": 1793730560154,
       "tag": "0020_reengagement_emails",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793785295444,
+      "tag": "0021_quotes",
+      "breakpoints": true
     }
   ]
 }
