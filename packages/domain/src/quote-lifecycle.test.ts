@@ -86,7 +86,10 @@ describe("quoteContentChanged", () => {
     ["notes", { notes: null }],
     ["tax", { taxRate: "16" }],
     ["discount", { discount: null }],
-    ["item order", { items: [...base.items, { description: "Menu", quantity: "1", unitPrice: "8000" }] }],
+    [
+      "item order",
+      { items: [...base.items, { description: "Menu", quantity: "1", unitPrice: "8000" }] },
+    ],
   ])("detects a %s change", (_label, change) => {
     expect(quoteContentChanged(base, { ...base, ...change })).toBe(true);
   });

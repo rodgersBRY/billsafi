@@ -42,7 +42,13 @@ export type QuoteVersionSnapshot = {
   currency: string;
   client: ClientSnapshot;
   business: BusinessSnapshot;
-  items: { position: number; description: string; quantity: string; unitPrice: string; lineTotal: string }[];
+  items: {
+    position: number;
+    description: string;
+    quantity: string;
+    unitPrice: string;
+    lineTotal: string;
+  }[];
   discount: { type: "fixed" | "percentage"; value: string } | null;
   taxRate: string | null;
   subtotal: string;

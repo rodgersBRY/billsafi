@@ -30,14 +30,7 @@ export function quoteDisplayStatus(
   return isQuoteExpired(status, validUntil, at) ? "expired" : status;
 }
 
-export type QuoteAction =
-  | "edit"
-  | "send"
-  | "share"
-  | "withdraw"
-  | "delete"
-  | "respond"
-  | "convert";
+export type QuoteAction = "edit" | "send" | "share" | "withdraw" | "delete" | "respond" | "convert";
 
 const ALLOWED: Record<QuoteAction, readonly QuoteDisplayStatus[]> = {
   edit: ["draft", "sent", "declined", "expired"],
