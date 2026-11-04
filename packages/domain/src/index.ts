@@ -1,5 +1,6 @@
 export * from "./account-status.js";
 export * from "./bill-to.js";
+export * from "./document-number.js";
 export * from "./billing-period.js";
 export * from "./invoice-calc.js";
 export * from "./invoice-number.js";
