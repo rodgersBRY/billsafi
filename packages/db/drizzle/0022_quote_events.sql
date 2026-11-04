@@ -1,0 +1,2 @@
+ALTER TABLE "product_events" DROP CONSTRAINT "product_events_name";--> statement-breakpoint
+ALTER TABLE "product_events" ADD CONSTRAINT "product_events_name" CHECK ("product_events"."name" in ('pdf_downloaded', 'link_opened', 'generator_started', 'generator_download_clicked', 'generator_signup_clicked', 'guest_invoice_imported', 'quote_sent', 'quote_link_opened', 'quote_accepted', 'quote_declined', 'quote_converted'));

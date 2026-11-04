@@ -21,17 +21,24 @@ export class BrandingService {
   ) {}
 
   async present(businessId: string, invoice: Invoice): Promise<PublicInvoice> {
+    return toPublicInvoice(invoice, await this.showBranding(businessId));
+  }
+
+  /** "Created with BillSafi" shows for Free accounts only (D052). */
+  async showBranding(businessId: string): Promise<boolean> {
     const [business] = await this.connection.db
       .select({ ownerUserId: schema.businesses.ownerUserId })
       .from(schema.businesses)
       .where(eq(schema.businesses.id, businessId));
-    const pro = await this.allowance.isPro(business!.ownerUserId);
-    return toPublicInvoice(invoice, !pro);
+    return !(await this.allowance.isPro(business!.ownerUserId));
+  }
+
+  logoByKey(businessId: string, key: string | null): Promise<InvoiceLogo | null> {
+    return key ? this.businesses.findLogo(businessId, key) : Promise.resolve(null);
   }
 
   /** The logo the invoice was issued with, or the current one while Draft. */
   async logo(businessId: string, invoice: Invoice): Promise<InvoiceLogo | null> {
-    const key = invoice.business.logoKey;
-    return key ? this.businesses.findLogo(businessId, key) : null;
+    return this.logoByKey(businessId, invoice.business.logoKey);
   }
 }

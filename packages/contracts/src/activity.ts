@@ -23,6 +23,11 @@ export const serverEventNames = [
   "pdf_downloaded",
   "link_opened",
   "guest_invoice_imported",
+  "quote_sent",
+  "quote_link_opened",
+  "quote_accepted",
+  "quote_declined",
+  "quote_converted",
 ] as const;
 
 export const productEventNames = [...serverEventNames, ...generatorEventNames] as const;
@@ -38,6 +43,11 @@ export const eventPropsSchemas = {
   pdf_downloaded: z.strictObject({ source: z.enum(pdfSources) }),
   link_opened: none,
   guest_invoice_imported: z.strictObject({ usedExistingBusiness: z.boolean() }),
+  quote_sent: none,
+  quote_link_opened: none,
+  quote_accepted: none,
+  quote_declined: none,
+  quote_converted: none,
   generator_started: none,
   generator_download_clicked: none,
   generator_signup_clicked: none,

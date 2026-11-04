@@ -1,5 +1,6 @@
 import {
   passwordResetEmail,
+  quoteResponseEmail,
   renewalReminderEmail,
   welcomeEmail,
   registrationAdminEmail,
@@ -74,5 +75,38 @@ describe("registration templates", () => {
       expect(message.html).toContain("&lt;script&gt;");
       expect(message.text).toContain(user.name);
     }
+  });
+});
+
+describe("quoteResponseEmail", () => {
+  it("names the signer on accept and the reason on decline", () => {
+    const accepted = quoteResponseEmail(
+      "a@example.test",
+      "Wanjiku",
+      {
+        decision: "accepted",
+        quoteNumber: "QT-00004",
+        clientName: "Acacia",
+        signerName: "Otieno Ouma",
+        reason: null,
+      },
+      "http://localhost:3000/b/quotes/q",
+    );
+    expect(accepted.subject).toBe("Acacia accepted quote QT-00004");
+    expect(accepted.text).toContain("Otieno Ouma accepted quote QT-00004");
+
+    const declined = quoteResponseEmail(
+      "a@example.test",
+      "Wanjiku",
+      {
+        decision: "declined",
+        quoteNumber: "QT-00004",
+        clientName: "Acacia",
+        signerName: null,
+        reason: "Too expensive",
+      },
+      "http://localhost:3000/b/quotes/q",
+    );
+    expect(declined.text).toContain('Their reason: "Too expensive"');
   });
 });
