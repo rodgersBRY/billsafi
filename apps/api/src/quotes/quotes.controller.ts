@@ -124,13 +124,14 @@ export class QuotesController {
     @Param("businessId") businessId: string,
     @Param("quoteId", QuoteId()) quoteId: string,
   ): Promise<SentQuote> {
+    let changed = false;
     const link = await this.connection.db.transaction(async (tx) => {
-      await this.quotes.send(tx, userId, businessId, quoteId);
+      changed = await this.quotes.send(tx, userId, businessId, quoteId);
       return (await this.links.hasActive(tx, quoteId))
         ? null
         : this.links.issue(tx, userId, businessId, quoteId);
     });
-    this.recorder.productEvent("quote_sent", {}, { accountId: userId });
+    if (changed) this.recorder.productEvent("quote_sent", {}, { accountId: userId });
     return { quote: await this.quotes.get(businessId, quoteId), link };
   }
 
@@ -153,9 +154,13 @@ export class QuotesController {
     @Param("quoteId", QuoteId()) quoteId: string,
     @Body(new ZodValidationPipe(convertQuoteSchema)) input: ConvertQuote,
   ): Promise<{ invoiceId: string }> {
-    const result = await this.conversion.convert(businessId, quoteId, input.confirmUnaccepted);
-    this.recorder.productEvent("quote_converted", {}, { accountId: userId });
-    return result;
+    const { invoiceId, created } = await this.conversion.convert(
+      businessId,
+      quoteId,
+      input.confirmUnaccepted,
+    );
+    if (created) this.recorder.productEvent("quote_converted", {}, { accountId: userId });
+    return { invoiceId };
   }
 
   @Get(":quoteId/versions/:version")

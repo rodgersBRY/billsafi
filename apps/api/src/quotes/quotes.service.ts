@@ -141,13 +141,19 @@ export class QuotesService {
   }
 
   /**
-   * Sends a draft, or resends a declined or expired quote. No-op on a sent quote.
-   * The caller creates the link in the same transaction.
+   * Sends a draft, or resends a declined or expired quote. Returns false when it did
+   * nothing because the quote was already sent. The caller creates the link in the same
+   * transaction.
    */
-  async send(tx: Transaction, userId: string, businessId: string, quoteId: string) {
+  async send(
+    tx: Transaction,
+    userId: string,
+    businessId: string,
+    quoteId: string,
+  ): Promise<boolean> {
     const current = await this.lockQuote(tx, businessId, quoteId);
     const status = quoteDisplayStatus(current.status, current.validUntil);
-    if (status === "sent") return;
+    if (status === "sent") return false;
     if (!quoteAllows("send", status)) {
       throw new ConflictException("Only draft, declined and expired quotes can be sent");
     }
@@ -200,6 +206,7 @@ export class QuotesService {
       })
       .where(eq(quotes.id, quoteId));
     await this.saveVersionIfChanged(tx, userId, businessId, quoteId);
+    return true;
   }
 
   async withdraw(businessId: string, quoteId: string) {
