@@ -22,7 +22,9 @@ export function QuoteResponseForm({ token, quote }: { token: string; quote: Publ
   const [pending, setPending] = useState<"accept" | "decline" | null>(null);
   const [errors, setErrors] = useState<Errors>({});
   const [message, setMessage] = useState("");
-  const [changed, setChanged] = useState(false);
+  // Version the client saw when told it changed; hidden once the page loads a newer one.
+  const [changedAt, setChangedAt] = useState<number | null>(null);
+  const changed = changedAt === quote.version;
 
   const path = `/public/quotes/${encodeURIComponent(token)}`;
 
@@ -30,14 +32,14 @@ export function QuoteResponseForm({ token, quote }: { token: string; quote: Publ
     setPending(kind);
     setErrors({});
     setMessage("");
-    setChanged(false);
+    setChangedAt(null);
     try {
       await apiPost(`${path}/${kind}`, body);
       router.refresh();
     } catch (error) {
       if (error instanceof ApiError) {
         if (error.code === "QUOTE_CHANGED") {
-          setChanged(true);
+          setChangedAt(quote.version);
         } else if (error.code === "QUOTE_EXPIRED" || error.code === "QUOTE_ALREADY_RESPONDED") {
           setMessage(error.message);
           router.refresh();
