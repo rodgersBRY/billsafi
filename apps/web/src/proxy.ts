@@ -72,7 +72,10 @@ export async function proxy(request: NextRequest) {
     return NextResponse.rewrite(new URL("/landing", request.url));
   }
 
-  const isPublic = PUBLIC_PATHS.some((path) => pathname === path) || pathname.startsWith("/i/");
+  const isPublic =
+    PUBLIC_PATHS.some((path) => pathname === path) ||
+    pathname.startsWith("/i/") ||
+    pathname.startsWith("/q/");
 
   if (!hasSession && !isPublic) {
     return NextResponse.redirect(new URL("/sign-in", request.url));

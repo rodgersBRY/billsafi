@@ -70,3 +70,23 @@ export function emailDraft(input: ShareMessageInput): { subject: string; body: s
     body: `${whatsappMessage(input)}\n\nThe link works for ${PUBLIC_LINK_LIFETIME_DAYS} days. Thank you.`,
   };
 }
+
+export interface QuoteShareInput {
+  clientName: string;
+  quoteNumber: string;
+  businessName: string;
+  total: string;
+  validUntil: string;
+  link: string;
+}
+
+export function quoteWhatsappMessage(input: QuoteShareInput): string {
+  return `Hi ${input.clientName}, here is quote ${input.quoteNumber} from ${input.businessName} for KES ${input.total}, valid until ${input.validUntil}: ${input.link}`;
+}
+
+export function quoteEmailDraft(input: QuoteShareInput): { subject: string; body: string } {
+  return {
+    subject: `Quote ${input.quoteNumber} from ${input.businessName}`,
+    body: `${quoteWhatsappMessage(input)}\n\nYou can accept or decline it on the page. Thank you.`,
+  };
+}
