@@ -29,7 +29,7 @@ export function registrationEmails(
                 recipient.email,
                 recipient.name,
                 user,
-                `${origin}/admin/users`,
+                `${origin}/admin/users/${user.id}`,
               ),
               {
                 operation: "registration_admin_email",

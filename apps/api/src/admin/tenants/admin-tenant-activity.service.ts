@@ -25,6 +25,7 @@ const OPERATIONS: Record<string, string> = {
   public_pdf: "Shared link PDF failed to render",
   password_reset_email: "Password reset email failed to send",
   renewal_reminder: "Renewal reminder email failed to send",
+  reengagement_email: "Check-in email failed to send",
 };
 
 function summary(row: Row): string {

@@ -18,6 +18,7 @@ import type {
   AdminFunnelDays,
   AdminActivity,
   AdminAnalytics,
+  AdminCheckIns,
   AdminOverview,
   AdminRange,
   AdminTrends,
@@ -59,6 +60,10 @@ export const getAdminActivity = cache((limit: number): Promise<AdminActivity> =>
 
 export const getAdminAnalytics = cache((range: AdminRange): Promise<AdminAnalytics> =>
   apiGet<AdminAnalytics>(`/admin/analytics${query({ range })}`),
+);
+
+export const getAdminCheckIns = cache((range: AdminRange): Promise<AdminCheckIns> =>
+  apiGet<AdminCheckIns>(`/admin/check-ins${query({ range })}`),
 );
 
 export const getAdminFunnel = cache((days: AdminFunnelDays): Promise<AdminFunnel> =>

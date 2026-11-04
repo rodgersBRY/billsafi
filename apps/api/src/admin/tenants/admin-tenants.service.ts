@@ -334,9 +334,23 @@ export class AdminTenantsService {
         grants: await selectGrants(this.connection.db, sql`g.user_id = ${id}`),
         overrides: await selectOverrides(this.connection.db, now, sql`o.user_id = ${id}`),
       },
+      checkIns: await this.checkIns(id),
       recentAudit: await this.audit.recentForAccount(id),
       generatedAt: now.toISOString(),
     };
+  }
+
+  /** Check-in emails sent to the account and whether it unsubscribed (D069). */
+  private async checkIns(userId: string): Promise<AdminTenantDetail["checkIns"]> {
+    const [optOut] = await this.rows<{ at: string }>(
+      sql`select ${iso(sql`created_at`)} as at from email_opt_outs where user_id = ${userId}`,
+    );
+    const emails = await this.rows<AdminTenantDetail["checkIns"]["emails"][number]>(sql`
+      select segment, step, ${iso(sql`sent_at`)} as "sentAt"
+      from reengagement_emails where user_id = ${userId}
+      order by sent_at desc, step desc
+    `);
+    return { optedOutAt: optOut?.at ?? null, emails };
   }
 
   /** Reason and note from the latest cancellation, if the account gave either. */

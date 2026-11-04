@@ -71,8 +71,29 @@ const envSchema = z
       .enum(["on", "off"])
       .default("on")
       .transform((value) => value === "on"),
+    /**
+     * Sends check-in emails to quiet accounts (D069). Off by default: it emails real
+     * people, so turn it on deliberately.
+     */
+    REENGAGEMENT_JOBS: z
+      .enum(["on", "off"])
+      .default("off")
+      .transform((value) => value === "on"),
+    /** Most check-in emails sent in any 24 hours, so a backlog goes out slowly. */
+    REENGAGEMENT_DAILY_LIMIT: z.coerce.number().int().min(1).max(1000).default(40),
+    /** A monitored inbox: the last check-in email asks people to reply. */
+    REENGAGEMENT_REPLY_TO: z.email().optional(),
+    /** Sign-off on the personal check-in email, such as a first name. */
+    REENGAGEMENT_SIGNATURE: z.string().trim().min(1).max(80).default("The BillSafi team"),
   })
   .superRefine((env, ctx) => {
+    if (env.REENGAGEMENT_JOBS && !env.REENGAGEMENT_REPLY_TO) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["REENGAGEMENT_REPLY_TO"],
+        message: "Required when REENGAGEMENT_JOBS is on",
+      });
+    }
     if (!env.RESEND_API_KEY && !env.SMTP_URL) {
       ctx.addIssue({
         code: "custom",

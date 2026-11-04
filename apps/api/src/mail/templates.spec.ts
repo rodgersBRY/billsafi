@@ -13,12 +13,24 @@ describe("transactional email templates", () => {
       "https://account.billsafi.com/reset-password?token=test&next=home",
       900,
     );
-    expect(email.html).not.toContain("<img");
+    // The only image is the logo; the injected one is escaped.
+    expect(email.html).not.toContain("<img src=x");
     expect(email.html).toContain("&lt;img");
     expect(email.html).toContain("token=test&amp;next=home");
     expect(email.html).toContain("900 seconds");
     expect(email.text).toContain("900 seconds");
     expect(email.text).toContain("token=test&next=home");
+  });
+
+  it("shows the logo from the same origin as the button", () => {
+    const email = welcomeEmail(
+      "user@example.test",
+      "Jane",
+      "https://account.billsafi.com/onboarding",
+    );
+    expect(email.html).toContain('src="https://account.billsafi.com/brand/logo-mark.png"');
+    expect(email.subject).toBe("Welcome to BillSafi");
+    expect(email.text).toContain("10 invoices a month");
   });
 
   it("rejects non-web action links", () => {

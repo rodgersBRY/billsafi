@@ -34,6 +34,7 @@ export const JOB_NAMES = [
   "renewal_reminders",
   "idempotency_prune",
   "maintenance",
+  "reengagement_emails",
 ] as const;
 export const FAILED_SIGN_IN_METHODS = ["password", "google"] as const;
 export const FAILED_SIGN_IN_REASONS = [

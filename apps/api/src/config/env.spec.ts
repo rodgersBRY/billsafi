@@ -89,4 +89,18 @@ describe("loadEnv", () => {
     expect(loadEnv({ ...required, MAINTENANCE_JOBS: "off" }).MAINTENANCE_JOBS).toBe(false);
     expect(() => loadEnv({ ...required, MAINTENANCE_JOBS: "maybe" })).toThrow(/MAINTENANCE_JOBS/);
   });
+
+  it("keeps check-in emails off unless switched on with a reply-to inbox", () => {
+    expect(loadEnv(required).REENGAGEMENT_JOBS).toBe(false);
+    expect(loadEnv(required).REENGAGEMENT_DAILY_LIMIT).toBe(40);
+    expect(() => loadEnv({ ...required, REENGAGEMENT_JOBS: "on" })).toThrow(
+      /REENGAGEMENT_REPLY_TO/,
+    );
+    const on = loadEnv({
+      ...required,
+      REENGAGEMENT_JOBS: "on",
+      REENGAGEMENT_REPLY_TO: "hello@example.test",
+    });
+    expect(on.REENGAGEMENT_JOBS).toBe(true);
+  });
 });

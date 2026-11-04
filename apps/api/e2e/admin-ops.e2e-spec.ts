@@ -202,18 +202,21 @@ describe("admin ops", () => {
         "mpesa",
         "billing_jobs",
         "pdf_email",
+        "check_in_emails",
         "backups",
       ]);
       expect(byKey.database).toMatchObject({ status: "ok", source: "Live query" });
       expect(byKey.database!.data!.responseMs).toBeGreaterThanOrEqual(0);
       expect(byKey.migrations).toMatchObject({
         status: "ok",
-        value: "0019_custom_invoice_numbers",
+        value: "0020_reengagement_emails",
       });
       expect(byKey.mpesa).toMatchObject({ status: "unknown", value: null });
       // BILLING_JOBS is off in tests, nothing has failed and no backup has been recorded.
       expect(byKey.billing_jobs).toMatchObject({ status: "unknown", value: null });
       expect(byKey.pdf_email).toMatchObject({ status: "ok", value: "0 in 24h" });
+      // REENGAGEMENT_JOBS is off in tests too.
+      expect(byKey.check_in_emails).toMatchObject({ status: "unknown", value: null });
       expect(byKey.backups).toMatchObject({ status: "unknown", value: null });
       expect(health.links).toEqual([]);
     });
