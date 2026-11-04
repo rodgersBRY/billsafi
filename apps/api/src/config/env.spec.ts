@@ -15,11 +15,32 @@ describe("loadEnv", () => {
     });
   });
 
-  it("accepts Resend without an SMTP URL and requires a mail provider", () => {
-    expect(loadEnv({ ...required, SMTP_URL: undefined, RESEND_API_KEY: "re_test" })).toMatchObject({
-      RESEND_API_KEY: "re_test",
-    });
-    expect(() => loadEnv({ ...required, SMTP_URL: undefined })).toThrow(/RESEND_API_KEY/);
+  it("logs email instead of sending it outside production by default", () => {
+    expect(loadEnv({ ...required, RESEND_API_KEY: "re_test" }).MAIL_DRIVER).toBe("log");
+    expect(loadEnv({ ...required, SMTP_URL: undefined }).MAIL_DRIVER).toBe("log");
+  });
+
+  it("picks Resend, then SMTP, in production when MAIL_DRIVER is unset", () => {
+    const production = { ...required, NODE_ENV: "production", MPESA_ENV: "disabled" };
+    expect(loadEnv({ ...production, RESEND_API_KEY: "re_test" }).MAIL_DRIVER).toBe("resend");
+    expect(loadEnv(production).MAIL_DRIVER).toBe("smtp");
+    expect(() => loadEnv({ ...production, SMTP_URL: undefined })).toThrow(/RESEND_API_KEY/);
+  });
+
+  it("uses an explicit MAIL_DRIVER and requires what it needs", () => {
+    expect(loadEnv({ ...required, MAIL_DRIVER: "smtp" }).MAIL_DRIVER).toBe("smtp");
+    expect(() => loadEnv({ ...required, MAIL_DRIVER: "resend" })).toThrow(
+      /Required when MAIL_DRIVER is resend/,
+    );
+    expect(() => loadEnv({ ...required, SMTP_URL: undefined, MAIL_DRIVER: "smtp" })).toThrow(
+      /Required when MAIL_DRIVER is smtp/,
+    );
+  });
+
+  it("refuses the log driver in production", () => {
+    expect(() =>
+      loadEnv({ ...required, NODE_ENV: "production", MPESA_ENV: "disabled", MAIL_DRIVER: "log" }),
+    ).toThrow(/MAIL_DRIVER/);
   });
 
   it("reads the admin user IDs as a clean lowercase list", () => {
