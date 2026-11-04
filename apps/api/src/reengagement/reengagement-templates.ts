@@ -1,4 +1,4 @@
-import type { ReengagementSegment, ReengagementStep } from "@billsafi/domain";
+import { FREE_PLAN, type ReengagementSegment, type ReengagementStep } from "@billsafi/domain";
 import type { MailMessage } from "../mail/mailer.js";
 import { emailLayout } from "../mail/templates.js";
 
@@ -45,7 +45,7 @@ const BRANDED: Record<ReengagementSegment, Record<1 | 2, Copy>> = {
       title: "Your first invoice takes five minutes",
       paragraphs: [
         "Add your business, pick a client, list the work, and BillSafi works out the totals.",
-        "Share the invoice as a PDF or a link on WhatsApp. The Free plan covers 10 invoices a month.",
+        `Share the invoice as a PDF or a link on WhatsApp. The Free plan covers ${FREE_PLAN.invoiceLimit} invoices a month.`,
       ],
       action: "Get started",
       note: "No card or M-Pesa payment needed for the Free plan.",
@@ -72,7 +72,7 @@ const BRANDED: Record<ReengagementSegment, Record<1 | 2, Copy>> = {
         "When the money arrives, record the payment and the invoice shows as paid. Your dashboard keeps track of what's still owed.",
       ],
       action: "Create an invoice",
-      note: "The Free plan covers 10 invoices a month.",
+      note: `The Free plan covers ${FREE_PLAN.invoiceLimit} invoices a month.`,
     },
   },
   lapsed: {
