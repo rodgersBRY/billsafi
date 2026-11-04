@@ -29,7 +29,7 @@ export const decimalString = (label: string, min: number, max: number) =>
         ),
     );
 
-const isoDate = z.iso.date("Enter a valid date");
+export const isoDate = z.iso.date("Enter a valid date");
 
 export const invoiceItemSchema = z.object({
   description: requiredText("Description", INVOICE_LIMITS.descriptionLength),
@@ -43,17 +43,31 @@ export const discountSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("percentage"), value: decimalString("Discount", 0, 100) }),
 ]);
 
-/** Every invoice field except the client, shared by saved drafts and the public generator. */
-const invoiceDetailFields = {
-  issueDate: isoDate,
-  dueDate: isoDate,
+/** Optional user-chosen document number, shared by invoices and quotes. */
+export const documentNumberSchema = z
+  .string()
+  .trim()
+  .max(80, "Use 80 characters or fewer")
+  .regex(/^[A-Za-z0-9 /_.-]*$/, "Use letters, numbers, spaces, /, _, . or -")
+  .nullable()
+  .optional();
+
+/** Line items and pricing, shared by invoices and quotes so both forms report the same issues. */
+export const pricingFields = {
   items: z
     .array(invoiceItemSchema)
     .max(INVOICE_LIMITS.maxItems, `Use ${INVOICE_LIMITS.maxItems} line items or fewer`),
   discount: discountSchema.nullable().default(null),
   taxRate: decimalString("Tax rate", 0, 100).nullable().default(null),
-  paymentInstructions: optionalText(INVOICE_LIMITS.paymentInstructionsLength),
   notes: optionalText(INVOICE_LIMITS.notesLength),
+};
+
+/** Every invoice field except the client, shared by saved drafts and the public generator. */
+const invoiceDetailFields = {
+  issueDate: isoDate,
+  dueDate: isoDate,
+  ...pricingFields,
+  paymentInstructions: optionalText(INVOICE_LIMITS.paymentInstructionsLength),
 };
 
 const dueDateIsValid = (invoice: { issueDate: string; dueDate: string }) =>
@@ -67,13 +81,7 @@ const dueDateIssue = {
 export const saveInvoiceSchema = z
   .object({
     clientId: z.uuid("Choose a client"),
-    invoiceNumber: z
-      .string()
-      .trim()
-      .max(80, "Use 80 characters or fewer")
-      .regex(/^[A-Za-z0-9 /_.-]*$/, "Use letters, numbers, spaces, /, _, . or -")
-      .nullable()
-      .optional(),
+    invoiceNumber: documentNumberSchema,
     ...invoiceDetailFields,
   })
   .refine(dueDateIsValid, dueDateIssue);
