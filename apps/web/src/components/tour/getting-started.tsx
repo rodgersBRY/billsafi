@@ -55,19 +55,31 @@ function Panel({ businessId, progress }: { businessId: string; progress: Getting
   // Opened by hand on another page; navigating away shrinks it again.
   const [openedOn, setOpenedOn] = useState<string | null>(null);
   const [hidden, setHidden] = useState(false);
+  // Panel plays its exit animation first; the real collapse runs when it ends.
+  // Keyed to the page so leaving mid-animation doesn't carry it over.
+  const [closingOn, setClosingOn] = useState<string | null>(null);
   if (hidden) return null;
+
+  const closing = closingOn === pathname;
 
   const done = ITEMS.filter((item) => progress[item.key]).length;
 
   const open = onOverview ? overviewOpen : openedOn === pathname;
 
   function toggle(next: boolean) {
+    setClosingOn(null);
     if (onOverview) {
       setOverviewOpen(next);
       rememberCollapsed(!next);
     } else {
       setOpenedOn(next ? pathname : null);
     }
+  }
+
+  function collapse() {
+    // No animation runs under reduced motion, so animationend would never fire.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) toggle(false);
+    else setClosingOn(pathname);
   }
 
   function dismiss() {
@@ -80,7 +92,7 @@ function Panel({ businessId, progress }: { businessId: string; progress: Getting
     });
   }
 
-  const position = "fixed right-4 bottom-4 z-20 sm:right-6 sm:bottom-6";
+  const position = "fixed right-4 bottom-4 z-20 origin-bottom-right sm:right-6 sm:bottom-6";
 
   if (!open) {
     return (
@@ -89,7 +101,7 @@ function Panel({ businessId, progress }: { businessId: string; progress: Getting
         data-setup-checklist=""
         onClick={() => toggle(true)}
         aria-label={`Get set up, ${done} of ${ITEMS.length} done`}
-        className={`${position} flex items-center gap-2.5 rounded-full border border-line bg-panel py-2.5 pr-4 pl-3 text-sm font-medium shadow-lg hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent`}
+        className={`${position} flex items-center gap-2.5 rounded-full border border-line bg-panel py-2.5 pr-4 pl-3 text-sm font-medium shadow-lg motion-safe:animate-panel-in hover:bg-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent`}
       >
         <ListChecks aria-hidden className="size-4.5 text-accent" />
         Get set up
@@ -104,7 +116,14 @@ function Panel({ businessId, progress }: { businessId: string; progress: Getting
     <section
       data-setup-checklist=""
       aria-labelledby="getting-started"
-      className={`${position} w-80 max-w-[calc(100vw-2rem)] rounded-panel border border-line bg-panel shadow-xl`}
+      onAnimationEnd={(event) => {
+        if (closing && event.target === event.currentTarget) toggle(false);
+      }}
+      className={`${position} w-80 max-w-[calc(100vw-2rem)] rounded-panel border border-line bg-panel shadow-xl ${
+        closing
+          ? "pointer-events-none motion-safe:animate-panel-out"
+          : "motion-safe:animate-panel-in"
+      }`}
     >
       <div className="flex items-start gap-3 px-4 pt-4">
         <ListChecks aria-hidden className="mt-0.5 size-4.5 shrink-0 text-accent" />
@@ -118,7 +137,7 @@ function Panel({ businessId, progress }: { businessId: string; progress: Getting
         </div>
         <button
           type="button"
-          onClick={() => toggle(false)}
+          onClick={collapse}
           aria-label="Minimise setup checklist"
           className="rounded-lg p-1.5 text-sub hover:bg-soft hover:text-ink"
         >
