@@ -36,6 +36,15 @@ function rememberedToken(linkId: string): string | null {
   }
 }
 
+function forgetToken(linkId: string | undefined) {
+  if (!linkId) return;
+  try {
+    sessionStorage.removeItem(storageKey(linkId));
+  } catch {
+    // Storage blocked: nothing was kept.
+  }
+}
+
 export function QuoteShareDialog({
   open,
   onClose,
@@ -71,6 +80,7 @@ export function QuoteShareDialog({
     setMessage("");
     try {
       const created = await apiPost<CreatedQuoteLink>(`${base}/link`, {});
+      forgetToken(current?.id);
       try {
         sessionStorage.setItem(storageKey(created.id), created.token);
       } catch {
@@ -91,6 +101,7 @@ export function QuoteShareDialog({
     setError("");
     try {
       await apiSend("DELETE", `${base}/link`);
+      forgetToken(current?.id);
       setCurrent(null);
       setToken(null);
       setMessage("The link is disabled. Anyone who opens it will see that it's unavailable.");

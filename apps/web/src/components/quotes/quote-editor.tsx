@@ -94,6 +94,8 @@ export function QuoteEditor(props: QuoteEditorProps) {
   const [saved, setSaved] = useState("");
   const [addingClient, setAddingClient] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // A new quote created by Send whose send step failed; retrying must update it, not add another.
+  const [createdId, setCreatedId] = useState<string | null>(null);
 
   const status = quote?.status ?? "draft";
   const isDraft = status === "draft";
@@ -154,9 +156,11 @@ export function QuoteEditor(props: QuoteEditorProps) {
 
   async function save(): Promise<Quote> {
     const path = `/businesses/${businessId}/quotes`;
-    return quote
-      ? apiSend<Quote>("PUT", `${path}/${quote.id}`, body())
-      : apiPost<Quote>(path, body());
+    const existingId = quote?.id ?? createdId;
+    if (existingId) return apiSend<Quote>("PUT", `${path}/${existingId}`, body());
+    const created = await apiPost<Quote>(path, body());
+    setCreatedId(created.id);
+    return created;
   }
 
   async function onSave() {

@@ -240,7 +240,7 @@ export function QuoteDetails({ businessId, quote, link, version }: QuoteDetailsP
         </p>
       )}
 
-      <div className="mt-4 grid gap-5.5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="mt-4 grid gap-5.5 lg:grid-cols-2">
         <div className="min-w-0 space-y-3.5">
           {showResponse && response && (
             <section
@@ -260,7 +260,7 @@ export function QuoteDetails({ businessId, quote, link, version }: QuoteDetailsP
               ) : (
                 <>
                   <h2 className="flex items-center gap-2 text-base font-semibold">
-                    <CircleX aria-hidden className="size-4.5 text-red-700" />
+                    <CircleX aria-hidden className="size-4.5 text-red-700 dark:text-red-300" />
                     Declined
                   </h2>
                   <p className="mt-1 text-sm">
