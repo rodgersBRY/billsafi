@@ -31,7 +31,7 @@ describe("authentication", () => {
 
     expect(session.body.user).toMatchObject({ email, name: "Wanjiku Kamau" });
     expect(mailer.lastTo(email)).toMatchObject({
-      subject: "Welcome to BillSafi — we're glad you're here!",
+      subject: "Welcome to BillSafi",
       text: expect.stringContaining(`${WEB_ORIGIN}/onboarding`),
     });
 

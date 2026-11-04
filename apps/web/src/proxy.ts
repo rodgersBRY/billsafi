@@ -11,6 +11,7 @@ const PUBLIC_PATHS = [
   "/free-invoice-generator",
   "/terms",
   "/privacy",
+  "/unsubscribe",
 ];
 
 /**

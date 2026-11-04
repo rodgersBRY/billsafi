@@ -7,6 +7,7 @@ import type { Env } from "../../config/env.js";
 import { AdminFailuresService } from "./admin-failures.service.js";
 import { BackupsHealthProvider } from "./backups-health.provider.js";
 import { BillingJobsHealthProvider } from "./billing-jobs-health.provider.js";
+import { CheckInEmailsHealthProvider } from "./check-in-emails-health.provider.js";
 import { PdfEmailHealthProvider } from "./pdf-email-health.provider.js";
 import { AdminHealthService } from "./admin-health.service.js";
 import { DatabaseHealthProvider } from "./database-health.provider.js";
@@ -26,12 +27,20 @@ import { MpesaHealthProvider } from "./mpesa-health.provider.js";
       // read what phase 5 records (D066).
       provide: HEALTH_INDICATOR_PROVIDERS,
       inject: [DATABASE, ENV],
-      useFactory: (connection: DatabaseConnection, env: Pick<Env, "BILLING_JOBS">) => [
+      useFactory: (
+        connection: DatabaseConnection,
+        env: Pick<Env, "BILLING_JOBS" | "REENGAGEMENT_JOBS" | "REENGAGEMENT_DAILY_LIMIT">,
+      ) => [
         new DatabaseHealthProvider(connection),
         new MigrationsHealthProvider(connection),
         new MpesaHealthProvider(connection),
         new BillingJobsHealthProvider(connection, env.BILLING_JOBS),
         new PdfEmailHealthProvider(connection),
+        new CheckInEmailsHealthProvider(
+          connection,
+          env.REENGAGEMENT_JOBS,
+          env.REENGAGEMENT_DAILY_LIMIT,
+        ),
         new BackupsHealthProvider(connection),
       ],
     },

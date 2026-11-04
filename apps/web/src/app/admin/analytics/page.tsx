@@ -6,6 +6,7 @@ import {
   retentionWeeksFor,
 } from "@/components/admin/admin-params";
 import { UpdatedAt } from "@/components/admin/admin-ui";
+import { CheckInsPanel } from "@/components/admin/check-ins/check-ins-panel";
 import {
   FeatureAdoption,
   GeneratorFunnel,
@@ -22,6 +23,7 @@ import { PageSkeleton } from "@/components/admin/page-skeleton";
 import { RangePicker } from "@/components/admin/range-picker";
 import {
   getAdminAnalytics,
+  getAdminCheckIns,
   getAdminFunnel,
   getAdminRetention,
   getAdminTrends,
@@ -36,11 +38,12 @@ const header = (
 
 async function Analytics({ searchParams }: PageProps<"/admin/analytics">) {
   const { range } = parseRangeParams(await searchParams);
-  const [analytics, funnel, retention, trends] = await Promise.all([
+  const [analytics, funnel, retention, trends, checkIns] = await Promise.all([
     getAdminAnalytics(range),
     getAdminFunnel(funnelDaysFor[range]),
     getAdminRetention(retentionWeeksFor[range]),
     getAdminTrends(range),
+    getAdminCheckIns(range),
   ]);
 
   return (
@@ -56,6 +59,7 @@ async function Analytics({ searchParams }: PageProps<"/admin/analytics">) {
         <GeneratorFunnel data={analytics} />
         <FeatureAdoption data={analytics} />
         <PlanLimit data={analytics} />
+        <CheckInsPanel data={checkIns} />
         <TopAccounts data={analytics} />
         <UpdatedAt iso={analytics.generatedAt} />
       </div>

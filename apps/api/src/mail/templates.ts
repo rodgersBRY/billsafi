@@ -1,3 +1,4 @@
+import { FREE_PLAN } from "@billsafi/domain";
 import type { MailMessage } from "./mailer.js";
 
 function escapeHtml(value: string): string {
@@ -22,7 +23,7 @@ function webLink(value: string): string {
   return escapeHtml(value);
 }
 
-function emailLayout(options: {
+export function emailLayout(options: {
   preview: string;
   title: string;
   name: string;
@@ -30,8 +31,15 @@ function emailLayout(options: {
   action: string;
   url: string;
   note: string;
+  /** Shown in the footer of emails people can opt out of. */
+  unsubscribeUrl?: string;
 }): string {
   const link = webLink(options.url);
+  // Every button points at the web app, so the logo is served from the same origin.
+  const logo = escapeHtml(new URL("/brand/logo-mark.png", options.url).href);
+  const unsubscribe = options.unsubscribeUrl
+    ? `<br>You're getting this because you have a BillSafi account. <a href="${webLink(options.unsubscribeUrl)}" style="color:#627570;">Unsubscribe from check-in emails</a>.`
+    : "";
   return `<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(options.title)}</title></head>
@@ -39,7 +47,12 @@ function emailLayout(options: {
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(options.preview)}</div>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f5f8f7;"><tr><td align="center" style="padding:32px 16px;">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background-color:#ffffff;border:1px solid #e3ebe7;border-radius:16px;">
-<tr><td style="padding:32px 32px 24px;border-bottom:1px solid #e3ebe7;font-size:24px;font-weight:bold;color:#0f766e;">BillSafi</td></tr>
+<tr><td style="padding:24px 32px;border-bottom:1px solid #e3ebe7;">
+<table role="presentation" cellspacing="0" cellpadding="0"><tr>
+<td style="padding-right:10px;vertical-align:middle;"><img src="${logo}" width="36" height="36" alt="" style="display:block;border:0;border-radius:8px;"></td>
+<td style="vertical-align:middle;font-size:22px;font-weight:bold;color:#0f766e;">BillSafi</td>
+</tr></table>
+</td></tr>
 <tr><td style="padding:32px;">
 <h1 style="margin:0 0 24px;font-size:28px;line-height:1.25;">${escapeHtml(options.title)}</h1>
 <p style="margin:0 0 16px;font-size:16px;line-height:1.6;">Hi ${escapeHtml(options.name)},</p>
@@ -49,7 +62,7 @@ ${options.paragraphs.map((paragraph) => `<p style="margin:0 0 16px;font-size:16p
 <p style="margin:0 0 8px;font-size:12px;line-height:1.6;color:#627570;">If the button doesn't work, copy this link into your browser:</p>
 <p style="margin:0;font-size:12px;line-height:1.6;word-break:break-all;overflow-wrap:anywhere;"><a href="${link}" style="color:#0f766e;">${link}</a></p>
 </td></tr>
-<tr><td style="padding:24px 32px;border-top:1px solid #e3ebe7;color:#627570;font-size:12px;line-height:1.6;">BillSafi · Invoices made simple.</td></tr>
+<tr><td style="padding:24px 32px;border-top:1px solid #e3ebe7;color:#627570;font-size:12px;line-height:1.6;">BillSafi · Invoices made simple.${unsubscribe}</td></tr>
 </table>
 </td></tr></table>
 </body></html>`;
@@ -145,37 +158,31 @@ export function renewalReminderEmail(
   };
 }
 
-/** A warm introduction after an account is created. */
+/** Sent once, right after an account is created. */
 export function welcomeEmail(to: string, name: string, url: string): MailMessage {
   const paragraphs = [
-    "Welcome to BillSafi! We're happy you're here. Thank you for trusting us with your business.",
-    "Your account is ready. Start by setting up your business, then create your first invoice and keep track of payments in one place.",
-    "Here's to less paperwork and more time for the work you love.",
+    "Thanks for signing up for BillSafi.",
+    "Start by adding your business name and phone number. Then you can create an invoice, download it as a PDF or share a link on WhatsApp, and record payments as they come in.",
+    `You're on the Free plan, which covers ${FREE_PLAN.invoiceLimit} invoices a month.`,
   ];
+  const note = "If you didn't create this account, you can ignore this email.";
   return {
     to,
-    subject: "Welcome to BillSafi — we're glad you're here!",
+    subject: "Welcome to BillSafi",
     html: emailLayout({
-      preview: "Your account is ready. Let's make invoicing simpler.",
-      title: "Welcome to BillSafi!",
+      preview: "Set up your business and send your first invoice.",
+      title: "Your account is ready",
       name,
       paragraphs,
       action: "Set up your business",
       url,
-      note: "With a warm welcome, the BillSafi team.",
+      note,
     }),
-    text: [
-      `Hi ${name},`,
-      "",
-      ...paragraphs,
-      "",
-      `Set up your business: ${url}`,
-      "",
-      "With a warm welcome, the BillSafi team.",
-    ].join("\n\n"),
+    text: [`Hi ${name},`, ...paragraphs, `Set up your business: ${url}`, note].join("\n\n"),
   };
 }
 
+/** Tells each configured admin about a new account. */
 export function registrationAdminEmail(
   to: string,
   name: string,
@@ -183,24 +190,23 @@ export function registrationAdminEmail(
   url: string,
 ): MailMessage {
   const paragraphs = [
-    "Good news — someone new has joined BillSafi!",
-    `Name: ${user.name}`,
+    `${user.name} just created a BillSafi account.`,
     `Email: ${user.email}`,
     `Account ID: ${user.id}`,
-    "Thank you for helping make their experience a welcoming one.",
   ];
+  const note = "You get these emails because you're a BillSafi admin.";
   return {
     to,
-    subject: "A new user has joined BillSafi",
+    subject: "New BillSafi sign-up",
     html: emailLayout({
-      preview: "A new BillSafi account has been created.",
-      title: "A new user has joined!",
+      preview: `${user.name} just signed up.`,
+      title: "New sign-up",
       name,
       paragraphs,
-      action: "View accounts",
+      action: "View account",
       url,
-      note: "You're receiving this notification as a configured BillSafi administrator.",
+      note,
     }),
-    text: [`Hi ${name},`, ...paragraphs, `View accounts: ${url}`].join("\n\n"),
+    text: [`Hi ${name},`, ...paragraphs, `View account: ${url}`, note].join("\n\n"),
   };
 }

@@ -107,6 +107,10 @@ const SECTIONS: LegalSection[] = [
           <li>build your invoices, PDFs and public invoice pages;</li>
           <li>process Pro and credit payments and apply your plan;</li>
           <li>send emails you need, such as password resets and reminders before Pro ends;</li>
+          <li>
+            send a few check-in emails if your account goes quiet, such as help with your first
+            invoice;
+          </li>
           <li>find and fix bugs, and stop fraud or abuse;</li>
           <li>answer your questions and support requests;</li>
           <li>meet our legal, tax and accounting duties.</li>
@@ -114,7 +118,14 @@ const SECTIONS: LegalSection[] = [
         <p>
           We rely on these legal grounds: performing our contract with you, our legitimate interest
           in running a secure and working service, meeting legal obligations, and your consent where
-          we ask for it. We do not send marketing email unless you have agreed to receive it.
+          we ask for it.
+        </p>
+        <p>
+          Check-in emails rely on our legitimate interest in helping you use the account you
+          created. We send at most three each time your account goes quiet, and they stop as soon as
+          you sign in again. Every check-in email has an unsubscribe link. Unsubscribing stops
+          check-in emails only; you will still get account emails like password resets. We do not
+          send any other marketing email unless you have agreed to receive it.
         </p>
       </>
     ),
@@ -152,7 +163,7 @@ const SECTIONS: LegalSection[] = [
             with Google&quot;.
           </li>
           <li>
-            <strong>Email delivery provider:</strong> sends account and reminder emails.
+            <strong>Email delivery provider:</strong> sends account, reminder and check-in emails.
           </li>
           <li>
             <strong>Error monitoring provider:</strong> collects error reports so we can fix

@@ -6,6 +6,10 @@ export interface MailMessage {
   subject: string;
   text: string;
   html?: string;
+  /** Where replies go, when not the sender. */
+  replyTo?: string;
+  /** Extra headers, such as List-Unsubscribe on check-in emails. */
+  headers?: Record<string, string>;
 }
 
 /** Which kind of email this is, so a failed send can be recorded by name (D066). */
@@ -51,7 +55,15 @@ export class ResendMailer implements Mailer {
         Authorization: `Bearer ${this.apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ ...message, from: this.from, to: [message.to] }),
+      body: JSON.stringify({
+        from: this.from,
+        to: [message.to],
+        subject: message.subject,
+        text: message.text,
+        html: message.html,
+        reply_to: message.replyTo,
+        headers: message.headers,
+      }),
       signal: AbortSignal.timeout(15_000),
     });
     if (!response.ok) {

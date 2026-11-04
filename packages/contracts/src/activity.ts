@@ -78,6 +78,7 @@ export const jobNames = [
   "renewal_reminders",
   "idempotency_prune",
   "maintenance",
+  "reengagement_emails",
 ] as const;
 export type JobName = (typeof jobNames)[number];
 

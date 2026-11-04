@@ -22,6 +22,7 @@ import { InvoicesModule } from "./invoices/invoices.module.js";
 import { MAILER, MailModule } from "./mail/mail.module.js";
 import { PlatformModule } from "./platform/platform.module.js";
 import { ProductToursModule } from "./product-tours/product-tours.module.js";
+import { ReengagementModule } from "./reengagement/reengagement.module.js";
 import type { Mailer } from "./mail/mailer.js";
 
 @Module({
@@ -57,6 +58,7 @@ import type { Mailer } from "./mail/mailer.js";
     GuestInvoicesModule,
     BillingModule,
     ProductToursModule,
+    ReengagementModule,
     PlatformModule,
     AdminModule,
   ],

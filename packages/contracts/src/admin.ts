@@ -25,6 +25,7 @@ import {
 } from "./query-params.js";
 import type { CancelReason } from "./billing.js";
 import type { InvoiceStatus } from "./invoices.js";
+import type { AdminTenantCheckIns } from "./reengagement.js";
 
 /*
  * Read-only admin dashboard (spec 2026-10-24). Shares and rates are fractions
@@ -391,6 +392,7 @@ export interface AdminTenantDetail {
   businesses: AdminTenantBusiness[];
   usage: AdminTenantUsage;
   subscription: AdminTenantSubscription;
+  checkIns: AdminTenantCheckIns;
   /** The 20 most recent audit rows about this account or its user, newest first. */
   recentAudit: AdminAuditRow[];
   generatedAt: string;
