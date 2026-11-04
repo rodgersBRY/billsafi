@@ -727,3 +727,16 @@ Status: proposed on 2026-11-03. Built behind `REENGAGEMENT_JOBS`, which is off b
 - Button links carry `utm_campaign=<group>_<step>` so returns can be traced to an email.
 - Admin. Analytics has a Check-in emails section for the chosen range: emails sent and to how many accounts, the share that came back, emails still inside their return window, unsubscribes, and a table by group and email. An email counts as bringing the account back when, within 14 days after it, the owner starts a new session, adds a business, or does a meaningful action. Session refreshes don't count, so a long-lived session can't make an email look successful. The tenant overview lists the account's check-in emails and when it unsubscribed. Health has a Check-in emails card: unknown when the job is off or hasn't run, ok within 90 minutes of the last run, warning after that, failing after 3 hours or when the last run failed. Its value is the emails sent in the last 24 hours against the daily limit.
 - The privacy policy (updated 3 November 2026) names check-in emails, bases them on legitimate interest in helping people use the account they created, and states the limit of three per quiet spell and the unsubscribe link. Other marketing email still needs agreement.
+
+## D070 - Add quotes as their own documents with versions and typed-name acceptance
+
+Status: adopted on 2026-11-04.
+
+- Quotes have their own tables (`quotes`, `quote_items`, `quote_versions`, `quote_acceptances`, `quote_links`) so invoice numbering, allowance and payment rules stay untouched.
+- Statuses: Draft, Sent, Accepted, Declined, Withdrawn, Converted. Expired is derived: a Sent quote after its valid-until day in Nairobi. Accepted quotes never expire.
+- Numbers: `QT-00001` from a per-business sequence on first send. Custom numbers work as they do on invoices.
+- Validity defaults to 14 days and can be changed per quote. The public link stays usable until it is revoked, so an expired quote shows "This quote expired on ..." instead of a dead link. Extending the date reopens the same link.
+- Sent and declined quotes stay editable. Each content change saves a frozen version; the client always sees the latest, labelled "Updated" after the first. Versions are shown to the freelancer only.
+- The client accepts by typing their name and ticking "I agree to this quote". BillSafi stores the name, time, IP, browser and the version accepted. Columns are reserved for a later email or SMS code.
+- The freelancer gets an email on accept and decline, sent after the answer is saved.
+- Convert copies an accepted quote into one Draft invoice due after the business's payment terms. Quotes are on Free and never use allowance; the invoice uses it when first marked Ready. Deleting that draft puts the quote back to Accepted. A Sent quote can be converted after the freelancer confirms a verbal yes.
