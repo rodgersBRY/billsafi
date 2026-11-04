@@ -740,3 +740,5 @@ Status: adopted on 2026-11-04.
 - The client accepts by typing their name and ticking "I agree to this quote". BillSafi stores the name, time, IP, browser and the version accepted. Columns are reserved for a later email or SMS code.
 - The freelancer gets an email on accept and decline, sent after the answer is saved.
 - Convert copies an accepted quote into one Draft invoice due after the business's payment terms. Quotes are on Free and never use allowance; the invoice uses it when first marked Ready. Deleting that draft puts the quote back to Accepted. A Sent quote can be converted after the freelancer confirms a verbal yes.
+- The client's accept or decline carries the version they were looking at. If the freelancer saved a newer version since, the answer is refused with `QUOTE_CHANGED` and the client reviews the new version first.
+- Deleting the converted draft returns the quote to Accepted only if the client accepted on the link. A quote converted on a verbal yes goes back to Sent.
