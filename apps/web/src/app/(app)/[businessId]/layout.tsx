@@ -27,7 +27,7 @@ async function Sidebar({ params }: { params: Promise<{ businessId: string }> }) 
     <>
       <BusinessSwitcher businesses={businesses} currentId={businessId} />
       <NavLinks businessId={businessId} />
-      <div className="mt-auto grid gap-3">
+      <div className="mt-auto grid grid-cols-1 gap-3">
         <UsageMeter usage={usage} />
         <AccountMenu
           name={user.name}
