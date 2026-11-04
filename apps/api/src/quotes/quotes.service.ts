@@ -141,8 +141,8 @@ export class QuotesService {
   }
 
   /**
-   * Sends a draft, or resends a declined or expired quote. Returns whether the link
-   * service must create a link, so the caller does it in the same transaction.
+   * Sends a draft, or resends a declined or expired quote. No-op on a sent quote.
+   * The caller creates the link in the same transaction.
    */
   async send(tx: Transaction, userId: string, businessId: string, quoteId: string) {
     const current = await this.lockQuote(tx, businessId, quoteId);
