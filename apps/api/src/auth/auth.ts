@@ -10,9 +10,16 @@ import { clientIpFromForwardedFor } from "../common/client-ip.js";
 import type { ActivityRecorder } from "../activity/activity-recorder.js";
 import type { Env } from "../config/env.js";
 import type { Mailer } from "../mail/mailer.js";
+import { passwordChangedEmail } from "../mail/account-templates.js";
 import { passwordResetEmail } from "../mail/templates.js";
 import { registrationEmails } from "./registration-emails.js";
-import { readRegistrationForEnforcement } from "../platform/platform-settings.js";
+import { readRegistrationForEnforcement, readSetting } from "../platform/platform-settings.js";
+
+interface PasswordUser {
+  id: string;
+  email: string;
+  name: string;
+}
 
 export const AUTH_BASE_PATH = "/api/v1/auth";
 
@@ -179,6 +186,25 @@ export function createAuth({ db, env, mailer, recorder }: AuthDependencies) {
         }
       : undefined;
 
+  // A failed send is logged and never blocks the password change.
+  async function notifyPasswordChanged(user: PasswordUser) {
+    try {
+      const support = await readSetting(db, "support_contact");
+      await mailer.send(
+        passwordChangedEmail(
+          user.email,
+          user.name,
+          new Date(),
+          `${env.WEB_ORIGIN}/forgot-password`,
+          support.email,
+        ),
+        { operation: "password_changed_email", accountId: user.id },
+      );
+    } catch (error) {
+      console.error("Failed to send password changed email", error);
+    }
+  }
+
   return betterAuth({
     appName: "BillSafi",
     baseURL: env.WEB_ORIGIN,
@@ -190,6 +216,10 @@ export function createAuth({ db, env, mailer, recorder }: AuthDependencies) {
     hooks: {
       after: createAuthMiddleware(async (ctx) => {
         await recordFailedSignIn(recorder)(ctx);
+        if (ctx.path === "/change-password" && !isAPIError(ctx.context.returned)) {
+          const returned = ctx.context.returned as { user?: PasswordUser } | null;
+          if (returned?.user) await notifyPasswordChanged(returned.user);
+        }
         return hideBanned(ctx);
       }),
     },
@@ -201,6 +231,7 @@ export function createAuth({ db, env, mailer, recorder }: AuthDependencies) {
       autoSignIn: true,
       resetPasswordTokenExpiresIn: env.RESET_TOKEN_TTL_SECONDS,
       revokeSessionsOnPasswordReset: true,
+      onPasswordReset: async ({ user }) => notifyPasswordChanged(user),
       sendResetPassword: async ({ user, url }) => {
         // Not awaited so response timing does not reveal whether the account exists.
         void mailer

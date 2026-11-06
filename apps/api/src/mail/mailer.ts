@@ -1,3 +1,4 @@
+import { Logger } from "@nestjs/common";
 import nodemailer, { type Transporter } from "nodemailer";
 import type { ActivityRecorder } from "../activity/activity-recorder.js";
 
@@ -86,5 +87,22 @@ export class SmtpMailer implements Mailer {
 
   async send(message: MailMessage, _context?: MailContext): Promise<void> {
     await this.transport.sendMail({ from: this.from, ...message });
+  }
+}
+
+/** Local runs: prints each email to the console instead of sending it (D070). */
+export class LogMailer implements Mailer {
+  private readonly logger = new Logger("Mail");
+
+  async send(message: MailMessage, context: MailContext): Promise<void> {
+    this.logger.log(
+      [
+        `Not sent (MAIL_DRIVER=log): ${context.operation}`,
+        `To: ${message.to}`,
+        `Subject: ${message.subject}`,
+        "",
+        message.text,
+      ].join("\n"),
+    );
   }
 }

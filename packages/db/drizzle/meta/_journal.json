@@ -148,6 +148,27 @@
       "when": 1793730560154,
       "tag": "0020_reengagement_emails",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793962611159,
+      "tag": "0021_notification_claims",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1793982794714,
+      "tag": "0022_quotes",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793983923547,
+      "tag": "0023_gift_notified_at",
+      "breakpoints": true
     }
   ]
 }

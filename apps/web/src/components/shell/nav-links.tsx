@@ -1,11 +1,12 @@
 "use client";
 
-import { FileText, LayoutDashboard, Users } from "lucide-react";
+import { FileSignature, FileText, LayoutDashboard, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const LINKS = [
   { segment: "overview", label: "Overview", icon: LayoutDashboard },
+  { segment: "quotes", label: "Quotes", icon: FileSignature },
   { segment: "invoices", label: "Invoices", icon: FileText },
   { segment: "clients", label: "Clients", icon: Users },
 ] as const;

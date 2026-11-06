@@ -247,6 +247,17 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
             {props.business.displayName} / Invoices / {invoice ? title : "New invoice"}
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">{title}</h1>
+          {invoice?.sourceQuote && (
+            <p className="mt-1 text-xs text-sub">
+              From{" "}
+              <Link
+                href={`/${businessId}/quotes/${invoice.sourceQuote.id}`}
+                className="text-accent hover:underline"
+              >
+                {invoice.sourceQuote.quoteNumber ?? "quote"}
+              </Link>
+            </p>
+          )}
           <p className="mt-1 text-sm text-sub">
             {isDraft
               ? "Start with the details. Preview as you go."

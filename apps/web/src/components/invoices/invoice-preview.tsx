@@ -7,7 +7,7 @@ export interface PreviewProps {
   business: InvoiceBusinessDetails;
   client: { name: string; companyName: string | null } | null;
   invoiceNumber: string | null;
-  status: InvoiceStatus;
+  status?: InvoiceStatus;
   issueDate: string;
   dueDate: string;
   items: { description: string; quantity: string; unitPrice: string }[];
@@ -24,6 +24,10 @@ export interface PreviewProps {
   logoSrc?: string | null;
   /** "Created with BillSafi" for Free accounts on the public page (D052). */
   showBranding?: boolean;
+  /** "quote" swaps labels, shows Valid until and hides payment rows. Default "invoice". */
+  kind?: "invoice" | "quote";
+  /** Replaces the invoice status pill, for quotes. */
+  statusPill?: React.ReactNode;
 }
 
 /** Stored quantities come back as "1.00"; show them as typed numbers ("1", "2.5"). */
@@ -38,9 +42,10 @@ function safeDate(value: string) {
 /** Approved invoice layout (D025, D030): compact payment summary, no payment history. */
 export function InvoicePreview(props: PreviewProps) {
   const { business, client, totals } = props;
+  const isQuote = props.kind === "quote";
   return (
     <article
-      aria-label="Invoice preview"
+      aria-label={isQuote ? "Quote preview" : "Invoice preview"}
       className="rounded-panel border border-line bg-panel p-5 text-sm shadow-sm sm:p-7"
     >
       <header className="flex flex-wrap items-start justify-between gap-4 border-b border-line pb-5">
@@ -61,10 +66,11 @@ export function InvoicePreview(props: PreviewProps) {
           </div>
         </div>
         <div className="text-right">
-          <p className="text-xs tracking-widest text-sub">INVOICE</p>
+          <p className="text-xs tracking-widest text-sub">{isQuote ? "QUOTE" : "INVOICE"}</p>
           <p className="text-base font-semibold">{props.invoiceNumber ?? "Draft"}</p>
           <div className="mt-1">
-            <StatusPill status={props.status} overdue={props.overdue} />
+            {props.statusPill ??
+              (props.status && <StatusPill status={props.status} overdue={props.overdue} />)}
           </div>
         </div>
       </header>
@@ -85,7 +91,7 @@ export function InvoicePreview(props: PreviewProps) {
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-right text-xs">
           <dt className="text-sub">Issued</dt>
           <dd>{safeDate(props.issueDate)}</dd>
-          <dt className="text-sub">Due</dt>
+          <dt className="text-sub">{isQuote ? "Valid until" : "Due"}</dt>
           <dd>{safeDate(props.dueDate)}</dd>
         </dl>
       </div>
@@ -134,21 +140,28 @@ export function InvoicePreview(props: PreviewProps) {
             <dd className="text-right">{totals ? formatAmount(totals.taxAmount) : "—"}</dd>
           </>
         )}
-        <dt className="border-t border-line pt-2 font-semibold">Invoice total</dt>
+        <dt className="border-t border-line pt-2 font-semibold">
+          {isQuote ? "Quote total" : "Invoice total"}
+        </dt>
         <dd className="border-t border-line pt-2 text-right font-semibold">
+          {isQuote ? "KES " : ""}
           {totals ? formatAmount(totals.total) : "—"}
         </dd>
-        <dt className="text-sub">Payments received</dt>
-        <dd className="text-right">{formatAmount(props.paymentsReceived ?? "0")}</dd>
-        <dt className="font-semibold">Balance due</dt>
-        <dd className="text-right font-semibold">
-          KES{" "}
-          {props.balanceDue !== undefined
-            ? formatAmount(props.balanceDue)
-            : totals
-              ? formatAmount(totals.total)
-              : "—"}
-        </dd>
+        {!isQuote && (
+          <>
+            <dt className="text-sub">Payments received</dt>
+            <dd className="text-right">{formatAmount(props.paymentsReceived ?? "0")}</dd>
+            <dt className="font-semibold">Balance due</dt>
+            <dd className="text-right font-semibold">
+              KES{" "}
+              {props.balanceDue !== undefined
+                ? formatAmount(props.balanceDue)
+                : totals
+                  ? formatAmount(totals.total)
+                  : "—"}
+            </dd>
+          </>
+        )}
       </dl>
 
       {(props.paymentInstructions || props.notes) && (

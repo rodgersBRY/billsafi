@@ -63,7 +63,7 @@ export function toInvoice(
   items: ItemRow[],
   live: { client: ClientRow; business: BusinessRow },
   paymentsReceived: string,
-): Invoice {
+): Omit<Invoice, "sourceQuote"> {
   const client = row.clientSnapshot ?? clientDetails(live.client);
   const business = row.businessSnapshot ?? businessDetails(live.business);
   return {

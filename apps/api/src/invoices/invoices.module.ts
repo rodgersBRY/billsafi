@@ -25,6 +25,6 @@ import { PdfService } from "./pdf.service.js";
     BrandingService,
     DashboardService,
   ],
-  exports: [InvoicesService],
+  exports: [InvoicesService, BrandingService, PdfService],
 })
 export class InvoicesModule {}

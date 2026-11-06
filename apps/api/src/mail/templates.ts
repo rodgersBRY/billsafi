@@ -104,12 +104,21 @@ export function passwordResetEmail(
   };
 }
 
-const longDate = new Intl.DateTimeFormat("en-KE", {
+/** Date and time in Nairobi, for example "6 January 2027 at 11:30". */
+export const longDate = new Intl.DateTimeFormat("en-KE", {
   day: "numeric",
   month: "long",
   year: "numeric",
   hour: "numeric",
   minute: "2-digit",
+  timeZone: "Africa/Nairobi",
+});
+
+/** Date only in Nairobi, for example "6 January 2027". */
+export const dayOnly = new Intl.DateTimeFormat("en-KE", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
   timeZone: "Africa/Nairobi",
 });
 
@@ -208,5 +217,119 @@ export function registrationAdminEmail(
       note,
     }),
     text: [`Hi ${name},`, ...paragraphs, `View account: ${url}`, note].join("\n\n"),
+  };
+}
+
+/** Tells the freelancer a client accepted or declined a quote on its public link. */
+export function quoteResponseEmail(
+  to: string,
+  name: string,
+  response: {
+    decision: "accepted" | "declined";
+    quoteNumber: string;
+    clientName: string;
+    signerName: string | null;
+    reason: string | null;
+  },
+  url: string,
+): MailMessage {
+  const accepted = response.decision === "accepted";
+  const subject = accepted
+    ? `${response.clientName} accepted quote ${response.quoteNumber}`
+    : `${response.clientName} declined quote ${response.quoteNumber}`;
+  const paragraphs = accepted
+    ? [
+        `${response.signerName} accepted quote ${response.quoteNumber} for ${response.clientName}.`,
+        "You can turn it into an invoice in one step.",
+      ]
+    : [
+        `${response.clientName} declined quote ${response.quoteNumber}.`,
+        response.reason ? `Their reason: "${response.reason}"` : "They didn't give a reason.",
+        "You can edit the quote and send it again.",
+      ];
+  const action = accepted ? "Convert to invoice" : "Open the quote";
+  const note = "You're getting this because you sent this quote from BillSafi.";
+  return {
+    to,
+    subject,
+    html: emailLayout({ preview: subject, title: subject, name, paragraphs, action, url, note }),
+    text: [`Hi ${name},`, ...paragraphs, `${action}: ${url}`, note].join("\n\n"),
+  };
+}
+
+/** "1 month", "2 months". */
+export const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
+
+export type GiftEmail =
+  | { kind: "pro_months"; quantity: number; until: Date }
+  | { kind: "invoice_credits"; quantity: number };
+
+/** Tells an account about a gift from BillSafi. Never names the admin or their reason (D072). */
+export function giftEmail(
+  to: string,
+  name: string,
+  gift: GiftEmail,
+  billingUrl: string,
+): MailMessage {
+  const what =
+    gift.kind === "pro_months"
+      ? plural(gift.quantity, "month") + " of Pro"
+      : plural(gift.quantity, "invoice credit");
+  const detail =
+    gift.kind === "pro_months"
+      ? `You now have Pro until ${dayOnly.format(gift.until)}.`
+      : "Credits are used after your monthly allowance and don't expire.";
+  const paragraphs = [`BillSafi has given you ${what}, free of charge.`, detail];
+  const note = "There's nothing to pay. This gift shows as No charge in your billing history.";
+  return {
+    to,
+    subject: `You've got ${what} on BillSafi`,
+    html: emailLayout({
+      preview: `${what}, free of charge.`,
+      title: "A gift from BillSafi",
+      name,
+      paragraphs,
+      action: "View billing",
+      url: billingUrl,
+      note,
+    }),
+    text: [`Hi ${name},`, ...paragraphs, `View billing: ${billingUrl}`, note].join("\n\n"),
+  };
+}
+
+/** What a past gift still gives the account, for the one-off email (D078). */
+export interface PastGifts {
+  pro?: { months: number; until: Date };
+  credits?: { given: number; left: number };
+}
+
+/** One email per account about gifts given before gift emails existed. */
+export function pastGiftsEmail(
+  to: string,
+  name: string,
+  gifts: PastGifts,
+  billingUrl: string,
+): MailMessage {
+  const lines = [
+    gifts.pro &&
+      `${plural(gifts.pro.months, "month")} of Pro. You have Pro until ${dayOnly.format(gifts.pro.until)}.`,
+    gifts.credits &&
+      `${plural(gifts.credits.given, "invoice credit")}. You have ${gifts.credits.left} left, and they don't expire.`,
+  ].filter((line): line is string => Boolean(line));
+  const paragraphs = ["BillSafi added this to your account, free of charge:", ...lines];
+  const note = "There's nothing to pay. You'll find it as No charge in your billing history.";
+  return {
+    to,
+    subject: "A gift from BillSafi on your account",
+    html: emailLayout({
+      preview: "A free extra on your BillSafi account.",
+      title: "A gift from BillSafi",
+      name,
+      paragraphs,
+      action: "View billing",
+      url: billingUrl,
+      note,
+    }),
+    text: [`Hi ${name},`, ...paragraphs, `View billing: ${billingUrl}`, note].join("\n\n"),
   };
 }

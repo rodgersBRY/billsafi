@@ -11,6 +11,12 @@ const envSchema = z
     /** Google OAuth web client; Google sign-in is off unless both are set (D055). */
     GOOGLE_CLIENT_ID: z.string().min(1).optional(),
     GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
+    /**
+     * Where email goes (D070). log prints each email to the API console and never
+     * sends. Unset means log outside production, and in production Resend when
+     * RESEND_API_KEY is set, otherwise SMTP.
+     */
+    MAIL_DRIVER: z.enum(["log", "resend", "smtp"]).optional(),
     RESEND_API_KEY: z.string().min(1).optional(),
     SMTP_URL: z.url({ protocol: /^smtps?$/ }).optional(),
     MAIL_FROM: z.string().min(3).default("BillSafi <no-reply@billsafi.local>"),
@@ -94,11 +100,28 @@ const envSchema = z
         message: "Required when REENGAGEMENT_JOBS is on",
       });
     }
-    if (!env.RESEND_API_KEY && !env.SMTP_URL) {
+    const mailDriver = resolveMailDriver(env);
+    if (mailDriver === "log" && env.NODE_ENV === "production") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["MAIL_DRIVER"],
+        message: "The log driver never delivers email; use resend or smtp",
+      });
+    }
+    if (mailDriver === "resend" && !env.RESEND_API_KEY) {
       ctx.addIssue({
         code: "custom",
         path: ["RESEND_API_KEY"],
-        message: "Set RESEND_API_KEY or SMTP_URL for email delivery",
+        message: env.MAIL_DRIVER
+          ? "Required when MAIL_DRIVER is resend"
+          : "Set RESEND_API_KEY or SMTP_URL for email delivery",
+      });
+    }
+    if (mailDriver === "smtp" && !env.SMTP_URL) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["SMTP_URL"],
+        message: "Required when MAIL_DRIVER is smtp",
       });
     }
     if (Boolean(env.GOOGLE_CLIENT_ID) !== Boolean(env.GOOGLE_CLIENT_SECRET)) {
@@ -131,7 +154,21 @@ const envSchema = z
           message: `Required when MPESA_ENV is ${env.MPESA_ENV}`,
         });
     }
-  });
+  })
+  .transform((env) => ({ ...env, MAIL_DRIVER: resolveMailDriver(env) }));
+
+type MailDriver = "log" | "resend" | "smtp";
+
+function resolveMailDriver(env: {
+  NODE_ENV: string;
+  MAIL_DRIVER?: MailDriver | undefined;
+  RESEND_API_KEY?: string | undefined;
+  SMTP_URL?: string | undefined;
+}): MailDriver {
+  if (env.MAIL_DRIVER) return env.MAIL_DRIVER;
+  if (env.NODE_ENV !== "production") return "log";
+  return env.RESEND_API_KEY || !env.SMTP_URL ? "resend" : "smtp";
+}
 
 export type Env = z.infer<typeof envSchema>;
 

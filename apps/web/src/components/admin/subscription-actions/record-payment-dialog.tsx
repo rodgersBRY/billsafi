@@ -79,8 +79,8 @@ export function RecordPaymentDialog({
         response.replayed
           ? "This payment was already recorded. Nothing was added twice."
           : response.subscription.paidUntil && purpose === "pro_month"
-            ? `Payment recorded. Pro runs until ${formatDay(response.subscription.paidUntil)}.`
-            : `Payment recorded. The account has ${formatCount(response.subscription.credits)} credits.`
+            ? `Payment recorded. Pro runs until ${formatDay(response.subscription.paidUntil)}. Account emailed.`
+            : `Payment recorded. The account has ${formatCount(response.subscription.credits)} credits. Account emailed.`
       }
       onClose={onClose}
     >

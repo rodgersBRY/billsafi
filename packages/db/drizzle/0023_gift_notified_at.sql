@@ -1,0 +1,1 @@
+ALTER TABLE "account_grants" ADD COLUMN "notified_at" timestamp with time zone;

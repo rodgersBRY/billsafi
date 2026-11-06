@@ -16,11 +16,12 @@ import { nairobiDate } from "@billsafi/domain";
 import { containsPattern } from "../common/like-pattern.js";
 import { DATABASE } from "../database/database.module.js";
 import type { Executor, Transaction } from "../database/transaction.js";
-import { AllowanceService } from "../billing/allowance.service.js";
+import { AllowanceService, type Reservation } from "../billing/allowance.service.js";
 import { effectivePaymentsSql } from "./effective-payments.js";
 import { businessDetails, clientDetails, toInvoice, toInvoiceSummary } from "./invoice.mapper.js";
 
-const { invoices, invoiceItems, invoiceIssuances, invoiceLinks, clients, businesses } = schema;
+const { invoices, invoiceItems, invoiceIssuances, invoiceLinks, clients, businesses, quotes } =
+  schema;
 
 export type InvoiceListFilter = {
   status?: (typeof invoices.status.enumValues)[number] | "overdue";
@@ -184,6 +185,18 @@ export class InvoicesService {
       if (current.status !== "draft") {
         throw new ConflictException("Only draft invoices can be deleted");
       }
+      // A quote converted into this draft can be converted again. It goes back to Accepted
+      // only if the client accepted on the link; a verbal yes returns it to Sent.
+      await tx
+        .update(quotes)
+        .set({
+          status: sql`(case when exists (
+            select 1 from quote_acceptances qa
+            where qa.quote_id = ${quotes.id} and qa.decision = 'accepted'
+          ) then 'accepted' else 'sent' end)::quote_status`,
+          convertedInvoiceId: null,
+        })
+        .where(and(eq(quotes.businessId, businessId), eq(quotes.convertedInvoiceId, invoiceId)));
       await tx.delete(invoices).where(eq(invoices.id, invoiceId));
     });
   }
@@ -194,7 +207,8 @@ export class InvoicesService {
    * business details, all in one transaction. Repeats are no-ops.
    */
   async markReady(userId: string, businessId: string, invoiceId: string) {
-    return this.db.transaction(async (tx) => {
+    const reserved: { value?: Reservation } = {};
+    const invoice = await this.db.transaction(async (tx) => {
       const current = await this.lockInvoice(tx, businessId, invoiceId);
       if (current.status !== "draft") return this.load(tx, businessId, invoiceId);
 
@@ -210,7 +224,9 @@ export class InvoicesService {
       }
 
       const now = new Date();
-      const { usagePeriodId, source } = await this.allowance.reserve(tx, userId, now);
+      const reservation = await this.allowance.reserve(tx, userId, now);
+      reserved.value = reservation;
+      const { usagePeriodId, source } = reservation;
 
       await this.lockNumbering(tx, businessId);
       await this.checkNumber(tx, businessId, current.invoiceNumber, invoiceId);
@@ -250,6 +266,9 @@ export class InvoicesService {
         .where(eq(invoices.id, invoiceId));
       return this.load(tx, businessId, invoiceId);
     });
+    // After the commit; never blocks or fails the invoice.
+    if (reserved.value) await this.allowance.notifyFreeLimit(userId, reserved.value);
+    return invoice;
   }
 
   private calculate(input: SaveInvoice) {
@@ -399,6 +418,20 @@ export class InvoicesService {
       .from(invoiceItems)
       .where(eq(invoiceItems.invoiceId, invoiceId))
       .orderBy(asc(invoiceItems.position));
-    return toInvoice(row.invoice, items, { client: row.client, business: row.business }, row.paid);
+    const invoice = toInvoice(
+      row.invoice,
+      items,
+      { client: row.client, business: row.business },
+      row.paid,
+    );
+    return { ...invoice, sourceQuote: await this.sourceQuoteFor(db, businessId, invoiceId) };
+  }
+
+  private async sourceQuoteFor(db: Executor, businessId: string, invoiceId: string) {
+    const [row] = await db
+      .select({ id: quotes.id, quoteNumber: quotes.quoteNumber })
+      .from(quotes)
+      .where(and(eq(quotes.businessId, businessId), eq(quotes.convertedInvoiceId, invoiceId)));
+    return row ?? null;
   }
 }

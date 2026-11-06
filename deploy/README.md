@@ -39,7 +39,7 @@ GitHub never connects to the droplet. Images are built on GitHub's runners, so t
 | `deploy/Caddyfile`              | HTTPS and reverse proxy to `web`                                            |
 | `deploy/.env.example`           | Template for the secrets file on the droplet                                |
 | `deploy/deploy.sh`              | Pull, migrate, restart, health check. Also used for rollbacks               |
-| `deploy/backup.sh`              | Nightly `pg_dump` with 7 days of retention                                  |
+| `deploy/backup.sh`              | Weekly `pg_dump` with 14 days of retention                                  |
 
 Local development and CI behave exactly as before.
 
@@ -160,7 +160,7 @@ Paste the template from `deploy/.env.example` and fill it in:
 - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`: the Google OAuth web client for "Continue with Google" (D055). Leave both blank to hide the button. In Google Cloud Console, create an OAuth client of type **Web application** and add `https://<DOMAIN>/api/v1/auth/callback/google` as an authorized redirect URI.
 - `ADMIN_USER_IDS`: the user IDs allowed to open the read-only admin dashboard at `/admin` (D057), separated by commas. Leave it blank to turn the dashboard off for everyone. It uses IDs, not emails, because sign-up does not verify email addresses and anyone could register an address that has no account yet. Create your account on the site first, then look up its ID with `docker compose exec postgres psql -U billsafi -d billsafi -c "select id, email from users where email = 'you@example.com';"`. Paste the ID here and restart the API.
 - `ADMIN_SENTRY_URL` and `ADMIN_UPTIME_URL` (optional): https links to your Sentry project and your uptime monitor. The admin System Health page shows them as link cards, because those tools hold the real error rates and availability. Leave a variable blank to hide its card. A value that is not an https URL stops the API at start-up.
-- `RESEND_API_KEY` and `MAIL_FROM`: verify `billsafi.com` in Resend, set your API key, and use `BillSafi <no-reply@billsafi.com>` as the sender. The API sends through Resend’s HTTPS API on port 443, because DigitalOcean blocks standard SMTP ports. `RESEND_API_KEY` takes precedence over the optional `SMTP_URL` fallback. Create `support@billsafi.com` with your mailbox provider for customer support; the automated sender does not need its own mailbox.
+- `RESEND_API_KEY` and `MAIL_FROM`: verify `billsafi.com` in Resend, set your API key, and use `BillSafi <no-reply@billsafi.com>` as the sender. The API sends through Resend’s HTTPS API on port 443, because DigitalOcean blocks standard SMTP ports. `RESEND_API_KEY` takes precedence over the optional `SMTP_URL` fallback. Leave `MAIL_DRIVER` unset or set it to `resend`; the API refuses to start with `MAIL_DRIVER=log` in production (D070). Create `support@billsafi.com` with your mailbox provider for customer support; the automated sender does not need its own mailbox.
 - `SENTRY_API_DSN` and `SENTRY_WEB_DSN`: the DSNs of your two Sentry projects. Leave them blank to turn error reporting off. Browser errors need the web DSN at build time too: add it as a repository variable named `SENTRY_WEB_DSN` under **Settings > Secrets and variables > Actions > Variables**, then publish new images.
 - `APP_ENV` (optional repository variable, build time): the environment name the admin header shows, `production`, `staging` or `development`. Published images default to `production`; set the variable to `staging` for a staging build. It is baked into the web image as `NEXT_PUBLIC_APP_ENV`, so a change needs new images. Local builds without it show Development.
 - `RESET_TOKEN_TTL_SECONDS` (optional): how long password reset links work. Leave it blank for one hour.
@@ -212,7 +212,7 @@ The first deploy takes a little longer because Caddy has to request the certific
 - Visit `https://<your domain>/api/v1/health`. It should return `{"status":"ok","database":"ok"}`.
 - Create an account, then trigger a password reset to confirm email delivery.
 
-## Step 10: Turn on nightly backups
+## Step 10: Turn on weekly backups
 
 On the droplet, as `deploy`, open the crontab:
 
@@ -223,16 +223,16 @@ crontab -e
 Add this line:
 
 ```
-15 2 * * * /opt/billsafi/backup.sh >> /home/deploy/backup.log 2>&1
+15 2 * * 0 /opt/billsafi/backup.sh >> /home/deploy/backup.log 2>&1
 ```
 
-This writes a dump to `/opt/billsafi/backups` at 02:15 UTC every night and deletes dumps older than 7 days. Run it once by hand to check it works:
+This writes a dump to `/opt/billsafi/backups` at 02:15 UTC every Sunday and deletes dumps older than 14 days, so there are always at least two. Run it once by hand to check it works:
 
 ```sh
 /opt/billsafi/backup.sh
 ```
 
-Each run, good or bad, also adds one row to the `backup_runs` table: when it started and finished, whether it worked, the dump's size and file name, or a short error line. The script writes it through `docker compose exec postgres psql`, so it needs no new passwords or settings. The admin Health page reads these rows: a good backup under 26 hours old is fine, under 50 hours is a warning, and anything older or a failed last run is failing. Rows are deleted after 13 months. If the row can't be written (the database is down, say), the script prints a warning and still keeps a good dump. Until the first run after a deploy that includes this table, Health shows Backups as unknown.
+Each run, good or bad, also adds one row to the `backup_runs` table: when it started and finished, whether it worked, the dump's size and file name, or a short error line. The script writes it through `docker compose exec postgres psql`, so it needs no new passwords or settings. The admin Health page reads these rows: a good backup under 7 days and 2 hours old is fine, under 14 days and 2 hours is a warning, and anything older or a failed last run is failing. Rows are deleted after 13 months. If the row can't be written (the database is down, say), the script prints a warning and still keeps a good dump. Until the first run after a deploy that includes this table, Health shows Backups as unknown.
 
 Run `./deploy.sh` before the first backup that uses this script, so the table exists.
 
@@ -261,6 +261,16 @@ docker compose logs -f web
 ```sh
 docker compose ps
 ```
+
+**Emailing past gifts (once, after v1.8.0 is deployed).** Gifts given before gift emails existed were never emailed. This lists the accounts whose gifts are still in use, then sends one email each (D078):
+
+```sh
+cd /opt/billsafi
+docker compose exec api node apps/api/dist/cli/notify-past-gifts.js         # dry run, sends nothing
+docker compose exec api node apps/api/dist/cli/notify-past-gifts.js --send
+```
+
+Running it again only retries accounts whose email failed.
 
 **Restoring a backup.** This replaces the current database contents, so take a fresh backup first.
 

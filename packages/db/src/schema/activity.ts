@@ -26,6 +26,11 @@ export const PRODUCT_EVENT_NAMES = [
   "generator_download_clicked",
   "generator_signup_clicked",
   "guest_invoice_imported",
+  "quote_sent",
+  "quote_link_opened",
+  "quote_accepted",
+  "quote_declined",
+  "quote_converted",
 ] as const;
 
 export const OPERATION_FAILURE_KINDS = ["pdf", "email", "job"] as const;

@@ -1,8 +1,11 @@
 import {
   passwordResetEmail,
+  quoteResponseEmail,
   renewalReminderEmail,
   welcomeEmail,
   registrationAdminEmail,
+  giftEmail,
+  pastGiftsEmail,
 } from "./templates.js";
 
 describe("transactional email templates", () => {
@@ -74,5 +77,95 @@ describe("registration templates", () => {
       expect(message.html).toContain("&lt;script&gt;");
       expect(message.text).toContain(user.name);
     }
+  });
+});
+
+describe("quoteResponseEmail", () => {
+  it("names the signer on accept and the reason on decline", () => {
+    const accepted = quoteResponseEmail(
+      "a@example.test",
+      "Wanjiku",
+      {
+        decision: "accepted",
+        quoteNumber: "QT-00004",
+        clientName: "Acacia",
+        signerName: "Otieno Ouma",
+        reason: null,
+      },
+      "http://localhost:3000/b/quotes/q",
+    );
+    expect(accepted.subject).toBe("Acacia accepted quote QT-00004");
+    expect(accepted.text).toContain("Otieno Ouma accepted quote QT-00004");
+
+    const declined = quoteResponseEmail(
+      "a@example.test",
+      "Wanjiku",
+      {
+        decision: "declined",
+        quoteNumber: "QT-00004",
+        clientName: "Acacia",
+        signerName: null,
+        reason: "Too expensive",
+      },
+      "http://localhost:3000/b/quotes/q",
+    );
+    expect(declined.text).toContain('Their reason: "Too expensive"');
+  });
+});
+
+describe("gift template", () => {
+  const url = "https://account.billsafi.com/billing";
+
+  it("names the Pro months and the new end date", () => {
+    const email = giftEmail(
+      "user@example.test",
+      "Jane",
+      { kind: "pro_months", quantity: 2, until: new Date("2026-12-28T09:00:00Z") },
+      url,
+    );
+    expect(email.subject).toBe("You've got 2 months of Pro on BillSafi");
+    expect(email.text).toContain("Pro until 28 December 2026.");
+    expect(email.html).toContain("View billing");
+    expect(email.text).toContain(url);
+  });
+
+  it("uses the singular for one credit", () => {
+    const email = giftEmail(
+      "user@example.test",
+      "Jane",
+      { kind: "invoice_credits", quantity: 1 },
+      url,
+    );
+    expect(email.subject).toBe("You've got 1 invoice credit on BillSafi");
+    expect(email.text).toContain("don't expire");
+  });
+});
+
+describe("past gifts template", () => {
+  const url = "https://account.billsafi.com/billing";
+
+  it("lists Pro and credits in one email", () => {
+    const email = pastGiftsEmail(
+      "user@example.test",
+      "Jane",
+      {
+        pro: { months: 1, until: new Date("2026-12-28T09:00:00Z") },
+        credits: { given: 50, left: 12 },
+      },
+      url,
+    );
+    expect(email.subject).toBe("A gift from BillSafi on your account");
+    expect(email.text).toContain("1 month of Pro. You have Pro until 28 December 2026.");
+    expect(email.text).toContain("50 invoice credits. You have 12 left");
+  });
+
+  it("leaves out what wasn't given", () => {
+    const email = pastGiftsEmail(
+      "user@example.test",
+      "Jane",
+      { credits: { given: 5, left: 5 } },
+      url,
+    );
+    expect(email.text).not.toContain("Pro");
   });
 });

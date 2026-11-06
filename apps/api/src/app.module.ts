@@ -19,6 +19,7 @@ import { ClientsModule } from "./clients/clients.module.js";
 import { GuestInvoicesModule } from "./guest-invoices/guest-invoices.module.js";
 import { HealthModule } from "./health/health.module.js";
 import { InvoicesModule } from "./invoices/invoices.module.js";
+import { QuotesModule } from "./quotes/quotes.module.js";
 import { MAILER, MailModule } from "./mail/mail.module.js";
 import { PlatformModule } from "./platform/platform.module.js";
 import { ProductToursModule } from "./product-tours/product-tours.module.js";
@@ -55,6 +56,7 @@ import type { Mailer } from "./mail/mailer.js";
     BusinessesModule,
     ClientsModule,
     InvoicesModule,
+    QuotesModule,
     GuestInvoicesModule,
     BillingModule,
     ProductToursModule,

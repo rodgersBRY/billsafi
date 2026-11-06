@@ -41,5 +41,8 @@ export function query(params: Record<string, string | undefined>): string {
 
 export const businessPath = (businessId: string) => `/businesses/${encodeURIComponent(businessId)}`;
 
+export const quotePath = (businessId: string, quoteId: string) =>
+  `${businessPath(businessId)}/quotes/${encodeURIComponent(quoteId)}`;
+
 export const invoicePath = (businessId: string, invoiceId: string) =>
   `${businessPath(businessId)}/invoices/${encodeURIComponent(invoiceId)}`;

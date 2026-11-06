@@ -7,4 +7,6 @@ export interface Dashboard {
   overdue: string;
   receivedThisMonth: string;
   recentInvoices: InvoiceSummary[];
+  /** Sent quotes not past their valid-until day. Never part of income totals. */
+  openQuotes: { count: number; total: string };
 }
