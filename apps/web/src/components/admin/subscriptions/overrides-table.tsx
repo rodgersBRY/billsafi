@@ -30,12 +30,15 @@ function revokeAction(row: AdminOverrideRow): ConfirmAction {
     impact: [
       row.state === "active"
         ? `The account's invoice limit drops by ${formatCount(row.extraInvoices)} now.`
-        : "The override won't start.",
+        : "The override won't start. The account isn't emailed.",
       "It stays in the history, marked as revoked.",
     ],
     confirmLabel: "Revoke override",
     path: `/admin/overrides/${encodeURIComponent(row.id)}/revoke`,
-    successMessage: "The override is revoked.",
+    successMessage:
+      row.state === "active"
+        ? "The override is revoked. Account emailed."
+        : "The override is revoked.",
     destructive: true,
   };
 }

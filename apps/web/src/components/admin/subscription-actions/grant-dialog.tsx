@@ -58,8 +58,8 @@ export function GrantDialog({ kind, context, onClose }: GrantDialogProps) {
         response.replayed
           ? "This gift was already given. Nothing was added twice."
           : pro && response.subscription.paidUntil
-            ? `Pro months granted. Pro runs until ${formatDay(response.subscription.paidUntil)}.`
-            : `Credits granted. The account has ${formatCount(response.subscription.credits)} credits.`
+            ? `Pro months granted. Pro runs until ${formatDay(response.subscription.paidUntil)}. Account emailed.`
+            : `Credits granted. The account has ${formatCount(response.subscription.credits)} credits. Account emailed.`
       }
       onClose={onClose}
     >

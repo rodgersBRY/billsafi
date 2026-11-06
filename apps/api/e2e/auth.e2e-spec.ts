@@ -80,6 +80,11 @@ describe("authentication", () => {
       .send({ token, newPassword: "a-brand-new-passphrase" })
       .expect(200);
 
+    const changed = mailer.lastTo(email);
+    expect(changed?.subject).toBe("Your BillSafi password was changed");
+    expect(changed?.text).toContain(`${WEB_ORIGIN}/forgot-password`);
+    expect(changed?.text).not.toContain("a-brand-new-passphrase");
+
     for (const cookie of [firstDevice, secondDevice]) {
       const session = await request(app.getHttpServer())
         .get("/api/v1/auth/get-session")
@@ -93,6 +98,31 @@ describe("authentication", () => {
       .set("Origin", WEB_ORIGIN)
       .send({ email, password: "a-brand-new-passphrase" })
       .expect(200);
+  });
+
+  it("emails the account when a signed-in user changes their password", async () => {
+    const { email, cookie } = await signUp(app);
+    const before = mailer.sent.filter((message) => message.to === email).length;
+
+    await request(app.getHttpServer())
+      .post("/api/v1/auth/change-password")
+      .set("Origin", WEB_ORIGIN)
+      .set("Cookie", cookie)
+      .send({ currentPassword: "wrong-password-here", newPassword: "another-new-passphrase" })
+      .expect(400);
+    expect(mailer.sent.filter((message) => message.to === email)).toHaveLength(before);
+
+    await request(app.getHttpServer())
+      .post("/api/v1/auth/change-password")
+      .set("Origin", WEB_ORIGIN)
+      .set("Cookie", cookie)
+      .send({ currentPassword: "correct-horse-battery", newPassword: "another-new-passphrase" })
+      .expect(200);
+
+    const message = mailer.lastTo(email);
+    expect(message?.subject).toBe("Your BillSafi password was changed");
+    expect(message?.text).not.toContain("another-new-passphrase");
+    expect(mailer.sent.filter((sent) => sent.to === email)).toHaveLength(before + 1);
   });
 
   it("does not reveal whether an email has an account", async () => {

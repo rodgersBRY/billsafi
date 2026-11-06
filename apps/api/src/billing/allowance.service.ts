@@ -1,8 +1,13 @@
-import { ConflictException, Inject, Injectable } from "@nestjs/common";
+import { ConflictException, Inject, Injectable, Logger } from "@nestjs/common";
 import type { AllowanceUsage } from "@billsafi/contracts";
 import { and, type Database, type DatabaseConnection, eq, isNull, schema, sql } from "@billsafi/db";
 import { FREE_PLAN, nairobiCalendarMonth, PRO_PLAN, proPeriodAt } from "@billsafi/domain";
+import { ENV } from "../config/config.module.js";
+import type { Env } from "../config/env.js";
 import { DATABASE } from "../database/database.module.js";
+import { freeLimitEmail } from "../mail/billing-templates.js";
+import { MAILER } from "../mail/mail.module.js";
+import type { Mailer } from "../mail/mailer.js";
 
 const {
   usagePeriods,
@@ -11,6 +16,7 @@ const {
   subscriptionPayments,
   accountGrants,
   allowanceOverrides,
+  users,
 } = schema;
 
 export type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
@@ -33,6 +39,8 @@ interface AllowanceWindow {
 export interface Reservation {
   usagePeriodId: string;
   source: "plan" | "credit";
+  /** Set when this invoice uses the last of a Free month's allowance (D073). */
+  freeLimitReached?: { limit: number; resetsAt: Date };
 }
 
 /**
@@ -41,7 +49,13 @@ export interface Reservation {
  */
 @Injectable()
 export class AllowanceService {
-  constructor(@Inject(DATABASE) private readonly connection: DatabaseConnection) {}
+  private readonly logger = new Logger(AllowanceService.name);
+
+  constructor(
+    @Inject(DATABASE) private readonly connection: DatabaseConnection,
+    @Inject(MAILER) private readonly mailer: Mailer,
+    @Inject(ENV) private readonly env: Env,
+  ) {}
 
   async usage(userId: string, at = new Date()): Promise<AllowanceUsage> {
     const db = this.connection.db;
@@ -116,7 +130,14 @@ export class AllowanceService {
 
     const used =
       window.carriedOver + (await this.countPlanIssued(tx, userId, window.start, window.end));
-    if (used < window.limit) return { usagePeriodId, source: "plan" };
+    if (used < window.limit) {
+      const lastOne = window.plan === "free" && used + 1 >= window.limit;
+      return {
+        usagePeriodId,
+        source: "plan",
+        ...(lastOne && { freeLimitReached: { limit: window.limit, resetsAt: window.end } }),
+      };
+    }
 
     const credits = await this.credits(tx, userId);
     if (credits > 0) return { usagePeriodId, source: "credit" };
@@ -129,6 +150,52 @@ export class AllowanceService {
       message: `You've made ${window.limit} invoices Ready ${span}, ${limitName}.`,
       usage: { plan: window.plan, used, limit: window.limit, periodEnd: window.end.toISOString() },
     });
+  }
+
+  /**
+   * Emails a Free account that its allowance is used up, once per usage period. Call it
+   * after the invoice transaction commits. A failed send is logged; the invoice stands.
+   */
+  async notifyFreeLimit(userId: string, reservation: Reservation): Promise<void> {
+    const reached = reservation.freeLimitReached;
+    if (!reached) return;
+    const db = this.connection.db;
+    try {
+      const [claimed] = await db
+        .update(usagePeriods)
+        .set({ limitEmailedAt: new Date() })
+        .where(
+          and(eq(usagePeriods.id, reservation.usagePeriodId), isNull(usagePeriods.limitEmailedAt)),
+        )
+        .returning({ id: usagePeriods.id });
+      if (!claimed) return;
+      try {
+        const [user] = await db
+          .select({ email: users.email, name: users.name, banned: users.banned })
+          .from(users)
+          .where(eq(users.id, userId));
+        if (!user || user.banned) return;
+        await this.mailer.send(
+          freeLimitEmail(
+            user.email,
+            user.name,
+            reached.limit,
+            reached.resetsAt,
+            `${this.env.WEB_ORIGIN}/billing`,
+          ),
+          { operation: "free_limit_email", accountId: userId },
+        );
+      } catch (error) {
+        // Release the claim so a later invoice can try again.
+        await db
+          .update(usagePeriods)
+          .set({ limitEmailedAt: null })
+          .where(eq(usagePeriods.id, reservation.usagePeriodId));
+        throw error;
+      }
+    } catch (error) {
+      this.logger.warn(`Free limit email for account ${userId} failed: ${String(error)}`);
+    }
   }
 
   private async window(

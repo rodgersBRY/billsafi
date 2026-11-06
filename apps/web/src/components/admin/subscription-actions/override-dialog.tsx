@@ -62,7 +62,7 @@ export function OverrideDialog({
       onServerIssues={(issues) => setErrors(issuesByField(issues))}
       preview={preview}
       successMessage={(response) =>
-        `Override added. The limit is ${formatCount(response.allowance.limit)} in the current window.`
+        `Override added. The limit is ${formatCount(response.allowance.limit)} in the current window. Account emailed.`
       }
       onClose={onClose}
     >

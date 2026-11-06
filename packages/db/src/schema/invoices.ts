@@ -157,6 +157,8 @@ export const usagePeriods = pgTable(
     invoiceLimit: integer("invoice_limit").notNull(),
     /** Free-plan invoices from earlier in the month counted against a first Pro period (D044, D051). */
     carriedOver: integer("carried_over").notNull().default(0),
+    /** When the Free limit email was claimed for this period, so it goes out once (D073). */
+    limitEmailedAt: timestamp("limit_emailed_at", { withTimezone: true }),
     ...timestamps(),
   },
   (table) => [
