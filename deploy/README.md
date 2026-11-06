@@ -19,8 +19,8 @@ Production runs on one droplet with Docker Compose. Five containers share a priv
 
 The release flow:
 
-1. You merge a pull request into `main`.
-2. The CI workflow runs and passes.
+1. CI runs and passes on the pull request into `main`. GitHub only allows the merge when the PR is up to date with `main` (D079).
+2. You merge the pull request.
 3. The **Publish images** workflow builds three images (`api`, `migrate`, `web`) and pushes them to GitHub Container Registry (GHCR). Each image gets two tags: the commit SHA and `latest`.
 4. You SSH into the droplet and run `./deploy.sh`. It pulls the `latest` images, runs migrations, restarts the containers and checks `https://<your domain>/api/v1/health`.
 
@@ -34,7 +34,7 @@ GitHub never connects to the droplet. Images are built on GitHub's runners, so t
 | `apps/web/Dockerfile`           | Builds the `web` image from Next.js standalone output                       |
 | `.dockerignore`                 | Keeps `node_modules`, build output, `.env` and docs out of image builds     |
 | `apps/web/next.config.ts`       | Turns on standalone output only when `NEXT_STANDALONE=1` (set in the image) |
-| `.github/workflows/publish.yml` | Builds and pushes the images to GHCR after CI passes on `main`              |
+| `.github/workflows/publish.yml` | Builds and pushes the images to GHCR on every push to `main`                |
 | `deploy/compose.yml`            | The production stack                                                        |
 | `deploy/Caddyfile`              | HTTPS and reverse proxy to `web`                                            |
 | `deploy/.env.example`           | Template for the secrets file on the droplet                                |
@@ -181,7 +181,7 @@ Keep a copy of these values in a password manager. Losing `BETTER_AUTH_SECRET` s
 
 `main` currently sits far behind `develop`. Open a pull request from `develop` into `main`, let CI pass, and merge it.
 
-In the **Actions** tab, wait for CI to finish on `main`. The **Publish images** workflow then starts on its own. The first run takes several minutes; later runs reuse cached layers and finish faster. When it's done, the run summary shows the commit SHA it published.
+In the **Actions** tab, the **Publish images** workflow starts on its own after the merge. CI doesn't run again on `main`; it already passed on the PR. The first run takes several minutes; later runs reuse cached layers and finish faster. When it's done, the run summary shows the commit SHA it published.
 
 The three packages appear under **Packages** on your GitHub profile as `billsafi-api`, `billsafi-migrate` and `billsafi-web`.
 

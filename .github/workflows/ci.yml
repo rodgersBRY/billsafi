@@ -1,8 +1,9 @@
 name: CI
 
 on:
+  # main is not here: its changes arrive by PR, tested up to date with main (D079).
   push:
-    branches: [main, develop]
+    branches: [develop]
   pull_request:
 
 concurrency:
