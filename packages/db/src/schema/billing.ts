@@ -173,6 +173,8 @@ export const accountGrants = pgTable(
     grantedUntil: timestamp("granted_until", { withTimezone: true }),
     /** As on subscription_payments: the run's new end when an admin ended Pro early. */
     endedEarlyAt: timestamp("ended_early_at", { withTimezone: true }),
+    /** When the account was emailed about this gift (D078). Null until then. */
+    notifiedAt: timestamp("notified_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

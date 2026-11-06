@@ -7,6 +7,7 @@ import { AdminOverviewService } from "../src/admin/metrics/admin-overview.servic
 import { AuditService } from "../src/audit/audit.service.js";
 import { AllowanceService } from "../src/billing/allowance.service.js";
 import { BillingService } from "../src/billing/billing.service.js";
+import { findPastGifts, sendPastGifts } from "../src/admin/subscriptions/past-gifts.js";
 import { DATABASE } from "../src/database/database.module.js";
 import { MAILER } from "../src/mail/mail.module.js";
 import { type CapturingMailer, signUp, uniqueEmail } from "./support/app.js";
@@ -570,6 +571,101 @@ export function subscriptionSuite(ctx: SubscriptionSuiteContext) {
         reason: "Too many months",
       }).expect(400);
       expect(giftEmails(account.email)).toEqual([]);
+    });
+
+    it("marks a gift as notified once its email is sent", async () => {
+      const account = await newAccount();
+      await post(`tenants/${account.id}/grants`, {
+        kind: "invoice_credits",
+        quantity: 4,
+        reason: "Goodwill credits",
+      }).expect(201);
+      expect((await grantsOf(account.id))[0]!.notifiedAt).toBeInstanceOf(Date);
+    });
+
+    describe("past gifts (D078)", () => {
+      const allowance = () => ctx.app().get(AllowanceService);
+      const mailer = () => ctx.app().get<CapturingMailer>(MAILER);
+      const pastFor = async (userId: string, now = new Date()) =>
+        (await findPastGifts(db(), allowance(), now)).filter((r) => r.userId === userId);
+      /** Gives a gift, then clears notified_at as if it was given before gift emails. */
+      async function pastGift(userId: string, kind: string, quantity: number) {
+        await post(`tenants/${userId}/grants`, { kind, quantity, reason: "Goodwill gift" }).expect(
+          201,
+        );
+        await db()
+          .update(schema.accountGrants)
+          .set({ notifiedAt: null })
+          .where(eq(schema.accountGrants.userId, userId));
+      }
+      const pastEmails = (email: string) =>
+        mailer().sent.filter(
+          (message) =>
+            message.to === email && message.subject === "A gift from BillSafi on your account",
+        );
+
+      it("emails a running Pro gift and credits left in one email, once", async () => {
+        const account = await newAccount();
+        await pastGift(account.id, "pro_months", 2);
+        await pastGift(account.id, "invoice_credits", 5);
+        const [recipient, ...rest] = await pastFor(account.id);
+        expect(rest).toEqual([]);
+        expect(recipient!.gifts).toMatchObject({
+          pro: { months: 2 },
+          credits: { given: 5, left: 5 },
+        });
+        expect(recipient!.gifts.pro!.until).toEqual((await subscriptionOf(account.id))!.paidUntil);
+
+        const url = "https://account.billsafi.test/billing";
+        expect(await sendPastGifts(db(), mailer(), url, [recipient!])).toEqual({
+          sent: 1,
+          failed: [],
+        });
+        expect(pastEmails(account.email)).toHaveLength(1);
+        expect(pastEmails(account.email)[0]!.text).not.toContain("Goodwill");
+        expect(await pastFor(account.id)).toEqual([]);
+      });
+
+      it("skips Pro gifts that ran out and credit gifts with no credits left", async () => {
+        const account = await newAccount();
+        await pastGift(account.id, "pro_months", 1);
+        const later = addNairobiMonths(new Date(), 2);
+        expect(await pastFor(account.id, later)).toEqual([]);
+
+        const spent = await ctx.seedAccount("past-gift-spent", 10);
+        const spentId = await ctx.userId(spent.email);
+        await pastGift(spentId, "invoice_credits", 1);
+        await spent.issue(1);
+        expect(await pastFor(spentId)).toEqual([]);
+      });
+
+      it("keeps a gift unmarked when its email fails, so a rerun retries it", async () => {
+        const account = await newAccount();
+        await pastGift(account.id, "invoice_credits", 3);
+        const recipients = await pastFor(account.id);
+        const spy = vi.spyOn(mailer(), "send").mockRejectedValueOnce(new Error("delivery failed"));
+        try {
+          expect(await sendPastGifts(db(), mailer(), "https://x.test/billing", recipients)).toEqual(
+            {
+              sent: 0,
+              failed: [account.id],
+            },
+          );
+        } finally {
+          spy.mockRestore();
+        }
+        expect(await pastFor(account.id)).toHaveLength(1);
+      });
+
+      it("never emails banned accounts", async () => {
+        const account = await newAccount();
+        await pastGift(account.id, "invoice_credits", 3);
+        await db()
+          .update(schema.users)
+          .set({ banned: true })
+          .where(eq(schema.users.id, account.id));
+        expect(await pastFor(account.id)).toEqual([]);
+      });
     });
 
     it("replays a grant sent twice with one Idempotency-Key", async () => {

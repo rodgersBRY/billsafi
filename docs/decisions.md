@@ -805,3 +805,14 @@ Status: confirmed on 2026-11-06 by the user. This replaces the nightly schedule 
 - The admin Health page treats a good backup as fine for 7 days and 2 hours and warns until 14 days and 2 hours. After that, or when the last run failed, it shows failing.
 - The privacy page now states weekly backups kept for 14 days.
 - Weekly droplet backups stay the off-machine copy.
+
+## D078 - Tell accounts about gifts given before gift emails
+
+Status: confirmed on 2026-11-06 by the user.
+
+- Gifts given before D072 were never emailed. A one-off command emails those accounts once.
+- Only gifts still in use count: Pro months that haven't run out, and credit gifts on accounts that still have credits. Other past gifts are skipped. Banned accounts are skipped.
+- One email per account. It lists the Pro months and the Pro end date, and the credits given and how many are left. Like the gift email, it never shows the admin or the reason.
+- `account_grants.notified_at` records when a gift was emailed. The live gift email sets it too. The command only picks gifts where it is empty, so running it again sends nothing new. A failed send leaves it empty, so a rerun retries that account.
+- The command lists who would be emailed and only sends with `--send`.
+

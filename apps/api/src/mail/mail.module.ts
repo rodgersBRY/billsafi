@@ -21,7 +21,7 @@ export const MAILER = Symbol("MAILER");
 export class MailModule {}
 
 /** Env validation guarantees the key or URL the chosen driver needs (D070). */
-function createMailer(env: Env): Mailer {
+export function createMailer(env: Env): Mailer {
   switch (env.MAIL_DRIVER) {
     case "log":
       return new LogMailer();
