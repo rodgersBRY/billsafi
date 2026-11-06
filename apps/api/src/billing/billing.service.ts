@@ -30,6 +30,11 @@ import { checkoutChargeKes } from "./charge-amount.js";
 import { DATABASE } from "../database/database.module.js";
 import { MAILER } from "../mail/mail.module.js";
 import type { Mailer } from "../mail/mailer.js";
+import {
+  type PaymentReceipt,
+  paymentFailedEmail,
+  paymentReceiptEmail,
+} from "../mail/billing-templates.js";
 import { renewalReminderEmail } from "../mail/templates.js";
 import { AllowanceService, type SubscriptionRow, type Transaction } from "./allowance.service.js";
 import { ExchangeRateService, type UsdKesRate } from "./exchange-rate.service.js";
@@ -63,6 +68,12 @@ const ABANDON_AFTER_MS = DAY_MS;
 export type PaymentOutcome =
   | { state: "succeeded"; receipt?: string; amount?: number }
   | { state: "failed"; resultCode: string; resultDescription: string };
+
+/** M-Pesa result code for a prompt the person cancelled on their phone. */
+const USER_CANCELLED_CODE = "1032";
+
+/** The email to send once a settled payment's transaction has committed. */
+type SettleNotice = { kind: "receipt"; receipt: PaymentReceipt } | { kind: "failed" };
 
 const PRICES_USD = {
   pro_month: PRO_PLAN.priceUsd,
@@ -495,14 +506,24 @@ export class BillingService {
    * cannot grant access twice (D020, D051).
    */
   private async settle(userId: string, checkoutRequestId: string, outcome: PaymentOutcome) {
-    await this.db.transaction(async (tx) => {
+    const notice = await this.settleInTransaction(userId, checkoutRequestId, outcome);
+    if (notice) await this.notifyPayment(userId, notice);
+  }
+
+  /** Returns the email to send, only when this call moved the payment out of pending. */
+  private async settleInTransaction(
+    userId: string,
+    checkoutRequestId: string,
+    outcome: PaymentOutcome,
+  ): Promise<SettleNotice | null> {
+    return this.db.transaction(async (tx): Promise<SettleNotice | null> => {
       const subscription = await this.allowance.lockAccount(tx, userId);
       const [payment] = await tx
         .select()
         .from(subscriptionPayments)
         .where(eq(subscriptionPayments.checkoutRequestId, checkoutRequestId))
         .for("update");
-      if (!payment) return;
+      if (!payment) return null;
 
       if (payment.status !== "pending") {
         // A status query may confirm before the callback brings the receipt.
@@ -514,12 +535,13 @@ export class BillingService {
               .where(eq(subscriptionPayments.id, payment.id));
           }
         }
-        return;
+        return null;
       }
 
       if (outcome.state === "failed") {
         await this.fail(tx, payment.id, outcome.resultCode, outcome.resultDescription);
-        return;
+        // Cancelling the prompt is the person's own choice, so it gets no email.
+        return outcome.resultCode === USER_CANCELLED_CODE ? null : { kind: "failed" };
       }
       if (outcome.receipt && (await this.receiptUsed(tx, outcome.receipt))) {
         await this.fail(
@@ -529,7 +551,7 @@ export class BillingService {
           "This M-Pesa transaction was already used",
         );
         this.logger.warn(`Receipt ${outcome.receipt} reused for payment ${payment.id}`);
-        return;
+        return null;
       }
       if (outcome.amount !== undefined && outcome.amount !== Number(payment.amount)) {
         await this.fail(
@@ -539,7 +561,7 @@ export class BillingService {
           `Paid KES ${outcome.amount}, expected KES ${Number(payment.amount)}`,
         );
         this.logger.error(`Amount mismatch on payment ${payment.id}; needs a manual check`);
-        return;
+        return null;
       }
 
       const now = new Date();
@@ -557,7 +579,15 @@ export class BillingService {
         await this.recordCreditsAdded(tx, subscription.id, CREDIT_PACK.invoices, {
           paymentId: payment.id,
         });
-        return;
+        return {
+          kind: "receipt",
+          receipt: {
+            purchase: { kind: "invoice_credits", credits: CREDIT_PACK.invoices },
+            amount: payment.amount,
+            currency: payment.currency,
+            receipt: outcome.receipt ?? null,
+          },
+        };
       }
 
       // Each Pro payment buys one month (D044, D051).
@@ -574,7 +604,41 @@ export class BillingService {
         })
         .where(eq(subscriptionPayments.id, payment.id));
       await this.recordProEvent(tx, subscription.id, extension, { paymentId: payment.id });
+      return {
+        kind: "receipt",
+        receipt: {
+          purchase: { kind: "pro_month", until: extension.grantedUntil },
+          amount: payment.amount,
+          currency: payment.currency,
+          receipt: outcome.receipt ?? null,
+        },
+      };
     });
+  }
+
+  /** A failed email is recorded by the mailer and logged; the payment stands. */
+  private async notifyPayment(userId: string, notice: SettleNotice): Promise<void> {
+    try {
+      const [user] = await this.db
+        .select({ email: users.email, name: users.name, banned: users.banned })
+        .from(users)
+        .where(eq(users.id, userId));
+      if (!user || user.banned) return;
+      const billingUrl = `${this.env.WEB_ORIGIN}/billing`;
+      if (notice.kind === "receipt") {
+        await this.mailer.send(
+          paymentReceiptEmail(user.email, user.name, notice.receipt, billingUrl),
+          { operation: "payment_receipt_email", accountId: userId },
+        );
+      } else {
+        await this.mailer.send(paymentFailedEmail(user.email, user.name, billingUrl), {
+          operation: "payment_failed_email",
+          accountId: userId,
+        });
+      }
+    } catch (error) {
+      this.logger.warn(`Payment email for account ${userId} failed: ${String(error)}`);
+    }
   }
 
   /**

@@ -394,6 +394,97 @@ describe("billing", () => {
     expect((await active.overview()).subscription.renewalDue).toBe(true);
   });
 
+  it("emails one receipt when a payment succeeds, even if the callback repeats", async () => {
+    const account = await setup();
+    await account.checkout().expect(201);
+    const { checkoutRequestId } = mpesa.last()!;
+    const code = receipt();
+    await callback(checkoutRequestId, { receipt: code });
+    await callback(checkoutRequestId, { receipt: code });
+
+    const receipts = mailer.sent.filter(
+      (message) => message.to === account.email && message.subject.startsWith("Payment received"),
+    );
+    expect(receipts).toHaveLength(1);
+    expect(receipts[0]!.subject).toBe("Payment received: 1 month of Pro");
+    expect(receipts[0]!.text).toContain("KES 500.00");
+    expect(receipts[0]!.text).toContain(code);
+    expect(receipts[0]!.text).toContain("Pro until");
+  });
+
+  it("emails a credit pack receipt that says how many credits were added", async () => {
+    const account = await setup();
+    await account.checkout("invoice_credits").expect(201);
+    await callback(mpesa.last()!.checkoutRequestId, { amount: 250 });
+    const email = mailer.lastTo(account.email)!;
+    expect(email.subject).toBe("Payment received: 50 invoice credits");
+    expect(email.text).toContain("KES 250.00");
+  });
+
+  it("emails one receipt when the status query settles the payment first", async () => {
+    const account = await setup();
+    const started = await account.checkout().expect(201);
+    const { checkoutRequestId } = mpesa.last()!;
+    await db()
+      .update(schema.subscriptionPayments)
+      .set({ createdAt: new Date(Date.now() - 60_000) })
+      .where(eq(schema.subscriptionPayments.id, started.body.id));
+    mpesa.settle(checkoutRequestId, { state: "succeeded" });
+    const poll = () =>
+      api()
+        .get(`/api/v1/billing/payments/${started.body.id}`)
+        .set("Cookie", account.cookie)
+        .expect(200);
+    await poll();
+    await poll();
+    await callback(checkoutRequestId, { receipt: receipt() });
+
+    const receipts = mailer.sent.filter(
+      (message) => message.to === account.email && message.subject.startsWith("Payment received"),
+    );
+    expect(receipts).toHaveLength(1);
+  });
+
+  it("emails once when a payment fails, but not when the person cancels the prompt", async () => {
+    const account = await setup();
+    const failedSubject = "Your BillSafi payment didn't go through";
+    const failures = () =>
+      mailer.sent.filter(
+        (message) => message.to === account.email && message.subject === failedSubject,
+      );
+
+    await account.checkout().expect(201);
+    await callback(mpesa.last()!.checkoutRequestId, { code: 1032 });
+    expect(failures()).toHaveLength(0);
+
+    await account.checkout().expect(201);
+    const { checkoutRequestId } = mpesa.last()!;
+    const declined = { code: 1, description: "The balance is insufficient" };
+    await callback(checkoutRequestId, declined);
+    await callback(checkoutRequestId, declined);
+    expect(failures()).toHaveLength(1);
+    expect(failures()[0]!.text).toContain("you haven't been charged");
+  });
+
+  it("emails when a payment is abandoned and the background sweep expires it", async () => {
+    const account = await setup();
+    const started = await account.checkout().expect(201);
+    await db()
+      .update(schema.subscriptionPayments)
+      .set({ createdAt: new Date(Date.now() - 2 * DAY_MS) })
+      .where(eq(schema.subscriptionPayments.id, started.body.id));
+    const billing = app.get(BillingService);
+    await billing.sweepPending();
+    await billing.sweepPending();
+
+    const failures = mailer.sent.filter(
+      (message) =>
+        message.to === account.email &&
+        message.subject === "Your BillSafi payment didn't go through",
+    );
+    expect(failures).toHaveLength(1);
+  });
+
   it("rejects callbacks without the secret token", async () => {
     await api().post("/api/v1/billing/mpesa/callback/wrong-token").send({}).expect(404);
   });
