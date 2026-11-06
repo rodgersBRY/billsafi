@@ -1066,12 +1066,12 @@ export function subscriptionSuite(ctx: SubscriptionSuiteContext) {
 
     it("emails a receipt for a Pro payment without the note or reason", async () => {
       const account = await newAccount();
-      const body = proPayment({ months: 2, reference: "RCPT-PRO-1" });
+      const body = proPayment({ months: 2 });
       await post(`tenants/${account.id}/payments`, body).expect(201);
       const row = await subscriptionOf(account.id);
       const [message] = sentTo(account.email);
       expect(message).toMatchObject({ subject: "We've recorded your payment of USD 12.00" });
-      expect(message!.text).toContain("bank transfer, reference RCPT-PRO-1");
+      expect(message!.text).toContain(`bank transfer, reference ${body.reference}`);
       expect(message!.text).toContain("2 months of Pro");
       expect(message!.text).toContain(day(row!.paidUntil!));
       for (const secret of ["INV-204", "accountant", "confirmed"]) {
