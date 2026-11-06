@@ -16,7 +16,9 @@ import type { FakeMpesaProvider } from "../src/billing/mpesa/fake.provider.js";
 import { DATABASE } from "../src/database/database.module.js";
 import { analyticsSuite } from "./admin-analytics.suite.js";
 import { subscriptionSuite } from "./admin-subscriptions.suite.js";
+import { MAILER } from "../src/mail/mail.module.js";
 import {
+  type CapturingMailer,
   createBusiness,
   createClient,
   createTestApp,
@@ -1544,6 +1546,55 @@ describe("admin", () => {
       });
       const detail = await admin(`users/${target.id}`).expect(200);
       expect(detail.body.recentAudit[0]).toMatchObject({ action: "user.revoke_sessions" });
+    });
+
+    it("emails the account about sign-out, suspension and reactivation", async () => {
+      const mailer = app.get<CapturingMailer>(MAILER);
+      const target = await newTarget("admin-notify");
+      const sentTo = () => mailer.sent.filter((message) => message.to === target.email);
+      const before = sentTo().length;
+
+      await act(`users/${target.id}/revoke-sessions`, { reason: "Lost phone" }).expect(200);
+      expect(mailer.lastTo(target.email)).toMatchObject({
+        subject: "You've been signed out of BillSafi",
+        text: expect.stringContaining(`${WEB_ORIGIN}/sign-in`),
+      });
+      expect(mailer.lastTo(target.email)?.text).not.toContain("Lost phone");
+
+      await act(`tenants/${target.id}/suspend`, { reason: "Chargeback fraud report" }).expect(200);
+      const suspended = mailer.lastTo(target.email);
+      expect(suspended?.subject).toBe("Your BillSafi account is suspended");
+      expect(suspended?.text).toContain("has not been deleted");
+      expect(suspended?.text).not.toContain("Chargeback");
+      expect(suspended?.replyTo).toBeTruthy();
+
+      await act(`tenants/${target.id}/reactivate`, { reason: "Resolved" }).expect(200);
+      expect(mailer.lastTo(target.email)).toMatchObject({
+        subject: "Your BillSafi account is active again",
+        text: expect.stringContaining(`${WEB_ORIGIN}/sign-in`),
+      });
+      expect(sentTo()).toHaveLength(before + 3);
+    });
+
+    it("sends no email when an account action is refused", async () => {
+      const mailer = app.get<CapturingMailer>(MAILER);
+      const target = await newTarget("admin-notify-refused");
+      const before = mailer.sent.length;
+      await act(`tenants/${target.id}/reactivate`).expect(409);
+      expect(mailer.sent).toHaveLength(before);
+    });
+
+    it("keeps a suspension in place when its email fails", async () => {
+      const mailer = app.get<CapturingMailer>(MAILER);
+      const target = await newTarget("admin-notify-fails");
+      const spy = vi.spyOn(mailer, "send").mockRejectedValueOnce(new Error("delivery failed"));
+      try {
+        await act(`tenants/${target.id}/suspend`).expect(200);
+        expect(spy).toHaveBeenCalled();
+        expect((await userRow(target.id)).banned).toBe(true);
+      } finally {
+        spy.mockRestore();
+      }
     });
 
     it("refuses to revoke your own sessions, but revokes another admin's", async () => {

@@ -1,5 +1,13 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import type { AdminActionAck, AdminTenantRow } from "@billsafi/contracts";
+import type { DatabaseConnection } from "@billsafi/db";
+import { ENV } from "../../config/config.module.js";
+import type { Env } from "../../config/env.js";
+import { DATABASE } from "../../database/database.module.js";
+import { accountReactivatedEmail, accountSuspendedEmail } from "../../mail/account-templates.js";
+import { MAILER } from "../../mail/mail.module.js";
+import type { Mailer } from "../../mail/mailer.js";
+import { emailAccount } from "../../mail/notify-account.js";
 import {
   AdminActionRunner,
   type AdminActionContext,
@@ -15,6 +23,9 @@ export class TenantActionsService {
     private readonly runner: AdminActionRunner,
     private readonly access: AccountAccessService,
     private readonly tenants: AdminTenantsService,
+    @Inject(DATABASE) private readonly connection: DatabaseConnection,
+    @Inject(MAILER) private readonly mailer: Mailer,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
   async suspendTenant(
@@ -42,6 +53,13 @@ export class TenantActionsService {
         return { banned: { from: false, to: true } };
       },
     );
+    await emailAccount(
+      this.connection.db,
+      this.mailer,
+      id,
+      "account_suspended_email",
+      (user, support) => accountSuspendedEmail(user.email, user.name, support, this.env.WEB_ORIGIN),
+    );
     return this.runner.summaryAfter(context.adminId, () => this.tenants.summary(id));
   }
 
@@ -58,6 +76,9 @@ export class TenantActionsService {
         await this.access.reactivate(id, tx);
         return { banned: { from: true, to: false } };
       },
+    );
+    await emailAccount(this.connection.db, this.mailer, id, "account_reactivated_email", (user) =>
+      accountReactivatedEmail(user.email, user.name, `${this.env.WEB_ORIGIN}/sign-in`),
     );
     return this.runner.summaryAfter(context.adminId, () => this.tenants.summary(id));
   }
