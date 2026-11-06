@@ -485,6 +485,67 @@ describe("billing", () => {
     expect(failures).toHaveLength(1);
   });
 
+  it("emails once when Pro has ended, only soon after, and not for old lapses", async () => {
+    const billing = app.get(BillingService);
+    const recent = await setup();
+    const old = await setup();
+    const renewed = await setup();
+    await pay(recent);
+    await pay(old);
+    await pay(renewed);
+    await shiftAccess(await recent.userId(), -60 * 60 * 1000);
+    await shiftAccess(await old.userId(), -10 * DAY_MS);
+    await shiftAccess(await renewed.userId(), 2 * DAY_MS);
+
+    await billing.sendReminders();
+    await billing.sendReminders();
+    const ended = (email: string) =>
+      mailer.sent.filter(
+        (message) => message.to === email && message.subject === "Your BillSafi Pro has ended",
+      );
+    expect(ended(recent.email)).toHaveLength(1);
+    expect(ended(recent.email)[0]!.text).toContain("Free plan");
+    expect(ended(old.email)).toHaveLength(0);
+    expect(ended(renewed.email)).toHaveLength(0);
+  });
+
+  it("emails a Free account once per month when it uses its last invoice", async () => {
+    const account = await setup();
+    const limitEmails = () =>
+      mailer.sent.filter(
+        (message) =>
+          message.to === account.email &&
+          message.subject === "You've used all your Free invoices this month",
+      );
+    for (let index = 0; index < FREE_PLAN.invoiceLimit - 1; index++) await account.issue();
+    expect(limitEmails()).toHaveLength(0);
+
+    await account.issue();
+    expect(limitEmails()).toHaveLength(1);
+    expect(limitEmails()[0]!.text).toContain("all 10 invoices");
+    expect(limitEmails()[0]!.text).toContain("resets on");
+
+    // The refused 11th invoice and later credit-funded ones send nothing more.
+    await account.issue(409);
+    await account.checkout("invoice_credits").expect(201);
+    await callback(mpesa.last()!.checkoutRequestId, { amount: 250 });
+    await account.issue();
+    expect(limitEmails()).toHaveLength(1);
+  });
+
+  it("does not send the Free limit email to a Pro account at its Pro limit", async () => {
+    const account = await setup();
+    await pay(account);
+    for (let index = 0; index < 3; index++) await account.issue();
+    expect(
+      mailer.sent.some(
+        (message) =>
+          message.to === account.email &&
+          message.subject === "You've used all your Free invoices this month",
+      ),
+    ).toBe(false);
+  });
+
   it("rejects callbacks without the secret token", async () => {
     await api().post("/api/v1/billing/mpesa/callback/wrong-token").send({}).expect(404);
   });

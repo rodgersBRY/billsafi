@@ -16,7 +16,7 @@ import { nairobiDate } from "@billsafi/domain";
 import { containsPattern } from "../common/like-pattern.js";
 import { DATABASE } from "../database/database.module.js";
 import type { Executor, Transaction } from "../database/transaction.js";
-import { AllowanceService } from "../billing/allowance.service.js";
+import { AllowanceService, type Reservation } from "../billing/allowance.service.js";
 import { effectivePaymentsSql } from "./effective-payments.js";
 import { businessDetails, clientDetails, toInvoice, toInvoiceSummary } from "./invoice.mapper.js";
 
@@ -194,7 +194,8 @@ export class InvoicesService {
    * business details, all in one transaction. Repeats are no-ops.
    */
   async markReady(userId: string, businessId: string, invoiceId: string) {
-    return this.db.transaction(async (tx) => {
+    const reserved: { value?: Reservation } = {};
+    const invoice = await this.db.transaction(async (tx) => {
       const current = await this.lockInvoice(tx, businessId, invoiceId);
       if (current.status !== "draft") return this.load(tx, businessId, invoiceId);
 
@@ -210,7 +211,9 @@ export class InvoicesService {
       }
 
       const now = new Date();
-      const { usagePeriodId, source } = await this.allowance.reserve(tx, userId, now);
+      const reservation = await this.allowance.reserve(tx, userId, now);
+      reserved.value = reservation;
+      const { usagePeriodId, source } = reservation;
 
       await this.lockNumbering(tx, businessId);
       await this.checkNumber(tx, businessId, current.invoiceNumber, invoiceId);
@@ -250,6 +253,9 @@ export class InvoicesService {
         .where(eq(invoices.id, invoiceId));
       return this.load(tx, businessId, invoiceId);
     });
+    // After the commit; never blocks or fails the invoice.
+    if (reserved.value) await this.allowance.notifyFreeLimit(userId, reserved.value);
+    return invoice;
   }
 
   private calculate(input: SaveInvoice) {
