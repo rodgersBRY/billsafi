@@ -244,22 +244,22 @@ describe("admin activity", () => {
         expect((await provider().check(now)).status).toBe("unknown");
       });
 
-      it("is ok under 26 hours", async () => {
-        await backup(25 * HOUR + 59 * MINUTE);
+      it("is ok within a week and 2 hours", async () => {
+        await backup(169 * HOUR + 59 * MINUTE);
         expect(await provider().check(now)).toMatchObject({
           status: "ok",
-          data: { lastGoodAgeHours: 25, lastGoodSizeBytes: 123_456 },
+          data: { lastGoodAgeHours: 169, lastGoodSizeBytes: 123_456 },
         });
       });
 
-      it("warns from 26 to under 50 hours and fails beyond", async () => {
-        await backup(26 * HOUR);
+      it("warns after one missed weekly run and fails after two", async () => {
+        await backup(170 * HOUR);
         expect((await provider().check(now)).status).toBe("warning");
         await clearRecords();
-        await backup(49 * HOUR + 59 * MINUTE);
+        await backup(337 * HOUR + 59 * MINUTE);
         expect((await provider().check(now)).status).toBe("warning");
         await clearRecords();
-        await backup(50 * HOUR);
+        await backup(338 * HOUR);
         expect((await provider().check(now)).status).toBe("failing");
       });
 

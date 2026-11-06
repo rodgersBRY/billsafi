@@ -3,9 +3,9 @@ import { selectRows } from "../shared/admin-sql.js";
 import type { HealthIndicatorProvider, HealthReading } from "./health-provider.js";
 import { ageText, HOUR_MS } from "./recorded-health.format.js";
 
-/** A good backup under this age is fine (the job runs nightly), under the warning age is late. */
-export const BACKUP_OK_WITHIN_MS = 26 * HOUR_MS;
-export const BACKUP_WARNING_WITHIN_MS = 50 * HOUR_MS;
+/** The job runs weekly (D077). Fine within a week and 2 hours, late after one missed run. */
+export const BACKUP_OK_WITHIN_MS = (7 * 24 + 2) * HOUR_MS;
+export const BACKUP_WARNING_WITHIN_MS = (14 * 24 + 2) * HOUR_MS;
 
 interface Run {
   status: string;
@@ -73,8 +73,8 @@ export class BackupsHealthProvider implements HealthIndicatorProvider {
       value,
       detail:
         status === "ok"
-          ? "The nightly backup ran in the last 26 hours."
-          : `${goodText} The nightly backup is overdue.`,
+          ? "The weekly backup ran on time."
+          : `${goodText} The weekly backup is overdue.`,
       data,
       checkedAt: lastAt,
     };
