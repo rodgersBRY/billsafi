@@ -747,3 +747,14 @@ Status: confirmed on 2026-11-06 by the user.
 - It is sent after the grant commits. A grant that fails or rolls back sends nothing, and a replay with the same Idempotency-Key does not send a second email.
 - A failed send is recorded as an email failure (D066) and logged. The gift stays.
 - Banned accounts are not emailed, since they can't sign in to see the gift.
+
+## D073 - Email accounts about payments, Pro ending and the Free limit
+
+Status: confirmed on 2026-11-06 by the user.
+
+- Receipt. An M-Pesa payment that settles as succeeded (Pro month or credit pack) emails what was bought, the amount, the M-Pesa receipt code and, for Pro, the new end date. Only the call that moves the payment from pending to succeeded sends, so a repeated callback or a late status query sends nothing more.
+- Failed payment. A pending payment that Daraja reports as failed, or that is abandoned after a day, emails a short note: nothing was charged, try again from Billing. A prompt the person cancelled on their phone (result code 1032) sends nothing. Amount mismatches and reused receipts send nothing, since money may have moved and support checks those by hand.
+- Both payment emails go out after the transaction commits. A failed send is logged and recorded as an email failure (D066); the payment stands. Banned accounts are skipped.
+- Pro has ended. The renewal job sends one email on the first run after Pro passes its end date, up to 3 days late, so lapses from before this shipped are not mailed. It is claimed in `subscription_reminders` with the new `after_expiry` kind, once per expiry date. Cancelled accounts are skipped, like the other reminders.
+- Free limit. When a Free account makes its last invoice of the month Ready, it gets one email with the limit, the reset date and the ways to carry on. It is claimed with `usage_periods.limit_emailed_at`, so it goes out once per Free month. It is sent after the invoice commits and never blocks or fails the invoice. A failed send releases the claim.
+- Every email has one button to the Billing page and never mentions admins or internal reasons.
