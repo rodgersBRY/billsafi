@@ -26,7 +26,7 @@ export function AppShell({ sidebar, banner, children }: AppShellProps) {
     <div className="flex min-h-full flex-1">
       <aside
         id="app-navigation"
-        className={`fixed inset-y-0 left-0 z-40 w-64 flex-col gap-6 border-r border-line bg-panel px-4.5 py-6.75 md:sticky md:top-0 md:flex md:h-dvh md:w-52.5 ${
+        className={`fixed inset-y-0 left-0 z-40 w-64 flex-col gap-6 border-r border-line bg-panel px-4.5 py-6.75 md:sticky md:top-0 md:flex md:h-dvh ${
           menuOpen ? "flex" : "hidden"
         }`}
       >
