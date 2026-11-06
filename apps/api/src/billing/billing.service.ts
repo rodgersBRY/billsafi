@@ -34,6 +34,7 @@ import {
   type PaymentReceipt,
   paymentFailedEmail,
   paymentReceiptEmail,
+  proEndedEmail,
 } from "../mail/billing-templates.js";
 import { renewalReminderEmail } from "../mail/templates.js";
 import { AllowanceService, type SubscriptionRow, type Transaction } from "./allowance.service.js";
@@ -55,6 +56,8 @@ type PaymentRow = typeof subscriptionPayments.$inferSelect;
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** A new checkout waits this long for an earlier prompt to be answered. */
 const PENDING_WINDOW_MS = 2 * 60 * 1000;
+/** Pro-ended emails go out only this soon after expiry, so old lapses are not mailed. */
+const ENDED_EMAIL_WINDOW_MS = 3 * DAY_MS;
 /** Ask Daraja directly once a callback is this late. */
 const QUERY_AFTER_MS = 20 * 1000;
 /** Billing history entries (payments and grants together) on the Billing page. */
@@ -435,7 +438,10 @@ export class BillingService {
     return deleted.length;
   }
 
-  /** Sends each renewal reminder once per expiry date (D051). */
+  /**
+   * Sends each renewal reminder, and the Pro-ended email, once per expiry date (D051, D073).
+   * The ended email goes out on the first run after expiry, up to 3 days late.
+   */
   async sendReminders(at = new Date()): Promise<number> {
     const candidates = await this.db
       .select({ subscription: subscriptions, email: users.email, name: users.name })
@@ -452,7 +458,9 @@ export class BillingService {
           ? "on_expiry"
           : at < until && until.getTime() - at.getTime() <= REMINDER_DAYS_BEFORE * DAY_MS
             ? "before_expiry"
-            : null;
+            : at >= until && at.getTime() - until.getTime() <= ENDED_EMAIL_WINDOW_MS
+              ? "after_expiry"
+              : null;
       if (!kind) continue;
       const [claimed] = await this.db
         .insert(subscriptionReminders)
@@ -461,10 +469,18 @@ export class BillingService {
         .returning({ id: subscriptionReminders.id });
       if (!claimed) continue;
       try {
-        await this.mailer.send(
-          renewalReminderEmail(email, name, until, `${this.env.WEB_ORIGIN}/billing`, kind),
-          { operation: "renewal_reminder", accountId: subscription.userId },
-        );
+        const billingUrl = `${this.env.WEB_ORIGIN}/billing`;
+        if (kind === "after_expiry") {
+          await this.mailer.send(proEndedEmail(email, name, billingUrl), {
+            operation: "pro_ended_email",
+            accountId: subscription.userId,
+          });
+        } else {
+          await this.mailer.send(renewalReminderEmail(email, name, until, billingUrl, kind), {
+            operation: "renewal_reminder",
+            accountId: subscription.userId,
+          });
+        }
         sent++;
       } catch (error) {
         // Release the claim so the next run tries again.

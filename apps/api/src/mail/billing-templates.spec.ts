@@ -1,4 +1,9 @@
-import { paymentFailedEmail, paymentReceiptEmail } from "./billing-templates.js";
+import {
+  freeLimitEmail,
+  paymentFailedEmail,
+  paymentReceiptEmail,
+  proEndedEmail,
+} from "./billing-templates.js";
 
 const URL = "https://account.billsafi.com/billing";
 
@@ -44,6 +49,28 @@ describe("billing email templates", () => {
     expect(email.subject).toBe("Your BillSafi payment didn't go through");
     expect(email.text).toContain("you haven't been charged");
     expect(email.text).toContain(URL);
+    expect(email.text).not.toContain("—");
+  });
+
+  it("tells the person Pro has ended and that their work is still there", () => {
+    const email = proEndedEmail("jane@example.test", "Jane", URL);
+    expect(email.subject).toBe("Your BillSafi Pro has ended");
+    expect(email.text).toContain("Free plan");
+    expect(email.text).toContain("businesses, invoices and payment records are all still there");
+    expect(email.html).toContain(`href="${URL}"`);
+  });
+
+  it("names the Free limit, the reset date and both ways to carry on", () => {
+    const email = freeLimitEmail(
+      "jane@example.test",
+      "Jane",
+      10,
+      new Date("2026-11-30T21:00:00Z"),
+      URL,
+    );
+    expect(email.text).toContain("all 10 invoices");
+    expect(email.text).toContain("resets on 1 December 2026");
+    expect(email.text).toContain("upgrade to Pro or buy invoice credits");
     expect(email.text).not.toContain("—");
   });
 });

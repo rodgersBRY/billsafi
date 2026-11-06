@@ -70,3 +70,57 @@ export function paymentFailedEmail(to: string, name: string, billingUrl: string)
     text: [`Hi ${name},`, ...paragraphs, `Try again: ${billingUrl}`, note].join("\n\n"),
   };
 }
+
+/** Tells an account its Pro ran out without a renewal. */
+export function proEndedEmail(to: string, name: string, billingUrl: string): MailMessage {
+  const paragraphs = [
+    "Your Pro access has ended, so you're on the Free plan now.",
+    "Your businesses, invoices and payment records are all still there. To get Pro back, renew from the Billing page.",
+  ];
+  const note = "BillSafi never takes payment automatically.";
+  return {
+    to,
+    subject: "Your BillSafi Pro has ended",
+    html: emailLayout({
+      preview: "You're on the Free plan. Everything you made is still there.",
+      title: "You're on the Free plan now",
+      name,
+      paragraphs,
+      action: "Renew Pro",
+      url: billingUrl,
+      note,
+    }),
+    text: [`Hi ${name},`, ...paragraphs, `Renew Pro: ${billingUrl}`, note].join("\n\n"),
+  };
+}
+
+/** Tells a Free account it has used its whole monthly allowance. */
+export function freeLimitEmail(
+  to: string,
+  name: string,
+  limit: number,
+  resetsAt: Date,
+  billingUrl: string,
+): MailMessage {
+  const used = plural(limit, "invoice");
+  const paragraphs = [
+    `You've used all ${used} on the Free plan this month.`,
+    `Your allowance resets on ${dayOnly.format(resetsAt)}. To keep making invoices Ready before then, upgrade to Pro or buy invoice credits from the Billing page.`,
+  ];
+  const note =
+    "Drafts are still free to create and edit. Only making an invoice Ready uses the allowance.";
+  return {
+    to,
+    subject: "You've used all your Free invoices this month",
+    html: emailLayout({
+      preview: `All ${used} used. Your allowance resets on ${dayOnly.format(resetsAt)}.`,
+      title: "You've reached your Free limit",
+      name,
+      paragraphs,
+      action: "See Pro and credits",
+      url: billingUrl,
+      note,
+    }),
+    text: [`Hi ${name},`, ...paragraphs, `See Pro and credits: ${billingUrl}`, note].join("\n\n"),
+  };
+}
