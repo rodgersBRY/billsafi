@@ -747,3 +747,14 @@ Status: confirmed on 2026-11-06 by the user.
 - It is sent after the grant commits. A grant that fails or rolls back sends nothing, and a replay with the same Idempotency-Key does not send a second email.
 - A failed send is recorded as an email failure (D066) and logged. The gift stays.
 - Banned accounts are not emailed, since they can't sign in to see the gift.
+
+## D074 - Email accounts when an admin changes their plan
+
+Status: confirmed on 2026-11-06 by the user.
+
+- These admin actions email the account, like gifts (D072): a recorded manual payment, Pro ended, a limit override added, and a limit override revoked.
+- The payment email is a receipt: amount, currency, method, reference, and the new Pro end date or the credits added. Pro ended says when Pro ends, that the account moves to Free, that its data stays and that it can renew from Billing. The override emails say how many extra invoices and until when (or from when, if scheduled), or that the extra invoices have ended.
+- None of them show the admin, the note or the reason (D062). Each links to the Billing page.
+- Sent after the action commits. A refused or rolled back action and a replay with the same Idempotency-Key send nothing. A failed send is recorded (D066) and logged; the action stands. Banned accounts are not emailed.
+- A scheduled override revoked before it starts sends nothing, since the account never had it.
+- The admin dialogs end their success message with "Account emailed."
