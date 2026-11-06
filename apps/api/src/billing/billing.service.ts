@@ -30,6 +30,12 @@ import { checkoutChargeKes } from "./charge-amount.js";
 import { DATABASE } from "../database/database.module.js";
 import { MAILER } from "../mail/mail.module.js";
 import type { Mailer } from "../mail/mailer.js";
+import {
+  type PaymentReceipt,
+  paymentFailedEmail,
+  paymentReceiptEmail,
+  proEndedEmail,
+} from "../mail/billing-templates.js";
 import { renewalReminderEmail } from "../mail/templates.js";
 import { AllowanceService, type SubscriptionRow, type Transaction } from "./allowance.service.js";
 import { ExchangeRateService, type UsdKesRate } from "./exchange-rate.service.js";
@@ -50,6 +56,8 @@ type PaymentRow = typeof subscriptionPayments.$inferSelect;
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** A new checkout waits this long for an earlier prompt to be answered. */
 const PENDING_WINDOW_MS = 2 * 60 * 1000;
+/** Pro-ended emails go out only this soon after expiry, so old lapses are not mailed. */
+const ENDED_EMAIL_WINDOW_MS = 3 * DAY_MS;
 /** Ask Daraja directly once a callback is this late. */
 const QUERY_AFTER_MS = 20 * 1000;
 /** Billing history entries (payments and grants together) on the Billing page. */
@@ -63,6 +71,12 @@ const ABANDON_AFTER_MS = DAY_MS;
 export type PaymentOutcome =
   | { state: "succeeded"; receipt?: string; amount?: number }
   | { state: "failed"; resultCode: string; resultDescription: string };
+
+/** M-Pesa result code for a prompt the person cancelled on their phone. */
+const USER_CANCELLED_CODE = "1032";
+
+/** The email to send once a settled payment's transaction has committed. */
+type SettleNotice = { kind: "receipt"; receipt: PaymentReceipt } | { kind: "failed" };
 
 const PRICES_USD = {
   pro_month: PRO_PLAN.priceUsd,
@@ -424,7 +438,10 @@ export class BillingService {
     return deleted.length;
   }
 
-  /** Sends each renewal reminder once per expiry date (D051). */
+  /**
+   * Sends each renewal reminder, and the Pro-ended email, once per expiry date (D051, D073).
+   * The ended email goes out on the first run after expiry, up to 3 days late.
+   */
   async sendReminders(at = new Date()): Promise<number> {
     const candidates = await this.db
       .select({ subscription: subscriptions, email: users.email, name: users.name })
@@ -441,7 +458,9 @@ export class BillingService {
           ? "on_expiry"
           : at < until && until.getTime() - at.getTime() <= REMINDER_DAYS_BEFORE * DAY_MS
             ? "before_expiry"
-            : null;
+            : at >= until && at.getTime() - until.getTime() <= ENDED_EMAIL_WINDOW_MS
+              ? "after_expiry"
+              : null;
       if (!kind) continue;
       const [claimed] = await this.db
         .insert(subscriptionReminders)
@@ -450,10 +469,18 @@ export class BillingService {
         .returning({ id: subscriptionReminders.id });
       if (!claimed) continue;
       try {
-        await this.mailer.send(
-          renewalReminderEmail(email, name, until, `${this.env.WEB_ORIGIN}/billing`, kind),
-          { operation: "renewal_reminder", accountId: subscription.userId },
-        );
+        const billingUrl = `${this.env.WEB_ORIGIN}/billing`;
+        if (kind === "after_expiry") {
+          await this.mailer.send(proEndedEmail(email, name, billingUrl), {
+            operation: "pro_ended_email",
+            accountId: subscription.userId,
+          });
+        } else {
+          await this.mailer.send(renewalReminderEmail(email, name, until, billingUrl, kind), {
+            operation: "renewal_reminder",
+            accountId: subscription.userId,
+          });
+        }
         sent++;
       } catch (error) {
         // Release the claim so the next run tries again.
@@ -495,14 +522,24 @@ export class BillingService {
    * cannot grant access twice (D020, D051).
    */
   private async settle(userId: string, checkoutRequestId: string, outcome: PaymentOutcome) {
-    await this.db.transaction(async (tx) => {
+    const notice = await this.settleInTransaction(userId, checkoutRequestId, outcome);
+    if (notice) await this.notifyPayment(userId, notice);
+  }
+
+  /** Returns the email to send, only when this call moved the payment out of pending. */
+  private async settleInTransaction(
+    userId: string,
+    checkoutRequestId: string,
+    outcome: PaymentOutcome,
+  ): Promise<SettleNotice | null> {
+    return this.db.transaction(async (tx): Promise<SettleNotice | null> => {
       const subscription = await this.allowance.lockAccount(tx, userId);
       const [payment] = await tx
         .select()
         .from(subscriptionPayments)
         .where(eq(subscriptionPayments.checkoutRequestId, checkoutRequestId))
         .for("update");
-      if (!payment) return;
+      if (!payment) return null;
 
       if (payment.status !== "pending") {
         // A status query may confirm before the callback brings the receipt.
@@ -514,12 +551,13 @@ export class BillingService {
               .where(eq(subscriptionPayments.id, payment.id));
           }
         }
-        return;
+        return null;
       }
 
       if (outcome.state === "failed") {
         await this.fail(tx, payment.id, outcome.resultCode, outcome.resultDescription);
-        return;
+        // Cancelling the prompt is the person's own choice, so it gets no email.
+        return outcome.resultCode === USER_CANCELLED_CODE ? null : { kind: "failed" };
       }
       if (outcome.receipt && (await this.receiptUsed(tx, outcome.receipt))) {
         await this.fail(
@@ -529,7 +567,7 @@ export class BillingService {
           "This M-Pesa transaction was already used",
         );
         this.logger.warn(`Receipt ${outcome.receipt} reused for payment ${payment.id}`);
-        return;
+        return null;
       }
       if (outcome.amount !== undefined && outcome.amount !== Number(payment.amount)) {
         await this.fail(
@@ -539,7 +577,7 @@ export class BillingService {
           `Paid KES ${outcome.amount}, expected KES ${Number(payment.amount)}`,
         );
         this.logger.error(`Amount mismatch on payment ${payment.id}; needs a manual check`);
-        return;
+        return null;
       }
 
       const now = new Date();
@@ -557,7 +595,15 @@ export class BillingService {
         await this.recordCreditsAdded(tx, subscription.id, CREDIT_PACK.invoices, {
           paymentId: payment.id,
         });
-        return;
+        return {
+          kind: "receipt",
+          receipt: {
+            purchase: { kind: "invoice_credits", credits: CREDIT_PACK.invoices },
+            amount: payment.amount,
+            currency: payment.currency,
+            receipt: outcome.receipt ?? null,
+          },
+        };
       }
 
       // Each Pro payment buys one month (D044, D051).
@@ -574,7 +620,41 @@ export class BillingService {
         })
         .where(eq(subscriptionPayments.id, payment.id));
       await this.recordProEvent(tx, subscription.id, extension, { paymentId: payment.id });
+      return {
+        kind: "receipt",
+        receipt: {
+          purchase: { kind: "pro_month", until: extension.grantedUntil },
+          amount: payment.amount,
+          currency: payment.currency,
+          receipt: outcome.receipt ?? null,
+        },
+      };
     });
+  }
+
+  /** A failed email is recorded by the mailer and logged; the payment stands. */
+  private async notifyPayment(userId: string, notice: SettleNotice): Promise<void> {
+    try {
+      const [user] = await this.db
+        .select({ email: users.email, name: users.name, banned: users.banned })
+        .from(users)
+        .where(eq(users.id, userId));
+      if (!user || user.banned) return;
+      const billingUrl = `${this.env.WEB_ORIGIN}/billing`;
+      if (notice.kind === "receipt") {
+        await this.mailer.send(
+          paymentReceiptEmail(user.email, user.name, notice.receipt, billingUrl),
+          { operation: "payment_receipt_email", accountId: userId },
+        );
+      } else {
+        await this.mailer.send(paymentFailedEmail(user.email, user.name, billingUrl), {
+          operation: "payment_failed_email",
+          accountId: userId,
+        });
+      }
+    } catch (error) {
+      this.logger.warn(`Payment email for account ${userId} failed: ${String(error)}`);
+    }
   }
 
   /**

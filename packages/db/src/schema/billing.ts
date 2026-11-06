@@ -253,9 +253,13 @@ export const subscriptionEvents = pgTable(
   (table) => [index("subscription_events_subscription_idx").on(table.subscriptionId)],
 );
 
-export const reminderKind = pgEnum("subscription_reminder_kind", ["before_expiry", "on_expiry"]);
+export const reminderKind = pgEnum("subscription_reminder_kind", [
+  "before_expiry",
+  "on_expiry",
+  "after_expiry",
+]);
 
-/** Renewal reminders already sent, so each goes out once per expiry date (D051). */
+/** Renewal and Pro-ended emails already sent, so each goes out once per expiry date (D051). */
 export const subscriptionReminders = pgTable(
   "subscription_reminders",
   {
