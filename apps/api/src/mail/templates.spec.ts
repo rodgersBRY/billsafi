@@ -89,7 +89,7 @@ describe("gift template", () => {
       url,
     );
     expect(email.subject).toBe("You've got 2 months of Pro on BillSafi");
-    expect(email.text).toContain("Pro until 28 December 2026");
+    expect(email.text).toContain("Pro until 28 December 2026.");
     expect(email.html).toContain("View billing");
     expect(email.text).toContain(url);
   });

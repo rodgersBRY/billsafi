@@ -113,6 +113,13 @@ const longDate = new Intl.DateTimeFormat("en-KE", {
   timeZone: "Africa/Nairobi",
 });
 
+const dayOnly = new Intl.DateTimeFormat("en-KE", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "Africa/Nairobi",
+});
+
 /** Renewal reminder three days before and on the day Pro ends (D051). */
 export function renewalReminderEmail(
   to: string,
@@ -229,7 +236,7 @@ export function giftEmail(
       : plural(gift.quantity, "invoice credit");
   const detail =
     gift.kind === "pro_months"
-      ? `You now have Pro until ${longDate.format(gift.until)}.`
+      ? `You now have Pro until ${dayOnly.format(gift.until)}.`
       : "Credits are used after your monthly allowance and don't expire.";
   const paragraphs = [`BillSafi has given you ${what}, free of charge.`, detail];
   const note = "There's nothing to pay. This gift shows as No charge in your billing history.";
