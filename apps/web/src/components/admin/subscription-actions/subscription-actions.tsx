@@ -116,7 +116,7 @@ export function SubscriptionActions({ context, isSelf }: SubscriptionActionsProp
             ],
             confirmLabel: "End Pro at month end",
             path: `/admin/tenants/${encodeURIComponent(context.target.id)}/end-pro`,
-            successMessage: `Pro now ends on ${formatDay(endPro.endsOn.toISOString())}.`,
+            successMessage: `Pro now ends on ${formatDay(endPro.endsOn.toISOString())}. Account emailed.`,
             destructive: true,
           }}
         />
