@@ -262,6 +262,16 @@ docker compose logs -f web
 docker compose ps
 ```
 
+**Emailing past gifts (once, after v1.8.0 is deployed).** Gifts given before gift emails existed were never emailed. This lists the accounts whose gifts are still in use, then sends one email each (D078):
+
+```sh
+cd /opt/billsafi
+docker compose exec api node apps/api/dist/cli/notify-past-gifts.js         # dry run, sends nothing
+docker compose exec api node apps/api/dist/cli/notify-past-gifts.js --send
+```
+
+Running it again only retries accounts whose email failed.
+
 **Restoring a backup.** This replaces the current database contents, so take a fresh backup first.
 
 ```sh

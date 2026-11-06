@@ -5,6 +5,7 @@ import {
   welcomeEmail,
   registrationAdminEmail,
   giftEmail,
+  pastGiftsEmail,
 } from "./templates.js";
 
 describe("transactional email templates", () => {
@@ -137,5 +138,34 @@ describe("gift template", () => {
     );
     expect(email.subject).toBe("You've got 1 invoice credit on BillSafi");
     expect(email.text).toContain("don't expire");
+  });
+});
+
+describe("past gifts template", () => {
+  const url = "https://account.billsafi.com/billing";
+
+  it("lists Pro and credits in one email", () => {
+    const email = pastGiftsEmail(
+      "user@example.test",
+      "Jane",
+      {
+        pro: { months: 1, until: new Date("2026-12-28T09:00:00Z") },
+        credits: { given: 50, left: 12 },
+      },
+      url,
+    );
+    expect(email.subject).toBe("A gift from BillSafi on your account");
+    expect(email.text).toContain("1 month of Pro. You have Pro until 28 December 2026.");
+    expect(email.text).toContain("50 invoice credits. You have 12 left");
+  });
+
+  it("leaves out what wasn't given", () => {
+    const email = pastGiftsEmail(
+      "user@example.test",
+      "Jane",
+      { credits: { given: 5, left: 5 } },
+      url,
+    );
+    expect(email.text).not.toContain("Pro");
   });
 });

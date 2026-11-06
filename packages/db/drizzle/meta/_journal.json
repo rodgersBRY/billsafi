@@ -162,6 +162,13 @@
       "when": 1793982794714,
       "tag": "0022_quotes",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793983923547,
+      "tag": "0023_gift_notified_at",
+      "breakpoints": true
     }
   ]
 }

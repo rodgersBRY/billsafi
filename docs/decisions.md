@@ -795,3 +795,14 @@ Status: adopted on 2026-11-04.
 - The client's accept or decline carries the version they were looking at. If the freelancer saved a newer version since, the answer is refused with `QUOTE_CHANGED` and the client reviews the new version first.
 - Deleting the converted draft returns the quote to Accepted only if the client accepted on the link. A quote converted on a verbal yes goes back to Sent.
 - Web: Quotes sits in the sidebar between Overview and Invoices. Clients answer on `/q/[token]`. The Overview shows open quotes, and an invoice made from a quote links back to it.
+
+## D078 - Tell accounts about gifts given before gift emails
+
+Status: confirmed on 2026-11-06 by the user.
+
+- Gifts given before D072 were never emailed. A one-off command emails those accounts once.
+- Only gifts still in use count: Pro months that haven't run out, and credit gifts on accounts that still have credits. Other past gifts are skipped. Banned accounts are skipped.
+- One email per account. It lists the Pro months and the Pro end date, and the credits given and how many are left. Like the gift email, it never shows the admin or the reason.
+- `account_grants.notified_at` records when a gift was emailed. The live gift email sets it too. The command only picks gifts where it is empty, so running it again sends nothing new. A failed send leaves it empty, so a rerun retries that account.
+- The command lists who would be emailed and only sends with `--send`.
+

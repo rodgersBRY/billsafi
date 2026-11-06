@@ -344,12 +344,12 @@ export class AdminSubscriptionActionsService {
           };
         }),
     );
-    if (!recorded.replayed && gift) await this.notifyGift(id, gift);
+    if (!recorded.replayed && gift) await this.notifyGift(id, recorded.grantId, gift);
     return recorded;
   }
 
   /** A failed email is recorded by the mailer and logged; the gift stands. */
-  private async notifyGift(userId: string, gift: GiftEmail): Promise<void> {
+  private async notifyGift(userId: string, grantId: string, gift: GiftEmail): Promise<void> {
     try {
       const [user] = await this.connection.db
         .select({ email: users.email, name: users.name, banned: users.banned })
@@ -360,6 +360,10 @@ export class AdminSubscriptionActionsService {
         giftEmail(user.email, user.name, gift, `${this.env.WEB_ORIGIN}/billing`),
         { operation: "gift_email", accountId: userId },
       );
+      await this.connection.db
+        .update(accountGrants)
+        .set({ notifiedAt: new Date() })
+        .where(eq(accountGrants.id, grantId));
     } catch (error) {
       this.logger.warn(`Gift email for account ${userId} failed: ${String(error)}`);
     }

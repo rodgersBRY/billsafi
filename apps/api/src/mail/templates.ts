@@ -296,3 +296,40 @@ export function giftEmail(
     text: [`Hi ${name},`, ...paragraphs, `View billing: ${billingUrl}`, note].join("\n\n"),
   };
 }
+
+/** What a past gift still gives the account, for the one-off email (D078). */
+export interface PastGifts {
+  pro?: { months: number; until: Date };
+  credits?: { given: number; left: number };
+}
+
+/** One email per account about gifts given before gift emails existed. */
+export function pastGiftsEmail(
+  to: string,
+  name: string,
+  gifts: PastGifts,
+  billingUrl: string,
+): MailMessage {
+  const lines = [
+    gifts.pro &&
+      `${plural(gifts.pro.months, "month")} of Pro. You have Pro until ${dayOnly.format(gifts.pro.until)}.`,
+    gifts.credits &&
+      `${plural(gifts.credits.given, "invoice credit")}. You have ${gifts.credits.left} left, and they don't expire.`,
+  ].filter((line): line is string => Boolean(line));
+  const paragraphs = ["BillSafi added this to your account, free of charge:", ...lines];
+  const note = "There's nothing to pay. You'll find it as No charge in your billing history.";
+  return {
+    to,
+    subject: "A gift from BillSafi on your account",
+    html: emailLayout({
+      preview: "A free extra on your BillSafi account.",
+      title: "A gift from BillSafi",
+      name,
+      paragraphs,
+      action: "View billing",
+      url: billingUrl,
+      note,
+    }),
+    text: [`Hi ${name},`, ...paragraphs, `View billing: ${billingUrl}`, note].join("\n\n"),
+  };
+}
