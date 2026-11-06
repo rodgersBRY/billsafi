@@ -39,7 +39,7 @@ GitHub never connects to the droplet. Images are built on GitHub's runners, so t
 | `deploy/Caddyfile`              | HTTPS and reverse proxy to `web`                                            |
 | `deploy/.env.example`           | Template for the secrets file on the droplet                                |
 | `deploy/deploy.sh`              | Pull, migrate, restart, health check. Also used for rollbacks               |
-| `deploy/backup.sh`              | Nightly `pg_dump` with 7 days of retention                                  |
+| `deploy/backup.sh`              | Weekly `pg_dump` with 14 days of retention                                  |
 
 Local development and CI behave exactly as before.
 
@@ -212,7 +212,7 @@ The first deploy takes a little longer because Caddy has to request the certific
 - Visit `https://<your domain>/api/v1/health`. It should return `{"status":"ok","database":"ok"}`.
 - Create an account, then trigger a password reset to confirm email delivery.
 
-## Step 10: Turn on nightly backups
+## Step 10: Turn on weekly backups
 
 On the droplet, as `deploy`, open the crontab:
 
@@ -223,16 +223,16 @@ crontab -e
 Add this line:
 
 ```
-15 2 * * * /opt/billsafi/backup.sh >> /home/deploy/backup.log 2>&1
+15 2 * * 0 /opt/billsafi/backup.sh >> /home/deploy/backup.log 2>&1
 ```
 
-This writes a dump to `/opt/billsafi/backups` at 02:15 UTC every night and deletes dumps older than 7 days. Run it once by hand to check it works:
+This writes a dump to `/opt/billsafi/backups` at 02:15 UTC every Sunday and deletes dumps older than 14 days, so there are always at least two. Run it once by hand to check it works:
 
 ```sh
 /opt/billsafi/backup.sh
 ```
 
-Each run, good or bad, also adds one row to the `backup_runs` table: when it started and finished, whether it worked, the dump's size and file name, or a short error line. The script writes it through `docker compose exec postgres psql`, so it needs no new passwords or settings. The admin Health page reads these rows: a good backup under 26 hours old is fine, under 50 hours is a warning, and anything older or a failed last run is failing. Rows are deleted after 13 months. If the row can't be written (the database is down, say), the script prints a warning and still keeps a good dump. Until the first run after a deploy that includes this table, Health shows Backups as unknown.
+Each run, good or bad, also adds one row to the `backup_runs` table: when it started and finished, whether it worked, the dump's size and file name, or a short error line. The script writes it through `docker compose exec postgres psql`, so it needs no new passwords or settings. The admin Health page reads these rows: a good backup under 7 days and 2 hours old is fine, under 14 days and 2 hours is a warning, and anything older or a failed last run is failing. Rows are deleted after 13 months. If the row can't be written (the database is down, say), the script prints a warning and still keeps a good dump. Until the first run after a deploy that includes this table, Health shows Backups as unknown.
 
 Run `./deploy.sh` before the first backup that uses this script, so the table exists.
 

@@ -795,3 +795,13 @@ Status: adopted on 2026-11-04.
 - The client's accept or decline carries the version they were looking at. If the freelancer saved a newer version since, the answer is refused with `QUOTE_CHANGED` and the client reviews the new version first.
 - Deleting the converted draft returns the quote to Accepted only if the client accepted on the link. A quote converted on a verbal yes goes back to Sent.
 - Web: Quotes sits in the sidebar between Overview and Invoices. Clients answer on `/q/[token]`. The Overview shows open quotes, and an invoice made from a quote links back to it.
+
+## D077 - Back up the database weekly and keep dumps for 14 days
+
+Status: confirmed on 2026-11-06 by the user. This replaces the nightly schedule and 7 day figure in D067.
+
+- Traffic is still low, so `deploy/backup.sh` runs weekly, at 02:15 UTC on Sundays, instead of every night.
+- Dumps are deleted after 14 days, so the droplet always holds at least two.
+- The admin Health page treats a good backup as fine for 7 days and 2 hours and warns until 14 days and 2 hours. After that, or when the last run failed, it shows failing.
+- The privacy page now states weekly backups kept for 14 days.
+- Weekly droplet backups stay the off-machine copy.
