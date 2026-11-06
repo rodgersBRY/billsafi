@@ -816,3 +816,13 @@ Status: confirmed on 2026-11-06 by the user.
 - `account_grants.notified_at` records when a gift was emailed. The live gift email sets it too. The command only picks gifts where it is empty, so running it again sends nothing new. A failed send leaves it empty, so a rerun retries that account.
 - The command lists who would be emailed and only sends with `--send`.
 
+## D079 - Build images on merge to main without a second CI run
+
+Status: confirmed on 2026-11-06 by the user.
+
+- CI used to run twice per release: on the PR into `main`, and again on the merge. Images were built only after the second run. The second run tested the same code as long as `main` hadn't moved.
+- CI now runs on PRs and on pushes to `develop`, not on pushes to `main`. **Publish images** starts on every push to `main`.
+- `main` is protected: changes arrive by PR, the `check` job must pass, and the PR must be up to date with `main`. If `main` moves, the PR has to be updated and tested again before it can merge.
+- Admins can still bypass the rule in an emergency. A direct push to `main` then publishes untested images, so don't.
+- Releases are about 7 minutes faster. This suits one developer. Revisit if more people merge into `main`.
+

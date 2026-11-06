@@ -1,12 +1,11 @@
 name: Publish images
 
-# Pushes the api, migrate and web images to GHCR after CI passes on main.
+# Pushes the api, migrate and web images to GHCR on every push to main (D079).
+# CI already passed on the PR, and main requires PRs to be up to date before merging.
 # Each image is tagged with the commit SHA and `latest`. Deploying is a manual
 # step on the droplet (deploy/README.md). Run by hand to rebuild an earlier commit.
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
+  push:
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -20,9 +19,6 @@ concurrency:
 
 jobs:
   publish:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -30,9 +26,9 @@ jobs:
     steps:
       - id: meta
         env:
-          SHA: ${{ inputs.sha || github.event.workflow_run.head_sha || github.sha }}
+          SHA: ${{ inputs.sha || github.sha }}
           # Only the newest main commit moves `latest`; a manual rebuild of an old SHA must not.
-          MOVE_LATEST: ${{ github.event_name == 'workflow_run' || inputs.sha == '' }}
+          MOVE_LATEST: ${{ github.event_name == 'push' || inputs.sha == '' }}
         run: |
           prefix="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/billsafi"
           echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
