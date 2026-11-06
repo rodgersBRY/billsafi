@@ -769,3 +769,13 @@ Status: confirmed on 2026-11-06 by the user.
 - Sent after the action commits. A refused or rolled back action and a replay with the same Idempotency-Key send nothing. A failed send is recorded (D066) and logged; the action stands. Banned accounts are not emailed.
 - A scheduled override revoked before it starts sends nothing, since the account never had it.
 - The admin dialogs end their success message with "Account emailed."
+
+## D075 - Email accounts about password and access changes
+
+Status: confirmed on 2026-11-06 by the user.
+
+- Four emails: password changed (after a reset or a signed-in change), signed out everywhere, account suspended and account reactivated.
+- Password changed tells the owner when it happened and links to the reset page. It never includes the password.
+- Signed out and suspended emails never show the admin, the reason or the audit note. The suspended email says data is kept and clients' invoice links still work (D061, D062).
+- Admin emails go out after the action commits. A refused action sends nothing, and a failed send is recorded (D066) and logged. The action stays.
+- A suspended account is still emailed, since the email is how it learns what happened. Support contact comes from the `support_contact` setting, used as Reply-To and named in the text.

@@ -1,5 +1,13 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import type { AdminActionAck, AdminUserRow } from "@billsafi/contracts";
+import type { DatabaseConnection } from "@billsafi/db";
+import { ENV } from "../../config/config.module.js";
+import type { Env } from "../../config/env.js";
+import { DATABASE } from "../../database/database.module.js";
+import { signedOutEverywhereEmail } from "../../mail/account-templates.js";
+import { MAILER } from "../../mail/mail.module.js";
+import type { Mailer } from "../../mail/mailer.js";
+import { emailAccount } from "../../mail/notify-account.js";
 import {
   AdminActionRunner,
   type AdminActionContext,
@@ -15,6 +23,9 @@ export class UserActionsService {
     private readonly runner: AdminActionRunner,
     private readonly access: AccountAccessService,
     private readonly users: AdminUsersService,
+    @Inject(DATABASE) private readonly connection: DatabaseConnection,
+    @Inject(MAILER) private readonly mailer: Mailer,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
   async revokeSessions(
@@ -34,6 +45,14 @@ export class UserActionsService {
         const revoked = await this.access.revokeSessions(id, tx);
         return { sessions: { from: revoked, to: 0 } };
       },
+    );
+    await emailAccount(this.connection.db, this.mailer, id, "signed_out_everywhere_email", (user) =>
+      signedOutEverywhereEmail(
+        user.email,
+        user.name,
+        `${this.env.WEB_ORIGIN}/sign-in`,
+        `${this.env.WEB_ORIGIN}/forgot-password`,
+      ),
     );
     return this.runner.summaryAfter(context.adminId, () => this.users.summary(id));
   }
