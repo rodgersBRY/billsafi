@@ -210,3 +210,41 @@ export function registrationAdminEmail(
     text: [`Hi ${name},`, ...paragraphs, `View account: ${url}`, note].join("\n\n"),
   };
 }
+
+export type GiftEmail =
+  | { kind: "pro_months"; quantity: number; until: Date }
+  | { kind: "invoice_credits"; quantity: number };
+
+/** Tells an account about a gift from BillSafi. Never names the admin or their reason (D072). */
+export function giftEmail(
+  to: string,
+  name: string,
+  gift: GiftEmail,
+  billingUrl: string,
+): MailMessage {
+  const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
+  const what =
+    gift.kind === "pro_months"
+      ? plural(gift.quantity, "month") + " of Pro"
+      : plural(gift.quantity, "invoice credit");
+  const detail =
+    gift.kind === "pro_months"
+      ? `You now have Pro until ${longDate.format(gift.until)}.`
+      : "Credits are used after your monthly allowance and don't expire.";
+  const paragraphs = [`BillSafi has given you ${what}, free of charge.`, detail];
+  const note = "There's nothing to pay. This gift shows as No charge in your billing history.";
+  return {
+    to,
+    subject: `You've got ${what} on BillSafi`,
+    html: emailLayout({
+      preview: `${what}, free of charge.`,
+      title: "A gift from BillSafi",
+      name,
+      paragraphs,
+      action: "View billing",
+      url: billingUrl,
+      note,
+    }),
+    text: [`Hi ${name},`, ...paragraphs, `View billing: ${billingUrl}`, note].join("\n\n"),
+  };
+}

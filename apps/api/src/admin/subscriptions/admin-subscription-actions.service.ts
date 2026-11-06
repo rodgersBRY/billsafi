@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import type {
   AdminGrant,
   AdminGrantRecorded,
@@ -21,6 +21,8 @@ import {
 } from "@billsafi/domain";
 import { AllowanceService, type SubscriptionRow } from "../../billing/allowance.service.js";
 import { BillingService, type ProExtension } from "../../billing/billing.service.js";
+import { ENV } from "../../config/config.module.js";
+import type { Env } from "../../config/env.js";
 import { DATABASE } from "../../database/database.module.js";
 import type { Transaction } from "../../database/transaction.js";
 import {
@@ -31,6 +33,9 @@ import {
   conflict,
   UnauditedRefusal,
 } from "../shared/admin-action-runner.js";
+import { MAILER } from "../../mail/mail.module.js";
+import type { Mailer } from "../../mail/mailer.js";
+import { type GiftEmail, giftEmail } from "../../mail/templates.js";
 import { selectOverrides } from "./overrides.js";
 import { planAt } from "../shared/admin-sql.js";
 
@@ -41,6 +46,7 @@ const {
   subscriptionEvents,
   subscriptions,
   allowanceOverrides,
+  users,
 } = schema;
 
 const MANUAL = schema.MANUAL_PROVIDER;
@@ -106,8 +112,12 @@ interface KeySteps<T> {
  */
 @Injectable()
 export class AdminSubscriptionActionsService {
+  private readonly logger = new Logger(AdminSubscriptionActionsService.name);
+
   constructor(
     @Inject(DATABASE) private readonly connection: DatabaseConnection,
+    @Inject(MAILER) private readonly mailer: Mailer,
+    @Inject(ENV) private readonly env: Env,
     private readonly actions: AdminActionRunner,
     private readonly billing: BillingService,
     private readonly allowance: AllowanceService,
@@ -226,6 +236,7 @@ export class AdminSubscriptionActionsService {
   /**
    * Gives Pro months or invoice credits at no charge. Pro months go through extendPro like
    * a payment, but keep an active run's cancellation: a gift is not a request to renew.
+   * The account is emailed once the grant commits, never on a replay (D072).
    */
   async grant(
     context: AdminActionContext,
@@ -234,65 +245,93 @@ export class AdminSubscriptionActionsService {
     idempotencyKey?: string,
   ): Promise<AdminGrantRecorded> {
     const target: ActionTarget = { action: "tenant.grant", target: { type: "account", id } };
-    return this.idempotent(context, target, body, idempotencyKey, (key) =>
-      this.actions.performWith(context, target, async (tx) => {
-        await key.claim(tx);
-        await this.actions.lockUser(tx, id);
-        this.refuseSelf(context, id);
-        const subscription = await this.allowance.lockAccount(tx, id);
-        const now = new Date();
-        const before = await this.state(tx, subscription, now);
+    let gift = null as GiftEmail | null;
+    const recorded = await this.idempotent<AdminGrantRecorded>(
+      context,
+      target,
+      body,
+      idempotencyKey,
+      (key) =>
+        this.actions.performWith(context, target, async (tx) => {
+          await key.claim(tx);
+          await this.actions.lockUser(tx, id);
+          this.refuseSelf(context, id);
+          const subscription = await this.allowance.lockAccount(tx, id);
+          const now = new Date();
+          const before = await this.state(tx, subscription, now);
 
-        const extension =
-          body.kind === "pro_months"
-            ? await this.billing.extendPro(tx, subscription, body.quantity, now, {
-                clearCancellation: false,
-              })
-            : null;
-        const [grant] = await tx
-          .insert(accountGrants)
-          .values({
-            userId: id,
-            kind: body.kind,
-            quantity: body.quantity,
-            reason: body.reason,
-            grantedBy: context.adminId,
-            grantedFrom: extension?.grantedFrom ?? null,
-            grantedUntil: extension?.grantedUntil ?? null,
-            createdAt: now,
-          })
-          .returning({ id: accountGrants.id });
-        await tx.insert(subscriptionEvents).values({
-          subscriptionId: subscription.id,
-          kind: "granted",
-          grantId: grant!.id,
-          details: {
-            grant: body.kind,
-            quantity: body.quantity,
-            ...(extension && {
-              renews: extension.kind === "renewed",
-              grantedFrom: extension.grantedFrom.toISOString(),
-              grantedUntil: extension.grantedUntil.toISOString(),
-            }),
-          },
-        });
+          const extension =
+            body.kind === "pro_months"
+              ? await this.billing.extendPro(tx, subscription, body.quantity, now, {
+                  clearCancellation: false,
+                })
+              : null;
+          gift = extension
+            ? { kind: "pro_months", quantity: body.quantity, until: extension.grantedUntil }
+            : { kind: "invoice_credits", quantity: body.quantity };
+          const [grant] = await tx
+            .insert(accountGrants)
+            .values({
+              userId: id,
+              kind: body.kind,
+              quantity: body.quantity,
+              reason: body.reason,
+              grantedBy: context.adminId,
+              grantedFrom: extension?.grantedFrom ?? null,
+              grantedUntil: extension?.grantedUntil ?? null,
+              createdAt: now,
+            })
+            .returning({ id: accountGrants.id });
+          await tx.insert(subscriptionEvents).values({
+            subscriptionId: subscription.id,
+            kind: "granted",
+            grantId: grant!.id,
+            details: {
+              grant: body.kind,
+              quantity: body.quantity,
+              ...(extension && {
+                renews: extension.kind === "renewed",
+                grantedFrom: extension.grantedFrom.toISOString(),
+                grantedUntil: extension.grantedUntil.toISOString(),
+              }),
+            },
+          });
 
-        const after = await this.state(tx, extension?.subscription ?? subscription, now);
-        const result: AdminGrantRecorded = {
-          grantId: grant!.id,
-          replayed: false,
-          subscription: after,
-        };
-        await key.save(tx, result);
-        return {
-          changes: {
-            grant: { id: grant!.id, kind: body.kind, quantity: body.quantity },
-            ...this.stateDiff(before, after),
-          },
-          result,
-        };
-      }),
+          const after = await this.state(tx, extension?.subscription ?? subscription, now);
+          const result: AdminGrantRecorded = {
+            grantId: grant!.id,
+            replayed: false,
+            subscription: after,
+          };
+          await key.save(tx, result);
+          return {
+            changes: {
+              grant: { id: grant!.id, kind: body.kind, quantity: body.quantity },
+              ...this.stateDiff(before, after),
+            },
+            result,
+          };
+        }),
     );
+    if (!recorded.replayed && gift) await this.notifyGift(id, gift);
+    return recorded;
+  }
+
+  /** A failed email is recorded by the mailer and logged; the gift stands. */
+  private async notifyGift(userId: string, gift: GiftEmail): Promise<void> {
+    try {
+      const [user] = await this.connection.db
+        .select({ email: users.email, name: users.name, banned: users.banned })
+        .from(users)
+        .where(eq(users.id, userId));
+      if (!user || user.banned) return;
+      await this.mailer.send(
+        giftEmail(user.email, user.name, gift, `${this.env.WEB_ORIGIN}/billing`),
+        { operation: "gift_email", accountId: userId },
+      );
+    } catch (error) {
+      this.logger.warn(`Gift email for account ${userId} failed: ${String(error)}`);
+    }
   }
 
   /**

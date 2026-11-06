@@ -737,3 +737,13 @@ Status: confirmed on 2026-11-04 by the user.
 - Unset means `log` outside production. In production, unset keeps the old rule from D052: Resend when `RESEND_API_KEY` is set, otherwise `SMTP_URL`. Existing deployments need no change.
 - The API refuses to start with `log` in production, the same guard as `MPESA_ENV=fake`. An explicit `resend` or `smtp` needs its key or URL.
 - To test real delivery locally, set `MAIL_DRIVER=resend` for that run.
+
+## D072 - Email the account when an admin gives a gift
+
+Status: confirmed on 2026-11-06 by the user.
+
+- Every gift (Pro months or invoice credits) emails the account. There is no opt-out in the dialog.
+- The email says what was given and, for Pro months, the new end date. It links to the Billing page. Like the billing history (D062), it never shows the admin's name or reason.
+- It is sent after the grant commits. A grant that fails or rolls back sends nothing, and a replay with the same Idempotency-Key does not send a second email.
+- A failed send is recorded as an email failure (D066) and logged. The gift stays.
+- Banned accounts are not emailed, since they can't sign in to see the gift.

@@ -8,7 +8,8 @@ import { AuditService } from "../src/audit/audit.service.js";
 import { AllowanceService } from "../src/billing/allowance.service.js";
 import { BillingService } from "../src/billing/billing.service.js";
 import { DATABASE } from "../src/database/database.module.js";
-import { signUp, uniqueEmail } from "./support/app.js";
+import { MAILER } from "../src/mail/mail.module.js";
+import { type CapturingMailer, signUp, uniqueEmail } from "./support/app.js";
 
 /**
  * Super admin phase 3 (subscriptions). Runs inside admin.e2e-spec.ts on its app and admin:
@@ -517,6 +518,60 @@ export function subscriptionSuite(ctx: SubscriptionSuiteContext) {
       }).expect(404);
     });
 
+    const giftEmails = (email: string) =>
+      ctx
+        .app()
+        .get<CapturingMailer>(MAILER)
+        .sent.filter((message) => message.to === email && message.subject.startsWith("You've got"));
+
+    it("emails the account about a gift without the admin's reason", async () => {
+      const account = await newAccount();
+      await post(`tenants/${account.id}/grants`, {
+        kind: "pro_months",
+        quantity: 2,
+        reason: "Apology for the outage",
+      }).expect(201);
+      const row = await subscriptionOf(account.id);
+      const [message] = giftEmails(account.email);
+      expect(message).toMatchObject({ subject: "You've got 2 months of Pro on BillSafi" });
+      expect(message!.text).toContain(
+        new Intl.DateTimeFormat("en-KE", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+          timeZone: "Africa/Nairobi",
+        }).format(row!.paidUntil!),
+      );
+      expect(message!.text).not.toContain("outage");
+      expect(message!.html).not.toContain("outage");
+    });
+
+    it("keeps the gift when its email fails", async () => {
+      const account = await newAccount();
+      const mailer = ctx.app().get<CapturingMailer>(MAILER);
+      const spy = vi.spyOn(mailer, "send").mockRejectedValueOnce(new Error("delivery failed"));
+      try {
+        await post(`tenants/${account.id}/grants`, {
+          kind: "invoice_credits",
+          quantity: 5,
+          reason: "Goodwill credits",
+        }).expect(201);
+      } finally {
+        spy.mockRestore();
+      }
+      expect(await grantsOf(account.id)).toHaveLength(1);
+    });
+
+    it("sends no email when a grant is refused", async () => {
+      const account = await newAccount();
+      await post(`tenants/${account.id}/grants`, {
+        kind: "pro_months",
+        quantity: 13,
+        reason: "Too many months",
+      }).expect(400);
+      expect(giftEmails(account.email)).toEqual([]);
+    });
+
     it("replays a grant sent twice with one Idempotency-Key", async () => {
       const account = await newAccount();
       const key = `idem-${crypto.randomUUID()}`;
@@ -529,6 +584,7 @@ export function subscriptionSuite(ctx: SubscriptionSuiteContext) {
         .expect(201);
       expect(again.body).toEqual({ ...first.body, replayed: true });
       expect(await grantsOf(account.id)).toHaveLength(1);
+      expect(giftEmails(account.email)).toHaveLength(1);
       // A key is per action: reusing it for a payment is a different request.
       const other = await post(`tenants/${account.id}/payments`, proPayment())
         .set("Idempotency-Key", key)
@@ -555,6 +611,7 @@ export function subscriptionSuite(ctx: SubscriptionSuiteContext) {
         spy.mockRestore();
       }
       expect(await grantsOf(account.id)).toEqual([]);
+      expect(giftEmails(account.email)).toEqual([]);
       expect((await subscriptionOf(account.id))?.anchorAt ?? null).toBeNull();
       expect(await auditFor(account.id)).toEqual([
         expect.objectContaining({ action: "tenant.grant", outcome: "failure" }),
