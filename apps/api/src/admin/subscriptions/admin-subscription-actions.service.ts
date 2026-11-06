@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import type {
   AdminGrant,
   AdminGrantRecorded,
@@ -21,6 +21,8 @@ import {
 } from "@billsafi/domain";
 import { AllowanceService, type SubscriptionRow } from "../../billing/allowance.service.js";
 import { BillingService, type ProExtension } from "../../billing/billing.service.js";
+import { ENV } from "../../config/config.module.js";
+import type { Env } from "../../config/env.js";
 import { DATABASE } from "../../database/database.module.js";
 import type { Transaction } from "../../database/transaction.js";
 import {
@@ -31,6 +33,18 @@ import {
   conflict,
   UnauditedRefusal,
 } from "../shared/admin-action-runner.js";
+import { MAILER } from "../../mail/mail.module.js";
+import type { Mailer } from "../../mail/mailer.js";
+import {
+  overrideAddedEmail,
+  type OverrideEmail,
+  overrideRevokedEmail,
+  type PaymentReceiptEmail,
+  paymentReceiptEmail,
+  proEndedEmail,
+} from "../../mail/admin-plan-templates.js";
+import type { MailMessage } from "../../mail/mailer.js";
+import { type GiftEmail, giftEmail } from "../../mail/templates.js";
 import { selectOverrides } from "./overrides.js";
 import { planAt } from "../shared/admin-sql.js";
 
@@ -41,6 +55,7 @@ const {
   subscriptionEvents,
   subscriptions,
   allowanceOverrides,
+  users,
 } = schema;
 
 const MANUAL = schema.MANUAL_PROVIDER;
@@ -106,8 +121,12 @@ interface KeySteps<T> {
  */
 @Injectable()
 export class AdminSubscriptionActionsService {
+  private readonly logger = new Logger(AdminSubscriptionActionsService.name);
+
   constructor(
     @Inject(DATABASE) private readonly connection: DatabaseConnection,
+    @Inject(MAILER) private readonly mailer: Mailer,
+    @Inject(ENV) private readonly env: Env,
     private readonly actions: AdminActionRunner,
     private readonly billing: BillingService,
     private readonly allowance: AllowanceService,
@@ -123,109 +142,132 @@ export class AdminSubscriptionActionsService {
       action: "tenant.record_payment",
       target: { type: "account", id },
     };
-    return this.idempotent(context, target, body, idempotencyKey, (key) =>
-      this.actions.performWith(context, target, async (tx) => {
-        await key.claim(tx);
-        const user = await this.actions.lockUser(tx, id);
-        this.refuseSelf(context, id);
-        if (body.paidAt < nairobiDate(user.createdAt)) {
-          throw invalid("paidAt", "The payment date can't be before the account was created");
-        }
-        const subscription = await this.allowance.lockAccount(tx, id);
-        const now = new Date();
-        const before = await this.state(tx, subscription, now);
-
-        const [duplicate] = await tx
-          .select({ id: subscriptionPayments.id })
-          .from(subscriptionPayments)
-          .where(
-            and(
-              eq(subscriptionPayments.provider, MANUAL),
-              eq(subscriptionPayments.method, body.method),
-              sql`upper(${subscriptionPayments.externalReference}) = upper(${body.reference})`,
-            ),
-          );
-        if (duplicate) throw this.duplicateReference();
-
-        const pro = body.purpose === "pro_month";
-        const quantity = pro ? body.months : body.packs;
-        const credits = pro ? 0 : quantity * CREDIT_PACK.invoices;
-        let extension: ProExtension | null = null;
-        if (pro) extension = await this.billing.extendPro(tx, subscription, quantity, now);
-
-        let paymentId: string;
-        try {
-          const [payment] = await tx
-            .insert(subscriptionPayments)
-            .values({
-              userId: id,
-              purpose: body.purpose,
-              quantity,
-              amount: body.amount,
-              currency: body.currency,
-              status: "succeeded",
-              provider: MANUAL,
-              confirmedAt: now,
-              grantedFrom: extension?.grantedFrom ?? null,
-              grantedUntil: extension?.grantedUntil ?? null,
-              creditsGranted: credits,
-              method: body.method,
-              externalReference: body.reference,
-              paidAt: nairobiDayStart(body.paidAt),
-              recordedBy: context.adminId,
-              note: body.note ?? null,
-              // Like checkout, stamp this process's clock so rows from both paths order together.
-              createdAt: now,
-            })
-            .returning({ id: subscriptionPayments.id });
-          paymentId = payment!.id;
-        } catch (error) {
-          // Two admins recording the same reference at once: the index decides.
-          if (isUniqueViolation(error, "subscription_payments_manual_reference")) {
-            throw this.duplicateReference();
+    let receipt = null as PaymentReceiptEmail | null;
+    const recorded = await this.idempotent<AdminPaymentRecorded>(
+      context,
+      target,
+      body,
+      idempotencyKey,
+      (key) =>
+        this.actions.performWith(context, target, async (tx) => {
+          await key.claim(tx);
+          const user = await this.actions.lockUser(tx, id);
+          this.refuseSelf(context, id);
+          if (body.paidAt < nairobiDate(user.createdAt)) {
+            throw invalid("paidAt", "The payment date can't be before the account was created");
           }
-          throw error;
-        }
+          const subscription = await this.allowance.lockAccount(tx, id);
+          const now = new Date();
+          const before = await this.state(tx, subscription, now);
 
-        const details = { source: "manual", method: body.method };
-        if (extension) {
-          await this.billing.recordProEvent(tx, subscription.id, extension, {
-            paymentId,
-            details: { ...details, months: quantity },
-          });
-        } else {
-          await this.billing.recordCreditsAdded(tx, subscription.id, credits, {
-            paymentId,
-            details: { ...details, packs: quantity },
-          });
-        }
+          const [duplicate] = await tx
+            .select({ id: subscriptionPayments.id })
+            .from(subscriptionPayments)
+            .where(
+              and(
+                eq(subscriptionPayments.provider, MANUAL),
+                eq(subscriptionPayments.method, body.method),
+                sql`upper(${subscriptionPayments.externalReference}) = upper(${body.reference})`,
+              ),
+            );
+          if (duplicate) throw this.duplicateReference();
 
-        const after = await this.state(tx, extension?.subscription ?? subscription, now);
-        const result: AdminPaymentRecorded = { paymentId, replayed: false, subscription: after };
-        await key.save(tx, result);
-        return {
-          changes: {
-            payment: {
-              id: paymentId,
-              purpose: body.purpose,
-              quantity,
-              amount: body.amount,
-              currency: body.currency,
-              method: body.method,
-              reference: body.reference,
-              paidAt: body.paidAt,
+          const pro = body.purpose === "pro_month";
+          const quantity = pro ? body.months : body.packs;
+          const credits = pro ? 0 : quantity * CREDIT_PACK.invoices;
+          let extension: ProExtension | null = null;
+          if (pro) extension = await this.billing.extendPro(tx, subscription, quantity, now);
+          const paid = {
+            amount: body.amount,
+            currency: body.currency,
+            method: body.method,
+            reference: body.reference,
+          };
+          receipt = extension
+            ? { ...paid, purpose: "pro_month", months: quantity, until: extension.grantedUntil }
+            : { ...paid, purpose: "invoice_credits", packs: quantity, credits };
+
+          let paymentId: string;
+          try {
+            const [payment] = await tx
+              .insert(subscriptionPayments)
+              .values({
+                userId: id,
+                purpose: body.purpose,
+                quantity,
+                amount: body.amount,
+                currency: body.currency,
+                status: "succeeded",
+                provider: MANUAL,
+                confirmedAt: now,
+                grantedFrom: extension?.grantedFrom ?? null,
+                grantedUntil: extension?.grantedUntil ?? null,
+                creditsGranted: credits,
+                method: body.method,
+                externalReference: body.reference,
+                paidAt: nairobiDayStart(body.paidAt),
+                recordedBy: context.adminId,
+                note: body.note ?? null,
+                // Like checkout, stamp this process's clock so rows from both paths order together.
+                createdAt: now,
+              })
+              .returning({ id: subscriptionPayments.id });
+            paymentId = payment!.id;
+          } catch (error) {
+            // Two admins recording the same reference at once: the index decides.
+            if (isUniqueViolation(error, "subscription_payments_manual_reference")) {
+              throw this.duplicateReference();
+            }
+            throw error;
+          }
+
+          const details = { source: "manual", method: body.method };
+          if (extension) {
+            await this.billing.recordProEvent(tx, subscription.id, extension, {
+              paymentId,
+              details: { ...details, months: quantity },
+            });
+          } else {
+            await this.billing.recordCreditsAdded(tx, subscription.id, credits, {
+              paymentId,
+              details: { ...details, packs: quantity },
+            });
+          }
+
+          const after = await this.state(tx, extension?.subscription ?? subscription, now);
+          const result: AdminPaymentRecorded = { paymentId, replayed: false, subscription: after };
+          await key.save(tx, result);
+          return {
+            changes: {
+              payment: {
+                id: paymentId,
+                purpose: body.purpose,
+                quantity,
+                amount: body.amount,
+                currency: body.currency,
+                method: body.method,
+                reference: body.reference,
+                paidAt: body.paidAt,
+              },
+              ...this.stateDiff(before, after),
             },
-            ...this.stateDiff(before, after),
-          },
-          result,
-        };
-      }),
+            result,
+          };
+        }),
     );
+    if (!recorded.replayed && receipt) {
+      const paid = receipt;
+      await this.notify(id, "payment_receipt_email", (user) =>
+        paymentReceiptEmail(user.email, user.name, paid, this.billingUrl()),
+      );
+    }
+    return recorded;
   }
 
   /**
    * Gives Pro months or invoice credits at no charge. Pro months go through extendPro like
    * a payment, but keep an active run's cancellation: a gift is not a request to renew.
+   * The account is emailed once the grant commits, never on a replay (D072).
    */
   async grant(
     context: AdminActionContext,
@@ -234,65 +276,115 @@ export class AdminSubscriptionActionsService {
     idempotencyKey?: string,
   ): Promise<AdminGrantRecorded> {
     const target: ActionTarget = { action: "tenant.grant", target: { type: "account", id } };
-    return this.idempotent(context, target, body, idempotencyKey, (key) =>
-      this.actions.performWith(context, target, async (tx) => {
-        await key.claim(tx);
-        await this.actions.lockUser(tx, id);
-        this.refuseSelf(context, id);
-        const subscription = await this.allowance.lockAccount(tx, id);
-        const now = new Date();
-        const before = await this.state(tx, subscription, now);
+    let gift = null as GiftEmail | null;
+    const recorded = await this.idempotent<AdminGrantRecorded>(
+      context,
+      target,
+      body,
+      idempotencyKey,
+      (key) =>
+        this.actions.performWith(context, target, async (tx) => {
+          await key.claim(tx);
+          await this.actions.lockUser(tx, id);
+          this.refuseSelf(context, id);
+          const subscription = await this.allowance.lockAccount(tx, id);
+          const now = new Date();
+          const before = await this.state(tx, subscription, now);
 
-        const extension =
-          body.kind === "pro_months"
-            ? await this.billing.extendPro(tx, subscription, body.quantity, now, {
-                clearCancellation: false,
-              })
-            : null;
-        const [grant] = await tx
-          .insert(accountGrants)
-          .values({
-            userId: id,
-            kind: body.kind,
-            quantity: body.quantity,
-            reason: body.reason,
-            grantedBy: context.adminId,
-            grantedFrom: extension?.grantedFrom ?? null,
-            grantedUntil: extension?.grantedUntil ?? null,
-            createdAt: now,
-          })
-          .returning({ id: accountGrants.id });
-        await tx.insert(subscriptionEvents).values({
-          subscriptionId: subscription.id,
-          kind: "granted",
-          grantId: grant!.id,
-          details: {
-            grant: body.kind,
-            quantity: body.quantity,
-            ...(extension && {
-              renews: extension.kind === "renewed",
-              grantedFrom: extension.grantedFrom.toISOString(),
-              grantedUntil: extension.grantedUntil.toISOString(),
-            }),
-          },
-        });
+          const extension =
+            body.kind === "pro_months"
+              ? await this.billing.extendPro(tx, subscription, body.quantity, now, {
+                  clearCancellation: false,
+                })
+              : null;
+          gift = extension
+            ? { kind: "pro_months", quantity: body.quantity, until: extension.grantedUntil }
+            : { kind: "invoice_credits", quantity: body.quantity };
+          const [grant] = await tx
+            .insert(accountGrants)
+            .values({
+              userId: id,
+              kind: body.kind,
+              quantity: body.quantity,
+              reason: body.reason,
+              grantedBy: context.adminId,
+              grantedFrom: extension?.grantedFrom ?? null,
+              grantedUntil: extension?.grantedUntil ?? null,
+              createdAt: now,
+            })
+            .returning({ id: accountGrants.id });
+          await tx.insert(subscriptionEvents).values({
+            subscriptionId: subscription.id,
+            kind: "granted",
+            grantId: grant!.id,
+            details: {
+              grant: body.kind,
+              quantity: body.quantity,
+              ...(extension && {
+                renews: extension.kind === "renewed",
+                grantedFrom: extension.grantedFrom.toISOString(),
+                grantedUntil: extension.grantedUntil.toISOString(),
+              }),
+            },
+          });
 
-        const after = await this.state(tx, extension?.subscription ?? subscription, now);
-        const result: AdminGrantRecorded = {
-          grantId: grant!.id,
-          replayed: false,
-          subscription: after,
-        };
-        await key.save(tx, result);
-        return {
-          changes: {
-            grant: { id: grant!.id, kind: body.kind, quantity: body.quantity },
-            ...this.stateDiff(before, after),
-          },
-          result,
-        };
-      }),
+          const after = await this.state(tx, extension?.subscription ?? subscription, now);
+          const result: AdminGrantRecorded = {
+            grantId: grant!.id,
+            replayed: false,
+            subscription: after,
+          };
+          await key.save(tx, result);
+          return {
+            changes: {
+              grant: { id: grant!.id, kind: body.kind, quantity: body.quantity },
+              ...this.stateDiff(before, after),
+            },
+            result,
+          };
+        }),
     );
+    if (!recorded.replayed && gift) await this.notifyGift(id, gift);
+    return recorded;
+  }
+
+  /** A failed email is recorded by the mailer and logged; the gift stands. */
+  private async notifyGift(userId: string, gift: GiftEmail): Promise<void> {
+    try {
+      const [user] = await this.connection.db
+        .select({ email: users.email, name: users.name, banned: users.banned })
+        .from(users)
+        .where(eq(users.id, userId));
+      if (!user || user.banned) return;
+      await this.mailer.send(
+        giftEmail(user.email, user.name, gift, `${this.env.WEB_ORIGIN}/billing`),
+        { operation: "gift_email", accountId: userId },
+      );
+    } catch (error) {
+      this.logger.warn(`Gift email for account ${userId} failed: ${String(error)}`);
+    }
+  }
+
+  private billingUrl(): string {
+    return `${this.env.WEB_ORIGIN}/billing`;
+  }
+
+  /** Emails the account after an action commits. A failed send is logged; the action stands. */
+  private async notify(
+    userId: string,
+    operation: string,
+    message: (user: { email: string; name: string }) => MailMessage,
+  ): Promise<void> {
+    try {
+      const [user] = await this.connection.db
+        .select({ email: users.email, name: users.name, banned: users.banned })
+        .from(users)
+        .where(eq(users.id, userId));
+      if (!user || user.banned) return;
+      await this.mailer.send(message(user), { operation, accountId: userId });
+    } catch (error) {
+      this.logger.warn(`Email ${operation} for account ${userId} failed: ${String(error)}`);
+    }
   }
 
   /**
@@ -301,7 +393,8 @@ export class AdminSubscriptionActionsService {
    * Dropped months are not refunded here; support handles refunds by hand (D051).
    */
   async endPro(context: AdminActionContext, id: string): Promise<AdminProEnded> {
-    return this.actions.performWith(
+    let endsAt = null as Date | null;
+    const ended = await this.actions.performWith(
       context,
       { action: "tenant.end_pro", target: { type: "account", id } },
       async (tx) => {
@@ -318,6 +411,7 @@ export class AdminSubscriptionActionsService {
         }
         const before = await this.state(tx, subscription, now);
         const paidUntil = addNairobiMonths(subscription.anchorAt!, paidMonths);
+        endsAt = paidUntil;
         const [updated] = await tx
           .update(subscriptions)
           .set({ paidMonths, paidUntil })
@@ -381,6 +475,13 @@ export class AdminSubscriptionActionsService {
         return { changes: this.stateDiff(before, after), result: { subscription: after } };
       },
     );
+    if (endsAt) {
+      const until = endsAt;
+      await this.notify(id, "pro_ended_email", (user) =>
+        proEndedEmail(user.email, user.name, until, this.billingUrl()),
+      );
+    }
+    return ended;
   }
 
   /** Raises the account's invoice limit for a while; it is counted only while active. */
@@ -389,7 +490,8 @@ export class AdminSubscriptionActionsService {
     id: string,
     body: AdminOverride,
   ): Promise<AdminOverrideResult> {
-    return this.actions.performWith(
+    let added = null as OverrideEmail | null;
+    const created = await this.actions.performWith(
       context,
       { action: "tenant.add_override", target: { type: "account", id } },
       async (tx) => {
@@ -399,6 +501,12 @@ export class AdminSubscriptionActionsService {
         const now = new Date();
         const startsAt = body.startsAt ? new Date(body.startsAt) : now;
         const before = await this.allowance.usageFor(tx, id, subscription, now);
+        added = {
+          extraInvoices: body.extraInvoices,
+          startsAt,
+          expiresAt: new Date(body.expiresAt),
+          scheduled: startsAt > now,
+        };
         const [created] = await tx
           .insert(allowanceOverrides)
           .values({
@@ -426,6 +534,13 @@ export class AdminSubscriptionActionsService {
         };
       },
     );
+    if (added) {
+      const override = added;
+      await this.notify(id, "override_added_email", (user) =>
+        overrideAddedEmail(user.email, user.name, override, this.billingUrl()),
+      );
+    }
+    return created;
   }
 
   /** Ends an override early. The row stays, marked revoked, so the history is kept. */
@@ -441,7 +556,8 @@ export class AdminSubscriptionActionsService {
     const target: ActionTarget = found
       ? { action: "tenant.revoke_override", target: { type: "account", id: found.userId } }
       : { action: "tenant.revoke_override", target: { type: "override", id: overrideId } };
-    return this.actions.performWith(context, target, async (tx) => {
+    let started = false;
+    const revoked = await this.actions.performWith(context, target, async (tx) => {
       if (!found) throw new NotFoundException("Override not found");
       await this.actions.lockUser(tx, found.userId);
       const subscription = await this.allowance.lockAccount(tx, found.userId);
@@ -458,6 +574,8 @@ export class AdminSubscriptionActionsService {
         throw conflict("OVERRIDE_EXPIRED", "This override has already expired.");
       }
       const before = await this.allowance.usageFor(tx, found.userId, subscription, now);
+      // An override revoked before it started never gave the account anything to lose.
+      started = override!.startsAt <= now;
       await tx
         .update(allowanceOverrides)
         .set({ revokedAt: now, revokedBy: context.adminId, revokeReason: context.reason })
@@ -472,6 +590,12 @@ export class AdminSubscriptionActionsService {
         result,
       };
     });
+    if (found && started) {
+      await this.notify(found.userId, "override_revoked_email", (user) =>
+        overrideRevokedEmail(user.email, user.name, this.billingUrl()),
+      );
+    }
+    return revoked;
   }
 
   private async overrideResult(

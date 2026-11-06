@@ -728,7 +728,59 @@ Status: proposed on 2026-11-03. Built behind `REENGAGEMENT_JOBS`, which is off b
 - Admin. Analytics has a Check-in emails section for the chosen range: emails sent and to how many accounts, the share that came back, emails still inside their return window, unsubscribes, and a table by group and email. An email counts as bringing the account back when, within 14 days after it, the owner starts a new session, adds a business, or does a meaningful action. Session refreshes don't count, so a long-lived session can't make an email look successful. The tenant overview lists the account's check-in emails and when it unsubscribed. Health has a Check-in emails card: unknown when the job is off or hasn't run, ok within 90 minutes of the last run, warning after that, failing after 3 hours or when the last run failed. Its value is the emails sent in the last 24 hours against the daily limit.
 - The privacy policy (updated 3 November 2026) names check-in emails, bases them on legitimate interest in helping people use the account they created, and states the limit of three per quiet spell and the unsubscribe link. Other marketing email still needs agreement.
 
-## D070 - Add quotes as their own documents with versions and typed-name acceptance
+## D070 - Print email to the console instead of sending it outside production
+
+Status: confirmed on 2026-11-04 by the user.
+
+- Local runs and agents were sending real email through Resend and using up the quota. `MAIL_DRIVER` now picks where email goes: `log`, `resend` or `smtp`.
+- `log` prints each email (operation, recipient, subject and text body, which carries any reset or verify link) to the API console and sends nothing.
+- Unset means `log` outside production. In production, unset keeps the old rule from D052: Resend when `RESEND_API_KEY` is set, otherwise `SMTP_URL`. Existing deployments need no change.
+- The API refuses to start with `log` in production, the same guard as `MPESA_ENV=fake`. An explicit `resend` or `smtp` needs its key or URL.
+- To test real delivery locally, set `MAIL_DRIVER=resend` for that run.
+
+## D072 - Email the account when an admin gives a gift
+
+Status: confirmed on 2026-11-06 by the user.
+
+- Every gift (Pro months or invoice credits) emails the account. There is no opt-out in the dialog.
+- The email says what was given and, for Pro months, the new end date. It links to the Billing page. Like the billing history (D062), it never shows the admin's name or reason.
+- It is sent after the grant commits. A grant that fails or rolls back sends nothing, and a replay with the same Idempotency-Key does not send a second email.
+- A failed send is recorded as an email failure (D066) and logged. The gift stays.
+- Banned accounts are not emailed, since they can't sign in to see the gift.
+
+## D073 - Email accounts about payments, Pro ending and the Free limit
+
+Status: confirmed on 2026-11-06 by the user.
+
+- Receipt. An M-Pesa payment that settles as succeeded (Pro month or credit pack) emails what was bought, the amount, the M-Pesa receipt code and, for Pro, the new end date. Only the call that moves the payment from pending to succeeded sends, so a repeated callback or a late status query sends nothing more.
+- Failed payment. A pending payment that Daraja reports as failed, or that is abandoned after a day, emails a short note: nothing was charged, try again from Billing. A prompt the person cancelled on their phone (result code 1032) sends nothing. Amount mismatches and reused receipts send nothing, since money may have moved and support checks those by hand.
+- Both payment emails go out after the transaction commits. A failed send is logged and recorded as an email failure (D066); the payment stands. Banned accounts are skipped.
+- Pro has ended. The renewal job sends one email on the first run after Pro passes its end date, up to 3 days late, so lapses from before this shipped are not mailed. It is claimed in `subscription_reminders` with the new `after_expiry` kind, once per expiry date. Cancelled accounts are skipped, like the other reminders.
+- Free limit. When a Free account makes its last invoice of the month Ready, it gets one email with the limit, the reset date and the ways to carry on. It is claimed with `usage_periods.limit_emailed_at`, so it goes out once per Free month. It is sent after the invoice commits and never blocks or fails the invoice. A failed send releases the claim.
+- Every email has one button to the Billing page and never mentions admins or internal reasons.
+
+## D074 - Email accounts when an admin changes their plan
+
+Status: confirmed on 2026-11-06 by the user.
+
+- These admin actions email the account, like gifts (D072): a recorded manual payment, Pro ended, a limit override added, and a limit override revoked.
+- The payment email is a receipt: amount, currency, method, reference, and the new Pro end date or the credits added. Pro ended says when Pro ends, that the account moves to Free, that its data stays and that it can renew from Billing. The override emails say how many extra invoices and until when (or from when, if scheduled), or that the extra invoices have ended.
+- None of them show the admin, the note or the reason (D062). Each links to the Billing page.
+- Sent after the action commits. A refused or rolled back action and a replay with the same Idempotency-Key send nothing. A failed send is recorded (D066) and logged; the action stands. Banned accounts are not emailed.
+- A scheduled override revoked before it starts sends nothing, since the account never had it.
+- The admin dialogs end their success message with "Account emailed."
+
+## D075 - Email accounts about password and access changes
+
+Status: confirmed on 2026-11-06 by the user.
+
+- Four emails: password changed (after a reset or a signed-in change), signed out everywhere, account suspended and account reactivated.
+- Password changed tells the owner when it happened and links to the reset page. It never includes the password.
+- Signed out and suspended emails never show the admin, the reason or the audit note. The suspended email says data is kept and clients' invoice links still work (D061, D062).
+- Admin emails go out after the action commits. A refused action sends nothing, and a failed send is recorded (D066) and logged. The action stays.
+- A suspended account is still emailed, since the email is how it learns what happened. Support contact comes from the `support_contact` setting, used as Reply-To and named in the text.
+
+## D076 - Add quotes as their own documents with versions and typed-name acceptance
 
 Status: adopted on 2026-11-04.
 

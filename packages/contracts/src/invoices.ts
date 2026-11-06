@@ -153,7 +153,7 @@ export interface Invoice extends InvoiceSummary {
   client: InvoiceClientDetails;
   business: InvoiceBusinessDetails;
   items: InvoiceItem[];
-  /** The quote this invoice was converted from, if any (D070). */
+  /** The quote this invoice was converted from, if any (D076). */
   sourceQuote: { id: string; quoteNumber: string | null } | null;
   discount: { type: "fixed" | "percentage"; value: string } | null;
   taxRate: string | null;

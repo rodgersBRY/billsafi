@@ -152,15 +152,15 @@
     {
       "idx": 21,
       "version": "7",
-      "when": 1793785295444,
-      "tag": "0021_quotes",
+      "when": 1793962611159,
+      "tag": "0021_notification_claims",
       "breakpoints": true
     },
     {
       "idx": 22,
       "version": "7",
-      "when": 1793785705733,
-      "tag": "0022_quote_events",
+      "when": 1793982794714,
+      "tag": "0022_quotes",
       "breakpoints": true
     }
   ]

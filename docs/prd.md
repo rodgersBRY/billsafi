@@ -25,7 +25,7 @@ Example from the accepted discussion: a KES 50,000 invoice with KES 20,000 recor
 
 ## Quotes
 
-Quotes are in V1 scope. Freelancers send a quote before the work starts; the client accepts or declines on a public link by typing their name, and an accepted quote converts to a Draft invoice. Quotes are on Free and do not use the invoice allowance. Details are in [D070](decisions.md).
+Quotes are in V1 scope. Freelancers send a quote before the work starts; the client accepts or declines on a public link by typing their name, and an accepted quote converts to a Draft invoice. Quotes are on Free and do not use the invoice allowance. Details are in [D076](decisions.md).
 
 ## Deferred
 

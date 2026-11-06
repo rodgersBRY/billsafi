@@ -1,6 +1,6 @@
 {
-  "id": "1650aec5-082e-4e85-8550-6bcb1d8944a0",
-  "prevId": "edb57e99-23e8-42ec-b677-8ee4db9b4d5f",
+  "id": "61126952-a4e8-4220-ba3c-3b3beb82c9a8",
+  "prevId": "a3fba3d6-3410-4ea1-b894-1e2bf0ce82a1",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -3098,6 +3098,12 @@
           "notNull": true,
           "default": 0
         },
+        "limit_emailed_at": {
+          "name": "limit_emailed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -4970,7 +4976,8 @@
       "schema": "public",
       "values": [
         "before_expiry",
-        "on_expiry"
+        "on_expiry",
+        "after_expiry"
       ]
     },
     "public.subscription_event_kind": {

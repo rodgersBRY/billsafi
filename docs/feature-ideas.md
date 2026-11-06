@@ -32,7 +32,7 @@ Add a "Pay now" option to the public invoice page, using STK Push or Paybill wit
 
 ### 3. Quotes and estimates
 
-Moved into the PRD ([D070](decisions.md)).
+Moved into the PRD ([D076](decisions.md)).
 
 Let freelancers send a quote before the work starts. The client accepts it on a public link, and the freelancer turns it into an invoice in one step.
 

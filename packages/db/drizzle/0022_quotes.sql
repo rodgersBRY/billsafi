@@ -95,6 +95,7 @@ CREATE TABLE "quotes" (
 	CONSTRAINT "quotes_tax_rate_range" CHECK ("quotes"."tax_rate" between 0 and 100)
 );
 --> statement-breakpoint
+ALTER TABLE "product_events" DROP CONSTRAINT "product_events_name";--> statement-breakpoint
 ALTER TABLE "businesses" ADD COLUMN "next_quote_sequence" integer DEFAULT 1 NOT NULL;--> statement-breakpoint
 ALTER TABLE "quote_acceptances" ADD CONSTRAINT "quote_acceptances_quote_version_id_quote_versions_id_fk" FOREIGN KEY ("quote_version_id") REFERENCES "public"."quote_versions"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "quote_acceptances" ADD CONSTRAINT "quote_acceptances_quote_same_business_fk" FOREIGN KEY ("quote_id","business_id") REFERENCES "public"."quotes"("id","business_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -110,4 +111,5 @@ CREATE INDEX "quote_acceptances_quote_idx" ON "quote_acceptances" USING btree ("
 CREATE INDEX "quote_links_quote_idx" ON "quote_links" USING btree ("quote_id");--> statement-breakpoint
 CREATE INDEX "quotes_business_status_valid_idx" ON "quotes" USING btree ("business_id","status","valid_until");--> statement-breakpoint
 CREATE INDEX "quotes_business_client_idx" ON "quotes" USING btree ("business_id","client_id");--> statement-breakpoint
+ALTER TABLE "product_events" ADD CONSTRAINT "product_events_name" CHECK ("product_events"."name" in ('pdf_downloaded', 'link_opened', 'generator_started', 'generator_download_clicked', 'generator_signup_clicked', 'guest_invoice_imported', 'quote_sent', 'quote_link_opened', 'quote_accepted', 'quote_declined', 'quote_converted'));--> statement-breakpoint
 ALTER TABLE "businesses" ADD CONSTRAINT "businesses_next_quote_sequence_positive" CHECK ("businesses"."next_quote_sequence" >= 1);

@@ -8,7 +8,8 @@ import { AuditService } from "../src/audit/audit.service.js";
 import { AllowanceService } from "../src/billing/allowance.service.js";
 import { BillingService } from "../src/billing/billing.service.js";
 import { DATABASE } from "../src/database/database.module.js";
-import { signUp, uniqueEmail } from "./support/app.js";
+import { MAILER } from "../src/mail/mail.module.js";
+import { type CapturingMailer, signUp, uniqueEmail } from "./support/app.js";
 
 /**
  * Super admin phase 3 (subscriptions). Runs inside admin.e2e-spec.ts on its app and admin:
@@ -517,6 +518,60 @@ export function subscriptionSuite(ctx: SubscriptionSuiteContext) {
       }).expect(404);
     });
 
+    const giftEmails = (email: string) =>
+      ctx
+        .app()
+        .get<CapturingMailer>(MAILER)
+        .sent.filter((message) => message.to === email && message.subject.startsWith("You've got"));
+
+    it("emails the account about a gift without the admin's reason", async () => {
+      const account = await newAccount();
+      await post(`tenants/${account.id}/grants`, {
+        kind: "pro_months",
+        quantity: 2,
+        reason: "Apology for the outage",
+      }).expect(201);
+      const row = await subscriptionOf(account.id);
+      const [message] = giftEmails(account.email);
+      expect(message).toMatchObject({ subject: "You've got 2 months of Pro on BillSafi" });
+      expect(message!.text).toContain(
+        new Intl.DateTimeFormat("en-KE", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+          timeZone: "Africa/Nairobi",
+        }).format(row!.paidUntil!),
+      );
+      expect(message!.text).not.toContain("outage");
+      expect(message!.html).not.toContain("outage");
+    });
+
+    it("keeps the gift when its email fails", async () => {
+      const account = await newAccount();
+      const mailer = ctx.app().get<CapturingMailer>(MAILER);
+      const spy = vi.spyOn(mailer, "send").mockRejectedValueOnce(new Error("delivery failed"));
+      try {
+        await post(`tenants/${account.id}/grants`, {
+          kind: "invoice_credits",
+          quantity: 5,
+          reason: "Goodwill credits",
+        }).expect(201);
+      } finally {
+        spy.mockRestore();
+      }
+      expect(await grantsOf(account.id)).toHaveLength(1);
+    });
+
+    it("sends no email when a grant is refused", async () => {
+      const account = await newAccount();
+      await post(`tenants/${account.id}/grants`, {
+        kind: "pro_months",
+        quantity: 13,
+        reason: "Too many months",
+      }).expect(400);
+      expect(giftEmails(account.email)).toEqual([]);
+    });
+
     it("replays a grant sent twice with one Idempotency-Key", async () => {
       const account = await newAccount();
       const key = `idem-${crypto.randomUUID()}`;
@@ -529,6 +584,7 @@ export function subscriptionSuite(ctx: SubscriptionSuiteContext) {
         .expect(201);
       expect(again.body).toEqual({ ...first.body, replayed: true });
       expect(await grantsOf(account.id)).toHaveLength(1);
+      expect(giftEmails(account.email)).toHaveLength(1);
       // A key is per action: reusing it for a payment is a different request.
       const other = await post(`tenants/${account.id}/payments`, proPayment())
         .set("Idempotency-Key", key)
@@ -555,6 +611,7 @@ export function subscriptionSuite(ctx: SubscriptionSuiteContext) {
         spy.mockRestore();
       }
       expect(await grantsOf(account.id)).toEqual([]);
+      expect(giftEmails(account.email)).toEqual([]);
       expect((await subscriptionOf(account.id))?.anchorAt ?? null).toBeNull();
       expect(await auditFor(account.id)).toEqual([
         expect.objectContaining({ action: "tenant.grant", outcome: "failure" }),
@@ -966,6 +1023,225 @@ export function subscriptionSuite(ctx: SubscriptionSuiteContext) {
         spy.mockRestore();
       }
       expect(await overridesOf(account.id)).toEqual([]);
+    });
+  });
+
+  describe("subscriptions: plan emails", () => {
+    const inDays = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString();
+    const SECRET = "Quietly sorting out the mixup";
+    const PLAN_SUBJECT = /recorded your payment|Pro plan ends|extra invoice/;
+    const sentTo = (email: string) =>
+      ctx
+        .app()
+        .get<CapturingMailer>(MAILER)
+        .sent.filter((message) => message.to === email && PLAN_SUBJECT.test(message.subject));
+    const failNextSend = () =>
+      vi
+        .spyOn(ctx.app().get<CapturingMailer>(MAILER), "send")
+        .mockRejectedValueOnce(new Error("delivery failed"));
+    const failAudit = () => {
+      const audit = ctx.app().get(AuditService);
+      const original = audit.record.bind(audit);
+      return vi
+        .spyOn(audit, "record")
+        .mockImplementation((entry, executor) =>
+          executor ? Promise.reject(new Error("audit insert failed")) : original(entry),
+        );
+    };
+    const endPro = (id: string) => post(`tenants/${id}/end-pro`, { reason: SECRET });
+    const addOverride = (id: string, body: object = {}) =>
+      post(`tenants/${id}/overrides`, {
+        extraInvoices: 5,
+        expiresAt: inDays(30),
+        reason: SECRET,
+        ...body,
+      });
+    const day = (value: Date) =>
+      new Intl.DateTimeFormat("en-KE", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        timeZone: "Africa/Nairobi",
+      }).format(value);
+
+    it("emails a receipt for a Pro payment without the note or reason", async () => {
+      const account = await newAccount();
+      const body = proPayment({ months: 2 });
+      await post(`tenants/${account.id}/payments`, body).expect(201);
+      const row = await subscriptionOf(account.id);
+      const [message] = sentTo(account.email);
+      expect(message).toMatchObject({ subject: "We've recorded your payment of USD 12.00" });
+      expect(message!.text).toContain(`bank transfer, reference ${body.reference}`);
+      expect(message!.text).toContain("2 months of Pro");
+      expect(message!.text).toContain(day(row!.paidUntil!));
+      for (const secret of ["INV-204", "accountant", "confirmed"]) {
+        expect(message!.text).not.toContain(secret);
+        expect(message!.html).not.toContain(secret);
+      }
+    });
+
+    it("emails a receipt for credit packs", async () => {
+      const account = await newAccount();
+      await post(`tenants/${account.id}/payments`, {
+        ...proPayment({ purpose: "invoice_credits", amount: "520", currency: "KES" }),
+        months: undefined,
+        packs: 2,
+        method: "mpesa_direct",
+      }).expect(201);
+      const [message] = sentTo(account.email);
+      expect(message!.subject).toBe("We've recorded your payment of KES 520.00");
+      expect(message!.text).toContain("100 invoice credits (2 packs)");
+      expect(message!.text).toContain("M-Pesa, reference");
+    });
+
+    it("sends one receipt for a replayed payment and none for a refused or rolled back one", async () => {
+      const account = await newAccount();
+      const key = `idem-${crypto.randomUUID()}`;
+      const body = proPayment({ months: 1 });
+      await post(`tenants/${account.id}/payments`, body).set("Idempotency-Key", key).expect(201);
+      await post(`tenants/${account.id}/payments`, body).set("Idempotency-Key", key).expect(201);
+      expect(sentTo(account.email)).toHaveLength(1);
+      await post(`tenants/${account.id}/payments`, body).expect(409);
+      expect(sentTo(account.email)).toHaveLength(1);
+
+      const other = await newAccount();
+      const spy = failAudit();
+      try {
+        await post(`tenants/${other.id}/payments`, proPayment()).expect(500);
+      } finally {
+        spy.mockRestore();
+      }
+      expect(sentTo(other.email)).toEqual([]);
+    });
+
+    it("keeps the payment when its receipt fails to send", async () => {
+      const account = await newAccount();
+      const spy = failNextSend();
+      try {
+        await post(`tenants/${account.id}/payments`, proPayment()).expect(201);
+      } finally {
+        spy.mockRestore();
+      }
+      expect(await paymentsOf(account.id)).toHaveLength(1);
+    });
+
+    it("emails the account when an admin ends Pro, without the reason", async () => {
+      const account = await newAccount();
+      await setRun(account.id, addNairobiMonths(new Date(Date.now() - 60_000), -1), 3);
+      await endPro(account.id).expect(200);
+      const row = await subscriptionOf(account.id);
+      const [message] = sentTo(account.email);
+      expect(message).toMatchObject({
+        subject: `Your BillSafi Pro plan ends on ${day(row!.paidUntil!)}`,
+      });
+      expect(message!.text).not.toContain("mixup");
+      expect(message!.html).not.toContain("mixup");
+    });
+
+    it("sends no email when ending Pro is refused, rolled back or its send fails", async () => {
+      const free = await newAccount();
+      await endPro(free.id).expect(409);
+      expect(sentTo(free.email)).toEqual([]);
+
+      const rolledBack = await newAccount();
+      await setRun(rolledBack.id, new Date(Date.now() - 60_000), 3);
+      const audit = failAudit();
+      try {
+        await endPro(rolledBack.id).expect(500);
+      } finally {
+        audit.mockRestore();
+      }
+      expect(sentTo(rolledBack.email)).toEqual([]);
+
+      const failing = await newAccount();
+      await setRun(failing.id, new Date(Date.now() - 60_000), 3);
+      const spy = failNextSend();
+      try {
+        await endPro(failing.id).expect(200);
+      } finally {
+        spy.mockRestore();
+      }
+      expect((await subscriptionOf(failing.id))!.paidMonths).toBe(1);
+    });
+
+    it("emails the account when a limit override is added, from its start if scheduled", async () => {
+      const account = await newAccount();
+      await addOverride(account.id, { extraInvoices: 3 }).expect(201);
+      const [now] = sentTo(account.email);
+      expect(now).toMatchObject({ subject: "You can issue 3 extra invoices on BillSafi" });
+      expect(now!.text).toContain("until ");
+      expect(now!.text).not.toContain("from ");
+      expect(now!.text).not.toContain("mixup");
+
+      await addOverride(account.id, { startsAt: inDays(2), expiresAt: inDays(5) }).expect(201);
+      const later = sentTo(account.email)[1];
+      expect(later!.subject).toBe("You can issue 5 extra invoices on BillSafi");
+      expect(later!.text).toContain("from ");
+      expect(later!.html).not.toContain("mixup");
+    });
+
+    it("sends no email when an override is refused, rolled back or its send fails", async () => {
+      const account = await newAccount();
+      await addOverride(account.id, { extraInvoices: 0 }).expect(400);
+      const audit = failAudit();
+      try {
+        await addOverride(account.id).expect(500);
+      } finally {
+        audit.mockRestore();
+      }
+      expect(sentTo(account.email)).toEqual([]);
+
+      const spy = failNextSend();
+      try {
+        await addOverride(account.id).expect(201);
+      } finally {
+        spy.mockRestore();
+      }
+      const [created] = await db()
+        .select()
+        .from(schema.allowanceOverrides)
+        .where(eq(schema.allowanceOverrides.userId, account.id));
+      expect(created).toBeDefined();
+    });
+
+    it("emails the account when a running override is revoked, but not a scheduled one", async () => {
+      const account = await newAccount();
+      const running = await addOverride(account.id).expect(201);
+      const scheduled = await addOverride(account.id, {
+        startsAt: inDays(2),
+        expiresAt: inDays(5),
+      }).expect(201);
+      const before = sentTo(account.email).length;
+
+      await post(`overrides/${scheduled.body.override.id}/revoke`, { reason: SECRET }).expect(200);
+      expect(sentTo(account.email)).toHaveLength(before);
+
+      await post(`overrides/${running.body.override.id}/revoke`, { reason: SECRET }).expect(200);
+      const messages = sentTo(account.email);
+      expect(messages).toHaveLength(before + 1);
+      const last = messages.at(-1)!;
+      expect(last.subject).toBe("Your extra invoices on BillSafi have ended");
+      expect(last.text).not.toContain("mixup");
+      expect(last.html).not.toContain("mixup");
+
+      await post(`overrides/${running.body.override.id}/revoke`, { reason: SECRET }).expect(409);
+      expect(sentTo(account.email)).toHaveLength(before + 1);
+    });
+
+    it("keeps a revoke when its email fails", async () => {
+      const account = await newAccount();
+      const created = await addOverride(account.id).expect(201);
+      const spy = failNextSend();
+      try {
+        await post(`overrides/${created.body.override.id}/revoke`, { reason: SECRET }).expect(200);
+      } finally {
+        spy.mockRestore();
+      }
+      const [row] = await db()
+        .select()
+        .from(schema.allowanceOverrides)
+        .where(eq(schema.allowanceOverrides.id, created.body.override.id));
+      expect(row!.revokedAt).not.toBeNull();
     });
   });
 

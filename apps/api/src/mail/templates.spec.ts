@@ -4,6 +4,7 @@ import {
   renewalReminderEmail,
   welcomeEmail,
   registrationAdminEmail,
+  giftEmail,
 } from "./templates.js";
 
 describe("transactional email templates", () => {
@@ -108,5 +109,33 @@ describe("quoteResponseEmail", () => {
       "http://localhost:3000/b/quotes/q",
     );
     expect(declined.text).toContain('Their reason: "Too expensive"');
+  });
+});
+
+describe("gift template", () => {
+  const url = "https://account.billsafi.com/billing";
+
+  it("names the Pro months and the new end date", () => {
+    const email = giftEmail(
+      "user@example.test",
+      "Jane",
+      { kind: "pro_months", quantity: 2, until: new Date("2026-12-28T09:00:00Z") },
+      url,
+    );
+    expect(email.subject).toBe("You've got 2 months of Pro on BillSafi");
+    expect(email.text).toContain("Pro until 28 December 2026.");
+    expect(email.html).toContain("View billing");
+    expect(email.text).toContain(url);
+  });
+
+  it("uses the singular for one credit", () => {
+    const email = giftEmail(
+      "user@example.test",
+      "Jane",
+      { kind: "invoice_credits", quantity: 1 },
+      url,
+    );
+    expect(email.subject).toBe("You've got 1 invoice credit on BillSafi");
+    expect(email.text).toContain("don't expire");
   });
 });

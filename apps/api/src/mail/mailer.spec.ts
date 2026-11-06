@@ -1,5 +1,6 @@
 import { vi } from "vitest";
-import { RecordingMailer, ResendMailer } from "./mailer.js";
+import { Logger } from "@nestjs/common";
+import { LogMailer, RecordingMailer, ResendMailer } from "./mailer.js";
 
 const message = {
   to: "user@example.test",
@@ -68,5 +69,22 @@ describe("Resend HTTPS delivery", () => {
     await expect(
       new ResendMailer("re_test", "sender@example.test").send(message, context),
     ).rejects.toThrow("Connection failed");
+  });
+});
+
+describe("Log driver", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("prints the email instead of calling any provider", async () => {
+    const request = vi.fn();
+    vi.stubGlobal("fetch", request);
+    const log = vi.spyOn(Logger.prototype, "log").mockImplementation(() => undefined);
+    await new LogMailer().send(message, context);
+    expect(request).not.toHaveBeenCalled();
+    const printed = String(log.mock.calls[0]![0]);
+    expect(printed).toContain("password_reset_email");
+    expect(printed).toContain("To: user@example.test");
+    expect(printed).toContain("Reset link");
+    vi.unstubAllGlobals();
   });
 });
