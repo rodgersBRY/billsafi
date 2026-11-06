@@ -35,6 +35,7 @@ export const businesses = pgTable(
     defaultCurrency: char("default_currency", { length: 3 }).notNull().default("KES"),
     defaultPaymentTermsDays: integer("default_payment_terms_days").notNull().default(14),
     nextInvoiceSequence: integer("next_invoice_sequence").notNull().default(1),
+    nextQuoteSequence: integer("next_quote_sequence").notNull().default(1),
     ...timestamps(),
   },
   (table) => [
@@ -45,6 +46,7 @@ export const businesses = pgTable(
       sql`${table.defaultPaymentTermsDays} between 0 and 365`,
     ),
     check("businesses_next_invoice_sequence_positive", sql`${table.nextInvoiceSequence} >= 1`),
+    check("businesses_next_quote_sequence_positive", sql`${table.nextQuoteSequence} >= 1`),
   ],
 );
 

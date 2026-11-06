@@ -129,6 +129,18 @@ export function InvoiceDetails({
           </h1>
           <p className="mt-1 text-sm text-sub">
             {invoice.client.name} · due {formatDate(invoice.dueDate)}
+            {invoice.sourceQuote && (
+              <>
+                {" "}
+                · From{" "}
+                <Link
+                  href={`/${businessId}/quotes/${invoice.sourceQuote.id}`}
+                  className="text-accent hover:underline"
+                >
+                  {invoice.sourceQuote.quoteNumber ?? "quote"}
+                </Link>
+              </>
+            )}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

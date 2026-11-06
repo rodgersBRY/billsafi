@@ -5,7 +5,7 @@ import { nairobiCalendarMonth, nairobiDate } from "@billsafi/domain";
 import { DATABASE } from "../database/database.module.js";
 import { InvoicesService } from "./invoices.service.js";
 
-const { invoices, invoicePayments } = schema;
+const { invoices, invoicePayments, quotes } = schema;
 
 const RECENT_INVOICES = 5;
 
@@ -54,12 +54,23 @@ export class DashboardService {
           and ${invoicePayments.paymentDate} < ${nextMonthStart}`,
       );
 
+    const [open] = await db
+      .select({
+        count: sql<number>`count(*)::int`,
+        total: sql<string>`coalesce(sum(${quotes.total}), 0)::numeric(14,2)::text`,
+      })
+      .from(quotes)
+      .where(
+        sql`${quotes.businessId} = ${businessId} and ${quotes.status} = 'sent' and ${quotes.validUntil} >= ${today}`,
+      );
+
     const recent = await this.invoices.list(businessId, {});
     return {
       currency: "KES",
       outstanding: balances!.outstanding,
       overdue: balances!.overdue,
       receivedThisMonth: received!.total,
+      openQuotes: { count: open!.count, total: open!.total },
       recentInvoices: recent
         .filter((invoice) => invoice.status !== "draft")
         .slice(0, RECENT_INVOICES),

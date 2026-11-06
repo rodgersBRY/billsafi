@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { hashLinkToken, isLinkToken, newLinkToken } from "../common/link-token.js";
 import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import {
   type CreatedInvoiceLink,
@@ -14,11 +14,6 @@ import { InvoicesService } from "./invoices.service.js";
 const { invoiceLinks, businesses } = schema;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-/** Tokens are 256 random bits; only their SHA-256 hash is stored (D026). */
-function hashToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
-}
 
 /** Shown on the public page for any link that can't be used (D049). */
 export class InvoiceUnavailableException extends NotFoundException {
@@ -75,13 +70,13 @@ export class LinksService {
         .set({ revokedAt: now })
         .where(and(eq(invoiceLinks.invoiceId, invoiceId), sql`${invoiceLinks.revokedAt} is null`));
 
-      const token = randomBytes(32).toString("base64url");
+      const token = newLinkToken();
       const [link] = await tx
         .insert(invoiceLinks)
         .values({
           businessId,
           invoiceId,
-          tokenHash: hashToken(token),
+          tokenHash: hashLinkToken(token),
           createdByUserId: userId,
           createdAt: now,
           expiresAt: new Date(now.getTime() + PUBLIC_LINK_LIFETIME_DAYS * DAY_MS),
@@ -112,12 +107,12 @@ export class LinksService {
 
   /** The invoice behind a public token, if the link and invoice are both usable. */
   async resolve(token: string): Promise<ResolvedLink> {
-    if (!/^[A-Za-z0-9_-]{43}$/.test(token)) throw new InvoiceUnavailableException();
+    if (!isLinkToken(token)) throw new InvoiceUnavailableException();
     const [found] = await this.connection.db
       .select({ link: invoiceLinks, ownerId: businesses.ownerUserId })
       .from(invoiceLinks)
       .innerJoin(businesses, eq(businesses.id, invoiceLinks.businessId))
-      .where(and(eq(invoiceLinks.tokenHash, hashToken(token)), active));
+      .where(and(eq(invoiceLinks.tokenHash, hashLinkToken(token)), active));
     if (!found) throw new InvoiceUnavailableException();
     const { link } = found;
     const invoice = await this.invoices.load(this.connection.db, link.businessId, link.invoiceId);

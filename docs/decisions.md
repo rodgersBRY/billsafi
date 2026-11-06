@@ -779,3 +779,19 @@ Status: confirmed on 2026-11-06 by the user.
 - Signed out and suspended emails never show the admin, the reason or the audit note. The suspended email says data is kept and clients' invoice links still work (D061, D062).
 - Admin emails go out after the action commits. A refused action sends nothing, and a failed send is recorded (D066) and logged. The action stays.
 - A suspended account is still emailed, since the email is how it learns what happened. Support contact comes from the `support_contact` setting, used as Reply-To and named in the text.
+
+## D076 - Add quotes as their own documents with versions and typed-name acceptance
+
+Status: adopted on 2026-11-04.
+
+- Quotes have their own tables (`quotes`, `quote_items`, `quote_versions`, `quote_acceptances`, `quote_links`) so invoice numbering, allowance and payment rules stay untouched.
+- Statuses: Draft, Sent, Accepted, Declined, Withdrawn, Converted. Expired is derived: a Sent quote after its valid-until day in Nairobi. Accepted quotes never expire.
+- Numbers: `QT-00001` from a per-business sequence on first send. Custom numbers work as they do on invoices.
+- Validity defaults to 14 days and can be changed per quote. The public link stays usable until it is revoked, so an expired quote shows "This quote expired on ..." instead of a dead link. Extending the date reopens the same link.
+- Sent and declined quotes stay editable. Each content change saves a frozen version; the client always sees the latest, labelled "Updated" after the first. Versions are shown to the freelancer only.
+- The client accepts by typing their name and ticking "I agree to this quote". BillSafi stores the name, time, IP, browser and the version accepted. Columns are reserved for a later email or SMS code.
+- The freelancer gets an email on accept and decline, sent after the answer is saved.
+- Convert copies an accepted quote into one Draft invoice due after the business's payment terms. Quotes are on Free and never use allowance; the invoice uses it when first marked Ready. Deleting that draft puts the quote back to Accepted. A Sent quote can be converted after the freelancer confirms a verbal yes.
+- The client's accept or decline carries the version they were looking at. If the freelancer saved a newer version since, the answer is refused with `QUOTE_CHANGED` and the client reviews the new version first.
+- Deleting the converted draft returns the quote to Accepted only if the client accepted on the link. A quote converted on a verbal yes goes back to Sent.
+- Web: Quotes sits in the sidebar between Overview and Invoices. Clients answer on `/q/[token]`. The Overview shows open quotes, and an invoice made from a quote links back to it.

@@ -23,6 +23,10 @@ The user explicitly requested putting M-Pesa integration on hold and using manua
 
 Example from the accepted discussion: a KES 50,000 invoice with KES 20,000 recorded has KES 30,000 outstanding and is partially paid.
 
+## Quotes
+
+Quotes are in V1 scope. Freelancers send a quote before the work starts; the client accepts or declines on a public link by typing their name, and an accepted quote converts to a Draft invoice. Quotes are on Free and do not use the invoice allowance. Details are in [D076](decisions.md).
+
 ## Deferred
 
 Integrated M-Pesa collection, STK Push, provider onboarding, automated payment confirmation, routing, and settlement for freelancers’ client invoice payments are outside V1. Account subscription payments are a separate, confirmed integration described below. The discussion labels integration as V2; no release commitment or provider selection is confirmed.

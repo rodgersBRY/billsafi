@@ -220,6 +220,43 @@ export function registrationAdminEmail(
   };
 }
 
+/** Tells the freelancer a client accepted or declined a quote on its public link. */
+export function quoteResponseEmail(
+  to: string,
+  name: string,
+  response: {
+    decision: "accepted" | "declined";
+    quoteNumber: string;
+    clientName: string;
+    signerName: string | null;
+    reason: string | null;
+  },
+  url: string,
+): MailMessage {
+  const accepted = response.decision === "accepted";
+  const subject = accepted
+    ? `${response.clientName} accepted quote ${response.quoteNumber}`
+    : `${response.clientName} declined quote ${response.quoteNumber}`;
+  const paragraphs = accepted
+    ? [
+        `${response.signerName} accepted quote ${response.quoteNumber} for ${response.clientName}.`,
+        "You can turn it into an invoice in one step.",
+      ]
+    : [
+        `${response.clientName} declined quote ${response.quoteNumber}.`,
+        response.reason ? `Their reason: "${response.reason}"` : "They didn't give a reason.",
+        "You can edit the quote and send it again.",
+      ];
+  const action = accepted ? "Convert to invoice" : "Open the quote";
+  const note = "You're getting this because you sent this quote from BillSafi.";
+  return {
+    to,
+    subject,
+    html: emailLayout({ preview: subject, title: subject, name, paragraphs, action, url, note }),
+    text: [`Hi ${name},`, ...paragraphs, `${action}: ${url}`, note].join("\n\n"),
+  };
+}
+
 /** "1 month", "2 months". */
 export const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
 
