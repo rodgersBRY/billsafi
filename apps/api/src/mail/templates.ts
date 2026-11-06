@@ -104,7 +104,8 @@ export function passwordResetEmail(
   };
 }
 
-const longDate = new Intl.DateTimeFormat("en-KE", {
+/** Date and time in Nairobi, for example "6 January 2027 at 11:30". */
+export const longDate = new Intl.DateTimeFormat("en-KE", {
   day: "numeric",
   month: "long",
   year: "numeric",
@@ -113,7 +114,8 @@ const longDate = new Intl.DateTimeFormat("en-KE", {
   timeZone: "Africa/Nairobi",
 });
 
-const dayOnly = new Intl.DateTimeFormat("en-KE", {
+/** Date only in Nairobi, for example "6 January 2027". */
+export const dayOnly = new Intl.DateTimeFormat("en-KE", {
   day: "numeric",
   month: "long",
   year: "numeric",
@@ -218,6 +220,9 @@ export function registrationAdminEmail(
   };
 }
 
+/** "1 month", "2 months". */
+export const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
+
 export type GiftEmail =
   | { kind: "pro_months"; quantity: number; until: Date }
   | { kind: "invoice_credits"; quantity: number };
@@ -229,7 +234,6 @@ export function giftEmail(
   gift: GiftEmail,
   billingUrl: string,
 ): MailMessage {
-  const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
   const what =
     gift.kind === "pro_months"
       ? plural(gift.quantity, "month") + " of Pro"
