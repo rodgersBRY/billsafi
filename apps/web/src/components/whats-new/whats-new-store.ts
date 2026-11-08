@@ -35,15 +35,25 @@ export function useWhatsNew(): WhatsNewState {
   );
 }
 
-/** Opens the panel and records that the user has seen everything listed. */
-export function openWhatsNew() {
+function markSeen() {
   const feed = state.feed;
-  update({ open: true });
   if (feed && feed.unreadCount > 0) {
     // "New" markers stay until the panel closes; the count clears straight away.
     update({ feed: { ...feed, unreadCount: 0, popup: false } });
     apiPost<void>("/whats-new/seen", {}).catch(() => undefined);
   }
+}
+
+/** Opens the panel and records that the user has seen everything listed. */
+export function openWhatsNew() {
+  update({ open: true });
+  markSeen();
+}
+
+/** Clears all state when the app unmounts, so the next account starts fresh. */
+export function resetWhatsNew() {
+  loading = null;
+  update({ feed: null, open: false });
 }
 
 export function closeWhatsNew() {
@@ -60,6 +70,7 @@ export function loadWhatsNew(): Promise<void> {
     .then((feed) => {
       update({ feed });
       if (feed.popup) openWhatsNew();
+      else if (state.open) markSeen();
     })
     .catch(() => {
       loading = null;

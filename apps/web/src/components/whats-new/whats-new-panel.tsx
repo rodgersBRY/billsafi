@@ -3,7 +3,7 @@
 import { X } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useRef } from "react";
 import { WhatsNewEntryCard } from "./whats-new-entry";
-import { closeWhatsNew, useWhatsNew } from "./whats-new-store";
+import { closeWhatsNew, resetWhatsNew, useWhatsNew } from "./whats-new-store";
 
 /**
  * Slide-over list of product updates. Rendered in the main area, not the sidebar,
@@ -12,6 +12,7 @@ import { closeWhatsNew, useWhatsNew } from "./whats-new-store";
 export function WhatsNewPanel({ businessId, isPro }: { businessId: string; isPro: boolean }) {
   const { feed, open } = useWhatsNew();
   const ref = useRef<HTMLDialogElement>(null);
+  const mounted = useRef(false);
   const titleId = useId();
 
   useEffect(() => {
@@ -24,7 +25,15 @@ export function WhatsNewPanel({ businessId, isPro }: { businessId: string; isPro
   // Next.js keeps visited pages alive; never come back to an open dialog.
   useLayoutEffect(() => {
     const dialog = ref.current;
-    return () => dialog?.close();
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      dialog?.close();
+      // Skip the reset when React remounts straight away (development double-mount).
+      queueMicrotask(() => {
+        if (!mounted.current) resetWhatsNew();
+      });
+    };
   }, []);
 
   const entries = feed?.entries ?? [];
@@ -33,7 +42,9 @@ export function WhatsNewPanel({ businessId, isPro }: { businessId: string; isPro
     <dialog
       ref={ref}
       aria-labelledby={titleId}
-      onClose={closeWhatsNew}
+      onClose={() => {
+        if (!ref.current?.open) closeWhatsNew();
+      }}
       onClick={(event) => {
         // A click on the backdrop lands on the dialog element itself.
         if (event.target === event.currentTarget) closeWhatsNew();
@@ -55,7 +66,9 @@ export function WhatsNewPanel({ businessId, isPro }: { businessId: string; isPro
           </button>
         </header>
         {entries.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-sub">Nothing new yet.</p>
+          <p className="px-5 py-8 text-center text-sm text-sub">
+            {feed === null ? "Loading…" : "Nothing new yet."}
+          </p>
         ) : (
           <ol className="flex-1 divide-y divide-line overflow-y-auto">
             {entries.map((entry) => (
