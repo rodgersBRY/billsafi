@@ -75,7 +75,7 @@ export function EntryDialog({
       preview={
         <div className="space-y-2">
           <p className="text-xs text-sub">Preview for a Free user</p>
-          <div className="rounded-panel border border-line bg-panel">
+          <div className="rounded-panel bg-background p-3">
             <WhatsNewEntryCard
               preview
               title={title.trim() || "Your title appears here."}
