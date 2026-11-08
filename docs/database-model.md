@@ -38,6 +38,8 @@ Twenty application tables are adopted. Better Auth adds its required authenticat
 | subscription_payments         | `id`, account/purchase reference, expected/confirmed amounts, currency, payment state, provider references, timestamps and granted period details; exact provider fields depend on integration feasibility                                                                                     |
 | usage_periods                 | `id`, `user_id`, plan code, start/end, invoice limit; transition/reset rules remain open                                                                                                                                                                                                       |
 | invoice_issuances             | `id`, `user_id`, `business_id`, unique `invoice_id`, `usage_period_id`, issuance timestamp                                                                                                                                                                                                     |
+| whats_new_entries             | `id`, `title` (80), `body` (500, plain text), nullable `link_segment`, `pro`, `popup`, nullable `published_at` (null is a draft, a future time is scheduled), nullable `created_by` (references `users.id`, set null when that user is deleted), timestamps; index on `published_at`. See D084 |
+| user_whats_new                | `user_id` (primary key, references `users.id`, cascade on delete), `seen_at`, timestamps; a missing row means the panel was never opened, and the sign-up time stands in. See D084 |
 
 ## Invoice snapshots
 

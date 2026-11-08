@@ -31,6 +31,10 @@ Quotes are in V1 scope. Freelancers send a quote before the work starts; the cli
 
 Pro accounts can put an invoice on a schedule for retainers and monthly fees. Each run creates a Draft or Ready invoice; the business picks the default in its settings and a schedule can override it. Ready invoices use allowance like any other. Missed periods are not backfilled: only the latest is created. BillSafi emails the user when an invoice is made but does not send it to the client yet. Sending to clients comes with payment reminders, which follow recurring invoices. When Pro ends, schedules pause. Details are in [D082](decisions.md).
 
+## What's new
+
+Admins publish short product updates from the super admin, now or on a schedule. Users see them in a What's new panel, with an unread count on the sidebar button. An update marked Pop up also opens the panel on the user's next visit. Details are in [D084](decisions.md).
+
 ## Deferred
 
 Integrated M-Pesa collection, STK Push, provider onboarding, automated payment confirmation, routing, and settlement for freelancers’ client invoice payments are outside V1. Account subscription payments are a separate, confirmed integration described below. The discussion labels integration as V2; no release commitment or provider selection is confirmed.
