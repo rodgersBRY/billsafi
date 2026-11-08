@@ -9,6 +9,7 @@ import { AdminSubscriptionsModule } from "./subscriptions/subscriptions.module.j
 import { AdminSettingsModule } from "./settings/settings.module.js";
 import { SupportModule } from "./support/support.module.js";
 import { TenantsModule } from "./tenants/tenants.module.js";
+import { AdminWhatsNewModule } from "./whats-new/admin-whats-new.module.js";
 import { UsersModule } from "./users/users.module.js";
 
 @Module({
@@ -24,6 +25,7 @@ import { UsersModule } from "./users/users.module.js";
     SupportModule,
     AdminSettingsModule,
     AdminSecurityModule,
+    AdminWhatsNewModule,
   ],
 })
 export class AdminModule {}

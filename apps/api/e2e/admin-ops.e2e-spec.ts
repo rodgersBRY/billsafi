@@ -209,7 +209,7 @@ describe("admin ops", () => {
       expect(byKey.database!.data!.responseMs).toBeGreaterThanOrEqual(0);
       expect(byKey.migrations).toMatchObject({
         status: "ok",
-        value: "0025_recurring_invoices",
+        value: "0026_whats_new",
       });
       expect(byKey.mpesa).toMatchObject({ status: "unknown", value: null });
       // BILLING_JOBS is off in tests, nothing has failed and no backup has been recorded.

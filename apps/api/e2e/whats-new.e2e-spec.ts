@@ -3,7 +3,7 @@ import type { WhatsNewFeed } from "@billsafi/contracts";
 import { type DatabaseConnection, eq, schema, sql } from "@billsafi/db";
 import request from "supertest";
 import { DATABASE } from "../src/database/database.module.js";
-import { createTestApp, signUp } from "./support/app.js";
+import { createTestApp, signUp, uniqueEmail } from "./support/app.js";
 
 const PREFIX = `e2e-${crypto.randomUUID().slice(0, 8)}`;
 const HOUR = 3_600_000;
@@ -108,5 +108,124 @@ describe("what's new", () => {
     const body = await feed(cookie);
     expect(body.unreadCount).toBeGreaterThanOrEqual(1);
     expect(body.popup).toBe(false);
+  });
+});
+
+describe("admin what's new", () => {
+  let app: INestApplication;
+  let adminCookie: string;
+  let userCookie: string;
+  const api = () => request(app.getHttpServer());
+  const db = () => app.get<DatabaseConnection>(DATABASE).db;
+  const REASON = "Feature shipped today";
+  const entry = { title: `${PREFIX} admin`, body: "Made by an admin." };
+
+  beforeAll(async () => {
+    ({ app } = await createTestApp());
+    const admin = await signUp(app, uniqueEmail("whats-new-admin"));
+    await db()
+      .update(schema.users)
+      .set({ role: "admin" })
+      .where(eq(schema.users.email, admin.email));
+    adminCookie = admin.cookie;
+    userCookie = (await signUp(app)).cookie;
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it("is a 404 for anyone who is not an admin", async () => {
+    await api().get("/api/v1/admin/whats-new").set("Cookie", userCookie).expect(404);
+    await api()
+      .post("/api/v1/admin/whats-new")
+      .set("Cookie", userCookie)
+      .send({ ...entry, reason: REASON })
+      .expect(404);
+    await api().get("/api/v1/admin/whats-new").expect(404);
+  });
+
+  it("needs a reason and valid fields", async () => {
+    const bad = await api()
+      .post("/api/v1/admin/whats-new")
+      .set("Cookie", adminCookie)
+      .send({ title: "", body: "x" })
+      .expect(400);
+    const paths = bad.body.issues.map((issue: { path: string }) => issue.path).sort();
+    expect(paths).toEqual(["reason", "title"]);
+  });
+
+  it("creates a draft, publishes it, unpublishes it and deletes it, with audit rows", async () => {
+    const created = await api()
+      .post("/api/v1/admin/whats-new")
+      .set("Cookie", adminCookie)
+      .send({ ...entry, reason: REASON })
+      .expect(201);
+    expect(created.body).toMatchObject({ status: "draft", publishedAt: null, popup: false });
+    const id: string = created.body.id;
+
+    const publishedAt = new Date(Date.now() - 60_000).toISOString();
+    const published = await api()
+      .put(`/api/v1/admin/whats-new/${id}`)
+      .set("Cookie", adminCookie)
+      .send({ ...entry, popup: true, publishedAt, reason: REASON })
+      .expect(200);
+    expect(published.body).toMatchObject({ status: "live", popup: true });
+
+    const listed = await api()
+      .get("/api/v1/admin/whats-new")
+      .set("Cookie", adminCookie)
+      .expect(200);
+    expect(listed.body.entries.map((e: { id: string }) => e.id)).toContain(id);
+
+    await api()
+      .put(`/api/v1/admin/whats-new/${id}`)
+      .set("Cookie", adminCookie)
+      .send({ ...entry, popup: true, publishedAt, reason: REASON })
+      .expect(409);
+
+    const unpublished = await api()
+      .put(`/api/v1/admin/whats-new/${id}`)
+      .set("Cookie", adminCookie)
+      .send({ ...entry, popup: true, reason: REASON })
+      .expect(200);
+    expect(unpublished.body).toMatchObject({ status: "draft", publishedAt: null });
+
+    await api()
+      .post(`/api/v1/admin/whats-new/${id}/delete`)
+      .set("Cookie", adminCookie)
+      .send({ reason: REASON })
+      .expect(201);
+    await api()
+      .post(`/api/v1/admin/whats-new/${id}/delete`)
+      .set("Cookie", adminCookie)
+      .send({ reason: REASON })
+      .expect(404);
+
+    const audit = await db()
+      .select({ action: schema.auditLogs.action, outcome: schema.auditLogs.outcome })
+      .from(schema.auditLogs)
+      .where(eq(schema.auditLogs.targetId, id));
+    expect(audit).toEqual(
+      expect.arrayContaining([
+        { action: "whats_new.create", outcome: "success" },
+        { action: "whats_new.update", outcome: "success" },
+        { action: "whats_new.delete", outcome: "success" },
+        { action: "whats_new.delete", outcome: "failure" },
+      ]),
+    );
+  });
+
+  it("is a 404 for an unknown or malformed id", async () => {
+    await api()
+      .put(`/api/v1/admin/whats-new/${crypto.randomUUID()}`)
+      .set("Cookie", adminCookie)
+      .send({ ...entry, reason: REASON })
+      .expect(404);
+    await api()
+      .put("/api/v1/admin/whats-new/not-a-uuid")
+      .set("Cookie", adminCookie)
+      .send({ ...entry, reason: REASON })
+      .expect(404);
   });
 });
