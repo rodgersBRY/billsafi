@@ -55,14 +55,14 @@ export function NavLinks({ businessId, isPro }: { businessId: string; isPro: boo
                   <span
                     aria-hidden
                     title="Pro feature"
-                    className={`ml-auto text-accent ${classes.expandedOnly}`}
+                    className={`ml-auto text-gold ${classes.expandedOnly}`}
                   >
                     <Crown className="size-4" />
                   </span>
                   {/* In the rail the crown sits on the icon's corner. */}
                   <Crown
                     aria-hidden
-                    className={`absolute top-1 right-1 size-2.5 text-accent ${classes.railOnly}`}
+                    className={`absolute top-1 right-1 size-2.5 text-gold ${classes.railOnly}`}
                   />
                 </>
               )}
@@ -72,7 +72,9 @@ export function NavLinks({ businessId, isPro }: { businessId: string; isPro: boo
               className={`pointer-events-none absolute top-1/2 left-full z-50 ml-2 -translate-y-1/2 rounded-md bg-ink px-2 py-1 text-xs whitespace-nowrap text-panel shadow-md ${classes.tooltip}`}
             >
               {label}
-              {proBadge && <Crown className="-mt-0.5 ml-1 inline-block size-3 align-middle" />}
+              {proBadge && (
+                <Crown className="-mt-0.5 ml-1 inline-block size-3 align-middle text-yellow-300 dark:text-yellow-600" />
+              )}
             </span>
           </div>
         );

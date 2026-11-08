@@ -16,10 +16,7 @@ export function UsageMeter({ usage }: { usage: AllowanceUsage }) {
       <p className={`text-xs text-sub ${label}`}>
         {usage.plan === "pro" ? (
           <>
-            <Crown
-              aria-hidden
-              className="mr-1 inline-block size-3.5 align-text-bottom text-accent"
-            />
+            <Crown aria-hidden className="mr-1 inline-block size-3.5 align-text-bottom text-gold" />
             Pro plan
           </>
         ) : (

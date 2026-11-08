@@ -35,7 +35,7 @@ async function Recurring({ params }: PageProps<"/[businessId]/recurring">) {
           </Link>
         ) : (
           <p className="rounded-panel border border-line bg-soft px-3.75 py-2.75 text-sm text-accent">
-            <Crown aria-hidden className="mr-1.5 inline-block size-4 align-text-bottom" />
+            <Crown aria-hidden className="mr-1.5 inline-block size-4 align-text-bottom text-gold" />
             Recurring invoices are a Pro feature.{" "}
             <Link href="/billing" className="font-medium underline">
               Upgrade to Pro

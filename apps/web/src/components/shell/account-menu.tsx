@@ -49,7 +49,7 @@ export function AccountMenu({
             href={billingHref}
             className="mt-1.5 flex w-full items-center justify-center gap-2 rounded-lg bg-teal px-2.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal/90"
           >
-            <Crown aria-hidden className="size-4" />
+            <Crown aria-hidden className="size-4 text-yellow-300" />
             Upgrade to Pro
           </Link>
         )

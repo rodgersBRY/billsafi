@@ -315,10 +315,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
       {isDraft && (
         <p className="mt-2 text-xs text-sub">
           {props.usage.plan === "pro" && (
-            <Crown
-              aria-hidden
-              className="mr-1 inline-block size-3.5 align-text-bottom text-accent"
-            />
+            <Crown aria-hidden className="mr-1 inline-block size-3.5 align-text-bottom text-gold" />
           )}
           {props.usage.plan === "pro" ? "Pro" : "Free"} plan: {Math.max(remaining, 0)} of{" "}
           {props.usage.limit} invoices left{" "}
