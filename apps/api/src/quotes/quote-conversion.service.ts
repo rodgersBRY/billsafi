@@ -52,10 +52,11 @@ export class QuoteConversionService {
           invoiceNumber: null,
           issueDate: today,
           dueDate: addCalendarDays(today, business!.terms),
-          items: quote.items.map(({ description, quantity, unitPrice }) => ({
+          items: quote.items.map(({ description, quantity, unitPrice, savedItemId }) => ({
             description,
             quantity,
             unitPrice,
+            savedItemId,
           })),
           discount: quote.discount,
           taxRate: quote.taxRate,

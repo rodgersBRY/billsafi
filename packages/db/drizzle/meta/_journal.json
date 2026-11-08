@@ -169,6 +169,13 @@
       "when": 1793983923547,
       "tag": "0023_gift_notified_at",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794143016901,
+      "tag": "0024_saved_items",
+      "breakpoints": true
     }
   ]
 }

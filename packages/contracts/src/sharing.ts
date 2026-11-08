@@ -1,7 +1,7 @@
 import type {
   InvoiceBusinessDetails,
   InvoiceClientDetails,
-  InvoiceItem,
+  PublicLineItem,
   InvoiceStatus,
 } from "./invoices.js";
 
@@ -33,7 +33,7 @@ export interface PublicInvoice {
   currency: string;
   business: Omit<InvoiceBusinessDetails, "logoKey">;
   client: Pick<InvoiceClientDetails, "name" | "companyName">;
-  items: Omit<InvoiceItem, "id">[];
+  items: PublicLineItem[];
   discount: { type: "fixed" | "percentage"; value: string } | null;
   taxRate: string | null;
   subtotal: string;

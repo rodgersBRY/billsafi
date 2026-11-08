@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { BusinessesModule } from "../businesses/businesses.module.js";
 import { BillingModule } from "../billing/billing.module.js";
+import { SavedItemsModule } from "../items/saved-items.module.js";
 import { BrandingService } from "./branding.service.js";
 import { DashboardService } from "./dashboard.service.js";
 import {
@@ -15,7 +16,7 @@ import { PaymentsService } from "./payments.service.js";
 import { PdfService } from "./pdf.service.js";
 
 @Module({
-  imports: [BusinessesModule, BillingModule],
+  imports: [BusinessesModule, BillingModule, SavedItemsModule],
   controllers: [InvoicesController, DashboardController, UsageController, PublicInvoicesController],
   providers: [
     InvoicesService,

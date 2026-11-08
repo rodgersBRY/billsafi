@@ -80,6 +80,7 @@ export function toInvoice(
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         lineTotal: item.lineTotal,
+        savedItemId: item.savedItemId,
       })),
     discount:
       row.discountType && row.discountValue

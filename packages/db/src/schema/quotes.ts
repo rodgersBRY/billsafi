@@ -19,6 +19,7 @@ import { users } from "./auth.js";
 import { businesses } from "./businesses.js";
 import { clients } from "./clients.js";
 import { id, timestamps } from "./columns.js";
+import { savedItems } from "./items.js";
 import { type BusinessSnapshot, type ClientSnapshot, discountType, invoices } from "./invoices.js";
 
 const amount = (name: string) => numeric(name, { precision: 14, scale: 2 });
@@ -136,6 +137,8 @@ export const quoteItems = pgTable(
     quantity: numeric("quantity", { precision: 12, scale: 2 }).notNull(),
     unitPrice: amount("unit_price").notNull(),
     lineTotal: amount("line_total").notNull(),
+    /** Ranking hint only; the line keeps its own copy of the text and price (D080). */
+    savedItemId: uuid("saved_item_id").references(() => savedItems.id, { onDelete: "set null" }),
   },
   (table) => [
     foreignKey({

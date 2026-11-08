@@ -5,6 +5,8 @@ export interface EditorItem {
   description: string;
   quantity: string;
   unitPrice: string;
+  /** The saved item this line was picked from, if any. */
+  savedItemId: string | null;
 }
 
 export type Discount = { type: "fixed" | "percentage"; value: string } | null;
@@ -21,7 +23,13 @@ export function newItem(item?: Partial<EditorItem>): EditorItem {
     description: item?.description ?? "",
     quantity: item?.quantity ?? "1",
     unitPrice: item?.unitPrice ?? "",
+    savedItemId: item?.savedItemId ?? null,
   };
+}
+
+/** The line as the API takes it. */
+export function toItemInput({ description, quantity, unitPrice, savedItemId }: EditorItem) {
+  return { description, quantity, unitPrice, savedItemId };
 }
 
 /** Preview totals tolerate half-typed numbers; validation happens on save. */
