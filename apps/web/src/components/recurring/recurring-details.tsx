@@ -6,7 +6,7 @@ import {
   recurringFrequencyLabels,
   type InvoiceStatus,
 } from "@billsafi/contracts";
-import { CirclePause, CirclePlay, Pencil, SkipForward, StopCircle } from "lucide-react";
+import { CirclePause, CirclePlay, Crown, Pencil, SkipForward, StopCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -138,6 +138,7 @@ export function RecurringDetails({
 
       {!isPro && open && (
         <p className="mb-3.5 rounded-panel border border-line bg-soft p-3.5 text-sm text-accent">
+          <Crown aria-hidden className="mr-1.5 inline-block size-4 align-text-bottom text-gold" />
           Resuming and editing need Pro.{" "}
           <Link href="/billing" className="font-medium underline">
             Upgrade to Pro

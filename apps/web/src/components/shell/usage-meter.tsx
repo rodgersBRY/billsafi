@@ -1,4 +1,5 @@
 import type { AllowanceUsage } from "@billsafi/contracts";
+import { Crown } from "lucide-react";
 import { sidebarClasses } from "./sidebar-mode";
 
 const { label } = sidebarClasses("group");
@@ -13,7 +14,14 @@ export function UsageMeter({ usage }: { usage: AllowanceUsage }) {
   return (
     <div data-tour="usage" title={summary} className="border-t border-line px-2.5 pt-4">
       <p className={`text-xs text-sub ${label}`}>
-        {usage.plan === "pro" ? "Pro plan" : "Free plan"}
+        {usage.plan === "pro" ? (
+          <>
+            <Crown aria-hidden className="mr-1 inline-block size-3.5 align-text-bottom text-gold" />
+            Pro plan
+          </>
+        ) : (
+          "Free plan"
+        )}
       </p>
       <div
         role="progressbar"
