@@ -1,5 +1,5 @@
 import { recurringFrequencyLabels } from "@billsafi/contracts";
-import { Plus } from "lucide-react";
+import { Crown, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -35,6 +35,7 @@ async function Recurring({ params }: PageProps<"/[businessId]/recurring">) {
           </Link>
         ) : (
           <p className="rounded-panel border border-line bg-soft px-3.75 py-2.75 text-sm text-accent">
+            <Crown aria-hidden className="mr-1.5 inline-block size-4 align-text-bottom" />
             Recurring invoices are a Pro feature.{" "}
             <Link href="/billing" className="font-medium underline">
               Upgrade to Pro

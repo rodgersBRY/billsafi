@@ -1,6 +1,6 @@
 "use client";
 
-import { Compass, CreditCard, Settings, ShieldCheck, Sparkles } from "lucide-react";
+import { Compass, CreditCard, Crown, Settings, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { START_TOUR_EVENT } from "@/components/tour/product-tour";
@@ -49,7 +49,7 @@ export function AccountMenu({
             href={billingHref}
             className="mt-1.5 flex w-full items-center justify-center gap-2 rounded-lg bg-teal px-2.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal/90"
           >
-            <Sparkles aria-hidden className="size-4" />
+            <Crown aria-hidden className="size-4" />
             Upgrade to Pro
           </Link>
         )

@@ -8,7 +8,7 @@ import {
   type SaveInvoiceInput,
   saveInvoiceSchema,
 } from "@billsafi/contracts";
-import { Trash2, UserPlus } from "lucide-react";
+import { Crown, Trash2, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -314,6 +314,12 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
       </div>
       {isDraft && (
         <p className="mt-2 text-xs text-sub">
+          {props.usage.plan === "pro" && (
+            <Crown
+              aria-hidden
+              className="mr-1 inline-block size-3.5 align-text-bottom text-accent"
+            />
+          )}
           {props.usage.plan === "pro" ? "Pro" : "Free"} plan: {Math.max(remaining, 0)} of{" "}
           {props.usage.limit} invoices left{" "}
           {props.usage.plan === "pro" ? "this Pro month" : "this month"}

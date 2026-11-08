@@ -7,6 +7,7 @@ import type {
   SubscriptionPayment,
   SubscriptionPurpose,
 } from "@billsafi/contracts";
+import { Crown } from "lucide-react";
 import {
   CREDIT_PACK,
   FREE_PLAN,
@@ -297,7 +298,8 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
           className="rounded-panel border border-line bg-panel p-6"
         >
           <div className="flex items-center justify-between gap-4">
-            <h2 id="current-plan" className="text-lg font-semibold">
+            <h2 id="current-plan" className="flex items-center gap-2 text-lg font-semibold">
+              {onPro && <Crown aria-hidden className="size-4.5 text-accent" />}
               {onPro ? "Pro" : "Free"}
             </h2>
             <span className="rounded-md bg-soft px-2.25 py-1 text-xs text-accent">
@@ -402,7 +404,8 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
           className="rounded-panel border border-t-3 border-line border-t-teal bg-panel p-6"
         >
           <div className="flex items-center justify-between gap-4">
-            <h2 id="pro-offer" className="text-lg font-semibold">
+            <h2 id="pro-offer" className="flex items-center gap-2 text-lg font-semibold">
+              <Crown aria-hidden className="size-4.5 text-accent" />
               {onPro ? "Keep Pro going" : "Upgrade to Pro"}
             </h2>
             <span className="rounded-md bg-soft px-2.25 py-1 text-xs text-accent">
