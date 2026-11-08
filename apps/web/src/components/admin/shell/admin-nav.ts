@@ -6,8 +6,8 @@ import {
   LayoutDashboard,
   LifeBuoy,
   type LucideIcon,
+  Megaphone,
   Settings,
-  Sparkles,
   ShieldCheck,
   Users,
 } from "lucide-react";
@@ -28,7 +28,7 @@ export const adminNav: AdminNavItem[] = [
   { href: "/admin/health", label: "System Health", icon: HeartPulse },
   { href: "/admin/security", label: "Security & Audit", icon: ShieldCheck },
   { href: "/admin/support", label: "Support", icon: LifeBuoy },
-  { href: "/admin/whats-new", label: "What's new", icon: Sparkles },
+  { href: "/admin/whats-new", label: "What's new", icon: Megaphone },
   { href: "/admin/settings", label: "Configuration", icon: Settings },
 ];
 

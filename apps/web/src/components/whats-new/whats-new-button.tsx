@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { Megaphone } from "lucide-react";
 import { useEffect } from "react";
 import { sidebarClasses } from "@/components/shell/sidebar-mode";
 import { loadWhatsNew, openWhatsNew, useWhatsNew } from "./whats-new-store";
@@ -25,7 +25,7 @@ export function WhatsNewButton() {
         onClick={openWhatsNew}
         className={`${item} ${classes.center} hover:bg-soft hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent`}
       >
-        <Sparkles aria-hidden className="size-4.5 shrink-0" />
+        <Megaphone aria-hidden className="size-4.5 shrink-0" />
         {count > 0 && (
           <span
             aria-hidden
