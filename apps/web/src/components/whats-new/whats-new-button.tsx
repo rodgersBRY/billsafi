@@ -10,13 +10,13 @@ const item =
   "relative flex w-full items-center gap-2.75 rounded-lg p-2.75 text-sm text-sub transition-colors";
 
 /** Sidebar entry to the What's new panel, with the unread count. */
-export function WhatsNewButton() {
+export function WhatsNewButton({ userId }: { userId: string }) {
   const { feed } = useWhatsNew();
   const count = feed?.unreadCount ?? 0;
 
   useEffect(() => {
-    void loadWhatsNew();
-  }, []);
+    void loadWhatsNew(userId);
+  }, [userId]);
 
   return (
     <div data-tour="whats-new" className="group/item relative">

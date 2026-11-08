@@ -32,7 +32,7 @@ async function Sidebar({ params }: { params: Promise<{ businessId: string }> }) 
       <NavLinks businessId={businessId} isPro={usage.plan === "pro"} />
       <div className="mt-auto grid grid-cols-1 gap-3">
         <UsageMeter usage={usage} />
-        <WhatsNewButton />
+        <WhatsNewButton userId={user.id} />
         <AccountMenu
           name={user.name}
           email={user.email}

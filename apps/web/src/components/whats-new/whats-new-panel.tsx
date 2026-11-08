@@ -3,7 +3,7 @@
 import { X } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useRef } from "react";
 import { WhatsNewEntryCard } from "./whats-new-entry";
-import { closeWhatsNew, resetWhatsNew, useWhatsNew } from "./whats-new-store";
+import { closeWhatsNew, useWhatsNew } from "./whats-new-store";
 
 /**
  * Slide-over list of product updates. Rendered in the main area, not the sidebar,
@@ -12,7 +12,6 @@ import { closeWhatsNew, resetWhatsNew, useWhatsNew } from "./whats-new-store";
 export function WhatsNewPanel({ businessId, isPro }: { businessId: string; isPro: boolean }) {
   const { feed, open } = useWhatsNew();
   const ref = useRef<HTMLDialogElement>(null);
-  const mounted = useRef(false);
   const titleId = useId();
 
   useEffect(() => {
@@ -25,15 +24,7 @@ export function WhatsNewPanel({ businessId, isPro }: { businessId: string; isPro
   // Next.js keeps visited pages alive; never come back to an open dialog.
   useLayoutEffect(() => {
     const dialog = ref.current;
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-      dialog?.close();
-      // Skip the reset when React remounts straight away (development double-mount).
-      queueMicrotask(() => {
-        if (!mounted.current) resetWhatsNew();
-      });
-    };
+    return () => dialog?.close();
   }, []);
 
   const entries = feed?.entries ?? [];
