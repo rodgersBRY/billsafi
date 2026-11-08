@@ -7,7 +7,8 @@ import {
   quoteEmailDraft,
   quoteWhatsappMessage,
 } from "@billsafi/contracts";
-import { Copy, Download, Link2, Link2Off, Mail, MessageCircle, RefreshCw } from "lucide-react";
+import { Copy, Download, Link2, Link2Off, Mail, RefreshCw } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -156,7 +157,7 @@ export function QuoteShareDialog({
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <a href={whatsappHref!} target="_blank" rel="noreferrer" className={shareButton}>
-              <MessageCircle aria-hidden className="size-4" />
+              <FaWhatsapp aria-hidden className="size-4" />
               WhatsApp
             </a>
             <a href={mailtoHref!} className={shareButton}>
