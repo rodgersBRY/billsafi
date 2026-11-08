@@ -79,7 +79,12 @@ export class InvoicesService {
     return this.load(this.db, businessId, invoiceId);
   }
 
-  async createDraft(businessId: string, input: SaveInvoice, db: Executor = this.db) {
+  async createDraft(
+    businessId: string,
+    input: SaveInvoice,
+    db: Executor = this.db,
+    origin?: { recurringInvoiceId: string; periodDate: string },
+  ) {
     return db.transaction(async (tx) => {
       await this.lockNumbering(tx, businessId);
       await this.checkNumber(tx, businessId, input.invoiceNumber);
@@ -91,6 +96,7 @@ export class InvoicesService {
           businessId,
           invoiceNumber: input.invoiceNumber || null,
           ...this.invoiceColumns(input, totals),
+          ...origin,
         })
         .returning();
       await this.replaceItems(tx, businessId, invoice!.id, input, totals.lineTotals);
@@ -208,9 +214,9 @@ export class InvoicesService {
    * take the business's next number, record the issuance, and copy client and
    * business details, all in one transaction. Repeats are no-ops.
    */
-  async markReady(userId: string, businessId: string, invoiceId: string) {
+  async markReady(userId: string, businessId: string, invoiceId: string, db: Executor = this.db) {
     const reserved: { value?: Reservation } = {};
-    const invoice = await this.db.transaction(async (tx) => {
+    const invoice = await db.transaction(async (tx) => {
       const current = await this.lockInvoice(tx, businessId, invoiceId);
       if (current.status !== "draft") return this.load(tx, businessId, invoiceId);
 
@@ -268,8 +274,11 @@ export class InvoicesService {
         .where(eq(invoices.id, invoiceId));
       return this.load(tx, businessId, invoiceId);
     });
-    // After the commit; never blocks or fails the invoice.
-    if (reserved.value) await this.allowance.notifyFreeLimit(userId, reserved.value);
+    // After the commit; never blocks or fails the invoice. Inside a caller's transaction
+    // there's no commit yet, and only Pro schedules call it that way.
+    if (reserved.value && db === this.db) {
+      await this.allowance.notifyFreeLimit(userId, reserved.value);
+    }
     return invoice;
   }
 

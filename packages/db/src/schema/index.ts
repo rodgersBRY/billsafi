@@ -9,6 +9,7 @@ export * from "./invoices.js";
 export * from "./items.js";
 export * from "./payments.js";
 export * from "./quotes.js";
+export * from "./recurring.js";
 export * from "./platform.js";
 export * from "./product-tours.js";
 export * from "./reengagement.js";

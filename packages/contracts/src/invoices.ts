@@ -161,6 +161,8 @@ export interface Invoice extends InvoiceSummary {
   items: InvoiceItem[];
   /** The quote this invoice was converted from, if any (D076). */
   sourceQuote: { id: string; quoteNumber: string | null } | null;
+  /** The recurring schedule that made this invoice, if any (D082). */
+  recurringInvoiceId: string | null;
   discount: { type: "fixed" | "percentage"; value: string } | null;
   taxRate: string | null;
   subtotal: string;

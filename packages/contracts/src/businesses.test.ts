@@ -20,6 +20,7 @@ describe("createBusinessSchema", () => {
       address: null,
       kraPin: "A123456789Z",
       defaultPaymentTermsDays: 14,
+      defaultRecurringMode: "draft",
     });
   });
 

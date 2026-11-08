@@ -1,6 +1,6 @@
 "use client";
 
-import { FileSignature, FileText, LayoutDashboard, Package, Users } from "lucide-react";
+import { FileSignature, FileText, LayoutDashboard, Package, Repeat, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { sidebarClasses } from "./sidebar-mode";
@@ -11,6 +11,7 @@ const LINKS = [
   { segment: "overview", label: "Overview", icon: LayoutDashboard },
   { segment: "quotes", label: "Quotes", icon: FileSignature },
   { segment: "invoices", label: "Invoices", icon: FileText },
+  { segment: "recurring", label: "Recurring", icon: Repeat },
   { segment: "clients", label: "Clients", icon: Users },
   { segment: "items", label: "Items", icon: Package },
 ] as const;

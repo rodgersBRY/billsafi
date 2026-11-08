@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { recurringModes, type RecurringMode } from "./recurring.js";
 import { mpesaPhone, phone, optionalText, requiredText } from "./fields.js";
 
 export const businessProfileTypes = ["individual", "business"] as const;
@@ -12,11 +13,14 @@ const businessFields = {
   address: optionalText(300),
   kraPin: optionalText(20).transform((value) => value?.toUpperCase() ?? null),
   defaultPaymentTermsDays: z.number().int().min(0).max(365),
+  /** What new recurring schedules make by default (D082). */
+  defaultRecurringMode: z.enum(recurringModes),
 };
 
 export const createBusinessSchema = z.object({
   ...businessFields,
   defaultPaymentTermsDays: businessFields.defaultPaymentTermsDays.default(14),
+  defaultRecurringMode: businessFields.defaultRecurringMode.default("draft"),
 });
 export type CreateBusinessInput = z.input<typeof createBusinessSchema>;
 export type CreateBusiness = z.output<typeof createBusinessSchema>;
@@ -36,6 +40,7 @@ export interface Business {
   logoKey: string | null;
   defaultCurrency: string;
   defaultPaymentTermsDays: number;
+  defaultRecurringMode: RecurringMode;
   createdAt: string;
   updatedAt: string;
 }

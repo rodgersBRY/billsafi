@@ -95,5 +95,6 @@ export function toInvoice(
     readyAt: row.readyAt?.toISOString() ?? null,
     cancelledAt: row.cancelledAt?.toISOString() ?? null,
     financialsLocked: row.paymentActivityAt !== null,
+    recurringInvoiceId: row.recurringInvoiceId,
   };
 }

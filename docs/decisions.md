@@ -866,3 +866,7 @@ Status: confirmed on 2026-11-08 by the user.
 - Schedules can be started from an existing invoice ("Make recurring") or from a Recurring page. They can be paused, resumed, edited, ended, or told to skip the next run. Edits apply to future invoices only, and editing a generated invoice never changes its schedule.
 - Archiving the client pauses the schedule.
 - `invoices.recurring_invoice_id` and `period_date` link each invoice to its run, with a unique index on the pair so a retried job can't make two invoices for one period.
+- Runs are checked hourly by the API (`RECURRING_JOBS`, on by default). A late catch-up run still issues the invoice today, so its due date never starts in the past.
+- Making, editing and resuming a schedule need Pro (`PRO_REQUIRED`). Pausing, skipping and ending don't, so a lapsed account can still stop a schedule.
+- A schedule paused because Pro ended restarts on its own when Pro comes back. One paused for an archived client needs the client restored, then a manual resume.
+- Changing the start date or frequency restarts the run dates from the new start, which can't be in the past.
