@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, Post } from "@nestjs/common";
+import { Controller, Get, Header, HttpCode, Post } from "@nestjs/common";
 import type { WhatsNewFeed } from "@billsafi/contracts";
 import { CurrentUserId } from "../common/current-user.js";
 import { WhatsNewService } from "./whats-new.service.js";
@@ -9,6 +9,7 @@ export class WhatsNewController {
 
   /** Not cached: unread and popup depend on the user. */
   @Get()
+  @Header("Cache-Control", "private, no-store")
   feed(@CurrentUserId() userId: string): Promise<WhatsNewFeed> {
     return this.whatsNew.feed(userId);
   }

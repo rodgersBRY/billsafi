@@ -1,14 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  NotFoundException,
-  Param,
-  Post,
-  Put,
-  Req,
-  UseGuards,
-} from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Put, Req, UseGuards } from "@nestjs/common";
 import {
   type AdminActionAck,
   type AdminActionBody,
@@ -19,18 +9,12 @@ import {
   adminWhatsNewSaveSchema,
 } from "@billsafi/contracts";
 import { OptionalAuth } from "@thallesp/nestjs-better-auth";
-import { z } from "zod";
+import { UuidParamPipe } from "../../common/uuid-param.pipe.js";
 import { ZodValidationPipe } from "../../common/zod-validation.pipe.js";
 import { type AdminActionRequest, actionContext } from "../shared/action-request.js";
 import { AdminGuard } from "../shared/admin.guard.js";
 import { AdminActionRateLimitGuard } from "../shared/rate-limit.guard.js";
 import { AdminWhatsNewService } from "./admin-whats-new.service.js";
-
-/** A malformed id is an unknown entry, not a bad request. */
-function entryId(value: string): string {
-  if (!z.uuid().safeParse(value).success) throw new NotFoundException("Entry not found");
-  return value;
-}
 
 // OptionalAuth lets signed-out requests reach AdminGuard, so they get 404 not 401.
 @OptionalAuth()
@@ -57,20 +41,20 @@ export class AdminWhatsNewController {
   @Put(":id")
   @UseGuards(AdminActionRateLimitGuard)
   update(
-    @Param("id") id: string,
+    @Param("id", new UuidParamPipe("Entry")) id: string,
     @Body(new ZodValidationPipe(adminWhatsNewSaveSchema)) body: AdminWhatsNewSave,
     @Req() request: AdminActionRequest,
   ): Promise<AdminWhatsNewEntry | AdminActionAck> {
-    return this.entries.update(actionContext(request, body), entryId(id), body);
+    return this.entries.update(actionContext(request, body), id, body);
   }
 
   @Post(":id/delete")
   @UseGuards(AdminActionRateLimitGuard)
   remove(
-    @Param("id") id: string,
+    @Param("id", new UuidParamPipe("Entry")) id: string,
     @Body(new ZodValidationPipe(adminActionBodySchema)) body: AdminActionBody,
     @Req() request: AdminActionRequest,
   ): Promise<AdminActionAck> {
-    return this.entries.remove(actionContext(request, body), entryId(id));
+    return this.entries.remove(actionContext(request, body), id);
   }
 }

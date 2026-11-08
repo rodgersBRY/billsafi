@@ -132,6 +132,9 @@ describe("admin what's new", () => {
   });
 
   afterAll(async () => {
+    await db()
+      .delete(schema.whatsNewEntries)
+      .where(sql`${schema.whatsNewEntries.title} like ${`${PREFIX}%`}`);
     await app.close();
   });
 
@@ -143,6 +146,29 @@ describe("admin what's new", () => {
       .send({ ...entry, reason: REASON })
       .expect(404);
     await api().get("/api/v1/admin/whats-new").expect(404);
+    await api()
+      .post("/api/v1/admin/whats-new")
+      .send({ ...entry, reason: REASON })
+      .expect(404);
+    const unknown = crypto.randomUUID();
+    await api()
+      .put(`/api/v1/admin/whats-new/${unknown}`)
+      .set("Cookie", userCookie)
+      .send({ ...entry, reason: REASON })
+      .expect(404);
+    await api()
+      .post(`/api/v1/admin/whats-new/${unknown}/delete`)
+      .set("Cookie", userCookie)
+      .send({ reason: REASON })
+      .expect(404);
+  });
+
+  it("needs a reason to delete", async () => {
+    await api()
+      .post(`/api/v1/admin/whats-new/${crypto.randomUUID()}/delete`)
+      .set("Cookie", adminCookie)
+      .send({})
+      .expect(400);
   });
 
   it("needs a reason and valid fields", async () => {
@@ -214,6 +240,11 @@ describe("admin what's new", () => {
         { action: "whats_new.delete", outcome: "failure" },
       ]),
     );
+    const updates = audit.filter((row) => row.action === "whats_new.update");
+    expect(updates).toEqual([
+      { action: "whats_new.update", outcome: "success" },
+      { action: "whats_new.update", outcome: "success" },
+    ]);
   });
 
   it("is a 404 for an unknown or malformed id", async () => {
