@@ -49,6 +49,8 @@ Let freelancers send a quote before the work starts. The client accepts it on a 
 
 ### 4. Recurring invoices
 
+Moved into the PRD ([D082](decisions.md#d082---recurring-invoices-on-pro-before-payment-reminders)). Pro only, Draft or Ready set per business, latest missed period only, no sending to clients until reminders ship.
+
 Generate invoices for retainers and monthly fees on a schedule, either as drafts or straight to Ready.
 
 - Each generated Ready invoice uses allowance like any other.
@@ -152,7 +154,8 @@ The upgrade pitch for a typical user becomes "stop chasing clients, see who open
 
 ## Suggested order
 
-1. Payment reminders
-2. Receipts
+1. Recurring invoices
+2. Payment reminders
+3. Receipts
 
-Both reuse existing models, neither needs a payment provider, and reminders give a clear reason to upgrade. Start M-Pesa invoice collection once Daraja credentials and the settlement model are settled, since it is the main long-term advantage.
+None of these needs a payment provider, and recurring invoices and reminders both give a clear reason to upgrade. Recurring goes first because it needs no client delivery. Reminders then add sending to clients, which recurring schedules can reuse for automatic sending. Start M-Pesa invoice collection once Daraja credentials and the settlement model are settled, since it is the main long-term advantage.

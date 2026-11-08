@@ -27,6 +27,10 @@ Example from the accepted discussion: a KES 50,000 invoice with KES 20,000 recor
 
 Quotes are in V1 scope. Freelancers send a quote before the work starts; the client accepts or declines on a public link by typing their name, and an accepted quote converts to a Draft invoice. Quotes are on Free and do not use the invoice allowance. Details are in [D076](decisions.md).
 
+## Recurring invoices
+
+Pro accounts can put an invoice on a schedule for retainers and monthly fees. Each run creates a Draft or Ready invoice; the business picks the default in its settings and a schedule can override it. Ready invoices use allowance like any other. Missed periods are not backfilled: only the latest is created. BillSafi emails the user when an invoice is made but does not send it to the client yet. Sending to clients comes with payment reminders, which follow recurring invoices. When Pro ends, schedules pause. Details are in [D082](decisions.md).
+
 ## Deferred
 
 Integrated M-Pesa collection, STK Push, provider onboarding, automated payment confirmation, routing, and settlement for freelancers’ client invoice payments are outside V1. Account subscription payments are a separate, confirmed integration described below. The discussion labels integration as V2; no release commitment or provider selection is confirmed.
