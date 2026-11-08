@@ -97,7 +97,10 @@ test("decline a quote, then edit and resend it", async ({ page, browser }) => {
 
   await page.reload();
   await expect(page.getByRole("heading", { name: "Declined", exact: true })).toBeVisible();
-  await expect(page.getByText("“Too expensive”")).toBeVisible();
+  // Role queries skip the hidden copy Next keeps of the previous page.
+  await expect(
+    page.getByRole("region", { name: "Client response" }).getByText("“Too expensive”"),
+  ).toBeVisible();
 
   await page.getByRole("link", { name: "Edit and resend" }).click();
   await waitUntilInteractive(page, "Save and send");

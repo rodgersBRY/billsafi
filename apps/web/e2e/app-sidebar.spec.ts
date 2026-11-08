@@ -17,11 +17,13 @@ test("collapse the app sidebar to an icon rail and remember it", async ({ page }
   await expect(page).toHaveURL(/\/invoices/);
   await page.reload();
   await expect.poll(width).toBeLessThan(80);
-  await expect(page.getByLabel("Business", { exact: true })).toBeHidden();
+  // Next keeps a hidden copy of the previous page during navigation; count visible ones only.
+  const businessSelect = page.getByLabel("Business", { exact: true }).filter({ visible: true });
+  await expect(businessSelect).toHaveCount(0);
 
   // The rail's business button opens the full sidebar to reach the select.
   await page.getByRole("button", { name: /Switch business/ }).click();
-  await expect(page.getByLabel("Business", { exact: true })).toBeVisible();
+  await expect(businessSelect).toBeVisible();
   await expect(page.getByRole("button", { name: "Collapse navigation" })).toBeVisible();
   await expect.poll(width).toBeGreaterThan(250);
 });
