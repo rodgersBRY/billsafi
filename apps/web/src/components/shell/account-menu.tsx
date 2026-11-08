@@ -41,6 +41,7 @@ export function AccountMenu({
     <AccountMenuFrame
       name={name}
       email={email}
+      mode="group"
       dataTour="account-menu"
       footer={
         !isPro && (

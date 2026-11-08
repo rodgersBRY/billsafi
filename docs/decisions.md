@@ -840,3 +840,12 @@ Status: confirmed on 2026-11-08 by the user.
 - Public invoice and quote views, PDFs and quote versions leave the link out.
 - The guest invoice generator has no business, so it gets no dropdown.
 
+
+## D081 - Collapsible app sidebar
+
+Status: confirmed on 2026-11-08 by the user.
+
+- The business app sidebar collapses to an icon rail, the same way the admin sidebar does. A round chevron on its edge toggles it, and the choice is saved in the browser (`billsafi:app-sidebar`).
+- Until someone picks, it follows the screen: a rail from 768px to 1279px and the full sidebar from 1280px. Phones keep the full sidebar behind the menu button.
+- In the rail, nav labels show as tooltips, the usage meter keeps only its bar, and the account menu shows initials. The business select needs room, so the rail shows a business button that opens the full sidebar.
+- Sidebar content streams in after the shell, so it reads the mode from a `data-sidebar` attribute with CSS instead of React state. This avoids hydration mismatches when a saved choice applies before that content hydrates.

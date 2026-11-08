@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { authClient } from "@/lib/auth-client";
 import { useNavigationPending } from "@/lib/use-navigation-pending";
-import { type SidebarMode, sidebarClasses } from "./sidebar-mode";
+import { type SidebarStyle, sidebarClasses } from "./sidebar-mode";
 import { ThemeSwitch } from "./theme-switch";
 
 /** Row style shared by every item in an account menu. */
@@ -37,7 +37,7 @@ export function AccountMenuFrame({
   name: string;
   email: string;
   /** In an icon rail only the initials show. */
-  mode?: SidebarMode;
+  mode?: SidebarStyle;
   dataTour?: string;
   /** Items between the name and the theme switch. */
   children?: React.ReactNode;

@@ -6,9 +6,10 @@ import { AccountMenu } from "@/components/shell/account-menu";
 import { AppShell } from "@/components/shell/app-shell";
 import { BusinessSwitcher } from "@/components/shell/business-switcher";
 import { NavLinks } from "@/components/shell/nav-links";
+import { SidebarBrand } from "@/components/shell/sidebar-brand";
+import { SidebarExpandedOnly } from "@/components/shell/sidebar-state";
 import { UsageMeter } from "@/components/shell/usage-meter";
 import { GettingStartedPanel } from "@/components/tour/getting-started";
-import { BrandMark } from "@/components/ui/brand-mark";
 import { getSessionUser } from "@/lib/server-api/auth";
 import { getUsage } from "@/lib/server-api/billing";
 import { listBusinesses } from "@/lib/server-api/businesses";
@@ -39,9 +40,9 @@ async function Sidebar({ params }: { params: Promise<{ businessId: string }> }) 
           // Only shows the link; /admin itself is still checked by the proxy and the API.
           isAdmin={user.role === "admin"}
         />
-        <p className="px-1 text-xs text-sub text-center">
+        <SidebarExpandedOnly className="px-1 text-center text-xs text-sub">
           BillSafi v{process.env.NEXT_PUBLIC_APP_VERSION}
-        </p>
+        </SidebarExpandedOnly>
       </div>
     </>
   );
@@ -70,7 +71,7 @@ export default function BusinessLayout({ children, params }: LayoutProps<"/[busi
       }
       sidebar={
         <>
-          <BrandMark size={28} />
+          <SidebarBrand />
           <Suspense fallback={<div className="h-40 animate-pulse rounded-panel bg-soft" />}>
             <Sidebar params={params} />
           </Suspense>
