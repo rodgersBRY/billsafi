@@ -39,13 +39,43 @@ function tourSteps(paymentInstructionsMissing: boolean): TourStep[] {
       side: "bottom",
     },
     {
+      target: "nav-quotes",
+      inSidebar: true,
+      title: "Quotes",
+      description:
+        "Send a quote before the work starts. Once the client accepts, turn it into an invoice in one step.",
+      mobileDescription:
+        "Open the menu at the top left to find Quotes. Once a client accepts, turn the quote into an invoice in one step.",
+      side: "right",
+    },
+    {
       target: "main-nav",
       inSidebar: true,
       title: "Invoices and clients",
       description:
         "Every invoice and client is here. Open an invoice to share it or record a payment.",
       mobileDescription:
-        "Open the menu at the top left to find Invoices and Clients. Open an invoice to share it or record a payment.",
+        "Invoices and Clients are in the same menu. Open an invoice to share it or record a payment.",
+      side: "right",
+    },
+    {
+      target: "nav-recurring",
+      inSidebar: true,
+      title: "Recurring invoices",
+      description:
+        "For retainers and monthly fees. BillSafi makes the invoice for you each period. Part of Pro.",
+      mobileDescription:
+        "Recurring, in the same menu, makes invoices for retainers and monthly fees each period. Part of Pro.",
+      side: "right",
+    },
+    {
+      target: "nav-items",
+      inSidebar: true,
+      title: "Saved items",
+      description:
+        "Save the work you bill often with its price, then pick it when you build an invoice or quote.",
+      mobileDescription:
+        "Items, in the same menu, keeps the work you bill often so you can pick it on any invoice or quote.",
       side: "right",
     },
     {

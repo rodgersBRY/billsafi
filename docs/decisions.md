@@ -545,7 +545,7 @@ User: "I want to introduce a product tour to this system once a user is authenti
 Signed-in users now get a short tour of the Overview page and a checklist of first steps. The design is in [the product tour spec](superpowers/specs/2026-10-23-product-tour-design.md).
 
 - Every account sees the tour once, including accounts created before this change. It starts on the Overview page after the intro splash.
-- The tour has six steps: welcome, the totals, Create invoice, the Invoices and Clients links, the usage meter, and the account menu. When no business on the account has payment instructions, the last step also points to Settings.
+- The tour has six steps: welcome, the totals, Create invoice, the Invoices and Clients links, the usage meter, and the account menu. Version 2 adds Quotes, Recurring and Items (D083). When no business on the account has payment instructions, the last step also points to Settings.
 - On small screens, steps that point at the hidden sidebar show as a centred card.
 - Finishing or skipping is saved on the server in `user_product_tours`, so the tour does not return on another device. "Take the tour" in the account menu replays it.
 - Each tour has a version. Raising it shows the tour again to everyone.
@@ -870,3 +870,12 @@ Status: confirmed on 2026-11-08 by the user.
 - Making, editing and resuming a schedule need Pro (`PRO_REQUIRED`). Pausing, skipping and ending don't, so a lapsed account can still stop a schedule.
 - A schedule paused because Pro ended restarts on its own when Pro comes back. One paused for an archived client needs the client restored, then a manual resume.
 - Changing the start date or frequency restarts the run dates from the new start, which can't be in the past.
+
+## D083 - Show the newer sidebar links in the product tour
+
+Status: confirmed on 2026-11-08 by the user.
+
+- The first-run tour gets a step each for Quotes (D076), Recurring (D082) and Items (D080), placed around the Invoices and Clients step. It now has nine steps.
+- Each step points at its own sidebar link (`data-tour="nav-<segment>"`). On phones they show as centred cards, like the other sidebar steps.
+- The Recurring step says it's part of Pro, since Free accounts see the link too.
+- The tour version goes to 2, so every account sees it once more, including people who finished or skipped version 1.
