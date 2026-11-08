@@ -1,11 +1,20 @@
 import type { AllowanceUsage } from "@billsafi/contracts";
+import { sidebarClasses } from "./sidebar-mode";
 
-/** Account-wide allowance (D019, D051), shown in the sidebar like the approved dashboard. */
+const { label } = sidebarClasses("group");
+
+/**
+ * Account-wide allowance (D019, D051), shown in the sidebar like the approved dashboard.
+ * The rail keeps only the bar; the text stays for screen readers and as a tooltip.
+ */
 export function UsageMeter({ usage }: { usage: AllowanceUsage }) {
+  const summary = `${usage.used} of ${usage.limit} invoices ${usage.plan === "pro" ? "this Pro month" : "this month"}`;
   const percent = Math.min(100, Math.round((usage.used / usage.limit) * 100));
   return (
-    <div data-tour="usage" className="border-t border-line px-2.5 pt-4">
-      <p className="text-xs text-sub">{usage.plan === "pro" ? "Pro plan" : "Free plan"}</p>
+    <div data-tour="usage" title={summary} className="border-t border-line px-2.5 pt-4">
+      <p className={`text-xs text-sub ${label}`}>
+        {usage.plan === "pro" ? "Pro plan" : "Free plan"}
+      </p>
       <div
         role="progressbar"
         aria-label="Invoices used this month"
@@ -16,11 +25,10 @@ export function UsageMeter({ usage }: { usage: AllowanceUsage }) {
       >
         <div className="h-full rounded-lg bg-teal" style={{ width: `${percent}%` }} />
       </div>
-      <p className="text-xs text-sub">
-        {usage.used} of {usage.limit} invoices{" "}
-        {usage.plan === "pro" ? "this Pro month" : "this month"}
-      </p>
-      {usage.credits > 0 && <p className="mt-0.5 text-xs text-sub">+{usage.credits} credits</p>}
+      <p className={`text-xs text-sub ${label}`}>{summary}</p>
+      {usage.credits > 0 && (
+        <p className={`mt-0.5 text-xs text-sub ${label}`}>+{usage.credits} credits</p>
+      )}
     </div>
   );
 }
