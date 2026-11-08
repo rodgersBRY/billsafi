@@ -826,3 +826,17 @@ Status: confirmed on 2026-11-06 by the user.
 - Admins can still bypass the rule in an emergency. A direct push to `main` then publishes untested images, so don't.
 - Releases are about 7 minutes faster. This suits one developer. Revisit if more people merge into `main`.
 
+## D080 - Saved line items for invoices and quotes
+
+Status: confirmed on 2026-11-08 by the user.
+
+- A business can save line items (description, default quantity, unit price) and pick them from a dropdown on the invoice and quote editors. Typing still works; the dropdown filters as you type and lists the most used items first.
+- Picking an item copies its text and price into the line. Lines keep their own copy, so editing or archiving a saved item never changes an existing invoice or quote.
+- Saving is inline: a line that doesn't match a saved item shows a "Save item" button. The Items page in the sidebar handles editing and archiving.
+- Free accounts keep up to 5 active saved items, counted across all their businesses. Pro has no cap. Archiving frees a slot. After Pro ends, items above the cap stay usable, but new ones are blocked with `SAVED_ITEM_LIMIT` until the account is under 5.
+- Descriptions are unique per business among active items, ignoring case. An archived item's description can be reused.
+- `invoice_items.saved_item_id` and `quote_items.saved_item_id` record which saved item a line came from. The API keeps the link only if the item belongs to the same business and drops it otherwise.
+- `use_count` goes up by one when a saved item first appears on an invoice or quote. Re-saving a draft with the same lines doesn't count again. Converting or duplicating a quote counts as a new use on the new document.
+- Public invoice and quote views, PDFs and quote versions leave the link out.
+- The guest invoice generator has no business, so it gets no dropdown.
+

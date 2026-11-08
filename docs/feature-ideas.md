@@ -1,6 +1,6 @@
 # Feature ideas
 
-Last updated: 2026-11-03
+Last updated: 2026-11-08
 
 Status: **Proposed / unresolved.** Nothing here is confirmed scope. Each idea needs a product decision before it moves into the [PRD](prd.md).
 
@@ -9,6 +9,14 @@ These ideas come from comparing BillSafi with FreshBooks, Zoho Invoice, Wave, In
 ## Already in BillSafi
 
 Invoices with discount and optional tax, saved clients, manual payment recording with corrections, PDF download, public invoice links, WhatsApp and email share drafts, multiple businesses per account, the overview dashboard, and Free and Pro plans with M-Pesa subscription checkout.
+
+## Implemented
+
+Ideas from this list that have shipped. The decision record holds the details.
+
+### Saved items and services
+
+Businesses save common line items with a default price and pick them from a dropdown on invoices and quotes. A line can be saved straight from the editor, and the Items page handles editing and archiving. Free accounts keep 5 active items across their businesses; Pro has no cap. See [D080](decisions.md#d080---saved-line-items-for-invoices-and-quotes).
 
 ## Tier 1: highest value
 
@@ -67,10 +75,6 @@ One page per client listing all invoices, payments and the current balance. Usef
 ### 8. Reports and export
 
 Income by month and by client, an aging report (0 to 30, 31 to 60 and over 60 days overdue), and CSV or Excel export for accountants and KRA filing.
-
-### 9. Saved items and services
-
-Store common line items with a default price so they can be picked when building an invoice.
 
 ### 10. More currencies
 
@@ -131,7 +135,6 @@ Appeal is how much the feature is likely to make a user sign up or upgrade:
 | M-Pesa collection on invoices | Very high | The strongest reason to choose BillSafi at all. Locking it behind Pro would slow adoption. Charge a per-transaction fee on all plans (optionally lower on Pro) instead. |
 | Quotes and estimates | Medium to high | Part of the normal "quote, then invoice" workflow. Quotes do not count toward the invoice allowance, but a quote converted to an invoice does once it becomes Ready, so Free users still feel the cap. |
 | Receipts | Medium | Clients expect one after paying. Withholding it would look petty and would be easy to get around. |
-| Saved items and services | Low to medium | A small convenience that makes invoices faster to create and keeps users coming back. |
 | Deposits (later) | Medium | Part of getting paid. |
 | Card and bank payments (later) | Medium | Same model as M-Pesa collection: free to turn on, paid through a transaction fee. |
 
@@ -143,6 +146,7 @@ Some features work best as a basic version on Free and a full version on Pro:
 - **Reports:** Free keeps the dashboard totals. Pro adds income by month and client, aging, and export.
 - **Viewed tracking:** Free shows "Viewed" with no detail. Pro shows when and how often.
 - **Templates:** Free gets the standard layout. Pro gets the other layouts and accent colours.
+- **Saved items:** Free keeps 5 active items. Pro has no cap (D080).
 
 The upgrade pitch for a typical user becomes "stop chasing clients, see who opened your invoice, and get tax-ready reports", not "send more than 10 invoices".
 

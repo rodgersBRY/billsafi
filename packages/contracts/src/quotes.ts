@@ -6,6 +6,7 @@ import {
   type InvoiceBusinessDetails,
   type InvoiceClientDetails,
   type InvoiceItem,
+  type PublicLineItem,
   isoDate,
   pricingFields,
 } from "./invoices.js";
@@ -121,7 +122,7 @@ export interface QuoteVersionContent {
   currency: string;
   client: InvoiceClientDetails;
   business: InvoiceBusinessDetails;
-  items: Omit<InvoiceItem, "id">[];
+  items: PublicLineItem[];
   discount: { type: "fixed" | "percentage"; value: string } | null;
   taxRate: string | null;
   subtotal: string;
@@ -167,7 +168,7 @@ export interface PublicQuote {
   currency: string;
   business: Omit<InvoiceBusinessDetails, "logoKey">;
   client: Pick<InvoiceClientDetails, "name" | "companyName">;
-  items: Omit<InvoiceItem, "id">[];
+  items: PublicLineItem[];
   discount: { type: "fixed" | "percentage"; value: string } | null;
   taxRate: string | null;
   subtotal: string;

@@ -24,6 +24,7 @@ const items = (rows: ItemRow[]) =>
       quantity: item.quantity,
       unitPrice: item.unitPrice,
       lineTotal: item.lineTotal,
+      savedItemId: item.savedItemId,
     }));
 
 const discountOf = (row: QuoteRow) =>
@@ -108,7 +109,7 @@ export function toVersionContent(quote: Quote): QuoteVersionContent {
     currency: quote.currency,
     client: quote.client,
     business: quote.business,
-    items: quote.items.map(({ id: _id, ...item }) => item),
+    items: quote.items.map(({ id: _id, savedItemId: _savedItemId, ...item }) => item),
     discount: quote.discount,
     taxRate: quote.taxRate,
     subtotal: quote.subtotal,
@@ -138,7 +139,7 @@ export function toPublicQuote(
     currency: quote.currency,
     business,
     client: { name: quote.client.name, companyName: quote.client.companyName },
-    items: quote.items.map(({ id: _id, ...item }) => item),
+    items: quote.items.map(({ id: _id, savedItemId: _savedItemId, ...item }) => item),
     discount: quote.discount,
     taxRate: quote.taxRate,
     subtotal: quote.subtotal,

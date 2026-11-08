@@ -6,6 +6,7 @@ export * from "./billing.js";
 export * from "./businesses.js";
 export * from "./clients.js";
 export * from "./invoices.js";
+export * from "./items.js";
 export * from "./payments.js";
 export * from "./quotes.js";
 export * from "./platform.js";

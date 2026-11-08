@@ -18,6 +18,7 @@ import {
   type Discount,
   discountLabel,
   type EditorItem,
+  toItemInput,
   newItem,
   previewTotals,
 } from "@/components/invoices/editor-items";
@@ -76,6 +77,7 @@ export function QuoteEditor(props: QuoteEditorProps) {
             description: item.description,
             quantity: Number(item.quantity).toString(),
             unitPrice: item.unitPrice,
+            savedItemId: item.savedItemId,
           }),
         )
       : [newItem()],
@@ -121,11 +123,7 @@ export function QuoteEditor(props: QuoteEditorProps) {
       quoteNumber,
       issueDate,
       validUntil,
-      items: items.map(({ description, quantity, unitPrice }) => ({
-        description,
-        quantity,
-        unitPrice,
-      })),
+      items: items.map(toItemInput),
       discount,
       taxRate,
       notes,
@@ -384,7 +382,12 @@ export function QuoteEditor(props: QuoteEditorProps) {
 
           <section className="mb-3.5 rounded-panel border border-line bg-panel p-5">
             <h2 className="text-base font-semibold">What are you quoting for?</h2>
-            <LineItemsFields items={items} onChange={setItems} errors={errors} />
+            <LineItemsFields
+              businessId={businessId}
+              items={items}
+              onChange={setItems}
+              errors={errors}
+            />
             <AdjustmentsFields value={adjustments} onChange={setAdjustments} errors={errors} />
           </section>
 

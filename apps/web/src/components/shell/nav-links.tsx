@@ -1,6 +1,6 @@
 "use client";
 
-import { FileSignature, FileText, LayoutDashboard, Users } from "lucide-react";
+import { FileSignature, FileText, LayoutDashboard, Package, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -9,6 +9,7 @@ const LINKS = [
   { segment: "quotes", label: "Quotes", icon: FileSignature },
   { segment: "invoices", label: "Invoices", icon: FileText },
   { segment: "clients", label: "Clients", icon: Users },
+  { segment: "items", label: "Items", icon: Package },
 ] as const;
 
 export function NavLinks({ businessId }: { businessId: string }) {
