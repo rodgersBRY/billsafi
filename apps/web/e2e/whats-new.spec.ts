@@ -95,6 +95,7 @@ test.describe("as an admin", () => {
   test("creates a draft entry with a reason and deletes it", async ({ page }) => {
     const title = `Browser test ${crypto.randomUUID().slice(0, 8)}`;
     await signIn(page, adminEmail!, adminPassword!);
+    await expect(page).not.toHaveURL(/\/sign-in/);
     await page.goto("/admin/whats-new");
     await expect(page.getByRole("heading", { name: "What's new", level: 1 })).toBeVisible();
 
