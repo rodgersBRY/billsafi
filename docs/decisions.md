@@ -849,3 +849,24 @@ Status: confirmed on 2026-11-08 by the user.
 - Until someone picks, it follows the screen: a rail from 768px to 1279px and the full sidebar from 1280px. Phones keep the full sidebar behind the menu button.
 - In the rail, nav labels show as tooltips, the usage meter keeps only its bar, and the account menu shows initials. The business select needs room, so the rail shows a business button that opens the full sidebar.
 - Sidebar content streams in after the shell, so it reads the mode from a `data-sidebar` attribute with CSS instead of React state. This avoids hydration mismatches when a saved choice applies before that content hydrates.
+
+## D082 - Recurring invoices on Pro, before payment reminders
+
+Status: confirmed on 2026-11-08 by the user.
+
+- Recurring invoices are Pro only. When Pro ends, schedules pause and nothing is deleted. They resume when Pro comes back.
+- Each schedule makes an invoice as Draft or Ready. The business sets the default in its settings, and each schedule can override it.
+- If the job misses periods (downtime, or a paused schedule resuming), it creates only the latest one and tells the user how many were skipped. No backfill.
+- Recurring ships before payment reminders. V1 does not send anything to the client: BillSafi creates the invoice and emails the user, who shares it the usual way. Reminders will add sending to clients, and a "Send to client automatically" option on schedules can follow then. The reminders design should plan for that so client delivery is built once.
+- A schedule is a template: client, line items, discount, tax, notes, payment terms, frequency, start date and an optional end (after a number of invoices, or on a date).
+- Frequencies: weekly, monthly, quarterly, yearly. Monthly anchors on a day of the month; on short months it uses the last day and keeps the original anchor, as Pro periods do.
+- Runs follow Africa/Nairobi dates. Issue date is the run date and the due date adds the schedule's payment terms.
+- Ready invoices get their number and use allowance when made, like any other. When the allowance is used up, the invoice is saved as Draft and the user is emailed instead of the run being skipped.
+- Line descriptions can use `{month}` and `{year}` so each invoice reads "Retainer for December 2026" rather than repeating the same text.
+- Schedules can be started from an existing invoice ("Make recurring") or from a Recurring page. They can be paused, resumed, edited, ended, or told to skip the next run. Edits apply to future invoices only, and editing a generated invoice never changes its schedule.
+- Archiving the client pauses the schedule.
+- `invoices.recurring_invoice_id` and `period_date` link each invoice to its run, with a unique index on the pair so a retried job can't make two invoices for one period.
+- Runs are checked hourly by the API (`RECURRING_JOBS`, on by default). A late catch-up run still issues the invoice today, so its due date never starts in the past.
+- Making, editing and resuming a schedule need Pro (`PRO_REQUIRED`). Pausing, skipping and ending don't, so a lapsed account can still stop a schedule.
+- A schedule paused because Pro ended restarts on its own when Pro comes back. One paused for an archived client needs the client restored, then a manual resume.
+- Changing the start date or frequency restarts the run dates from the new start, which can't be in the past.

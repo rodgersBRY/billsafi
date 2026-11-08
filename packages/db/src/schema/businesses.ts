@@ -16,6 +16,9 @@ import { id, timestamps } from "./columns.js";
 
 export const businessProfileType = pgEnum("business_profile_type", ["individual", "business"]);
 
+/** Whether a recurring run makes a Draft or a Ready invoice (D082). */
+export const recurringMode = pgEnum("recurring_mode", ["draft", "ready"]);
+
 /** A tenant. V1 businesses are managed only by their owning account (D016). */
 export const businesses = pgTable(
   "businesses",
@@ -34,6 +37,7 @@ export const businesses = pgTable(
     logoKey: text("logo_key"),
     defaultCurrency: char("default_currency", { length: 3 }).notNull().default("KES"),
     defaultPaymentTermsDays: integer("default_payment_terms_days").notNull().default(14),
+    defaultRecurringMode: recurringMode("default_recurring_mode").notNull().default("draft"),
     nextInvoiceSequence: integer("next_invoice_sequence").notNull().default(1),
     nextQuoteSequence: integer("next_quote_sequence").notNull().default(1),
     ...timestamps(),

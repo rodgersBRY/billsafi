@@ -77,6 +77,11 @@ const envSchema = z
       .enum(["on", "off"])
       .default("on")
       .transform((value) => value === "on"),
+    /** Turns recurring schedules into invoices each period (D082). */
+    RECURRING_JOBS: z
+      .enum(["on", "off"])
+      .default("on")
+      .transform((value) => value === "on"),
     /**
      * Sends check-in emails to quiet accounts (D069). Off by default: it emails real
      * people, so turn it on deliberately.

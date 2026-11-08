@@ -1,6 +1,6 @@
 "use client";
 
-import type { Business } from "@billsafi/contracts";
+import type { Business, RecurringMode } from "@billsafi/contracts";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { ApiError } from "@/lib/api-error";
 export function DefaultsSettings({ business }: { business: Business }) {
   const router = useRouter();
   const [terms, setTerms] = useState(String(business.defaultPaymentTermsDays));
+  const [recurringMode, setRecurringMode] = useState<RecurringMode>(business.defaultRecurringMode);
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState<string>();
   const [pending, setPending] = useState(false);
@@ -27,7 +28,10 @@ export function DefaultsSettings({ business }: { business: Business }) {
     try {
       await apiRequest<Business>(`/businesses/${business.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ defaultPaymentTermsDays: days }),
+        body: JSON.stringify({
+          defaultPaymentTermsDays: days,
+          defaultRecurringMode: recurringMode,
+        }),
       });
       setSaved("Defaults saved.");
       router.refresh();
@@ -61,6 +65,17 @@ export function DefaultsSettings({ business }: { business: Business }) {
           }}
           error={error}
         />
+        <SelectField
+          label="Recurring invoices make"
+          value={recurringMode}
+          onChange={(event) => {
+            setSaved(undefined);
+            setRecurringMode(event.target.value as RecurringMode);
+          }}
+        >
+          <option value="draft">Draft</option>
+          <option value="ready">Ready</option>
+        </SelectField>
       </div>
       <p className="mt-3 text-xs text-sub">
         These defaults apply to new invoices. You can change them per invoice.
