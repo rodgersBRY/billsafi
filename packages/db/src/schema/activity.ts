@@ -40,6 +40,7 @@ export const JOB_NAMES = [
   "idempotency_prune",
   "maintenance",
   "reengagement_emails",
+  "recurring_invoices",
 ] as const;
 export const FAILED_SIGN_IN_METHODS = ["password", "google"] as const;
 export const FAILED_SIGN_IN_REASONS = [
