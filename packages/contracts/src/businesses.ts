@@ -4,19 +4,25 @@ import { mpesaPhone, phone, optionalText, requiredText } from "./fields.js";
 export const businessProfileTypes = ["individual", "business"] as const;
 export type BusinessProfileType = (typeof businessProfileTypes)[number];
 
-export const createBusinessSchema = z.object({
+const businessFields = {
   profileType: z.enum(businessProfileTypes),
   displayName: requiredText("Display name"),
   contactEmail: z.email("Enter a valid email address").trim().max(254),
   phone,
   address: optionalText(300),
   kraPin: optionalText(20).transform((value) => value?.toUpperCase() ?? null),
-  defaultPaymentTermsDays: z.number().int().min(0).max(365).default(14),
+  defaultPaymentTermsDays: z.number().int().min(0).max(365),
+};
+
+export const createBusinessSchema = z.object({
+  ...businessFields,
+  defaultPaymentTermsDays: businessFields.defaultPaymentTermsDays.default(14),
 });
 export type CreateBusinessInput = z.input<typeof createBusinessSchema>;
 export type CreateBusiness = z.output<typeof createBusinessSchema>;
 
-export const updateBusinessSchema = createBusinessSchema.partial();
+/** Built without defaults, so a partial update never resets fields it wasn't sent. */
+export const updateBusinessSchema = z.object(businessFields).partial();
 export type UpdateBusinessInput = z.input<typeof updateBusinessSchema>;
 
 export interface Business {

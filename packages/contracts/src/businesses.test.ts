@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createBusinessSchema, createPaymentInstructionSchema } from "./businesses.js";
+import {
+  createBusinessSchema,
+  createPaymentInstructionSchema,
+  updateBusinessSchema,
+} from "./businesses.js";
 
 const valid = {
   profileType: "individual",
@@ -32,6 +36,14 @@ describe("createBusinessSchema", () => {
 
   it("requires a display name", () => {
     expect(createBusinessSchema.safeParse({ ...valid, displayName: "  " }).success).toBe(false);
+  });
+});
+
+describe("updateBusinessSchema", () => {
+  it("leaves out fields that weren't sent instead of filling defaults", () => {
+    expect(updateBusinessSchema.parse({ displayName: "New name" })).toEqual({
+      displayName: "New name",
+    });
   });
 });
 
