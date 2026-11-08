@@ -114,8 +114,10 @@ export function WhatsNewEntryCard(props: WhatsNewEntryCardProps) {
             </span>
           )}
         </p>
-        <h4 className="mt-1 text-sm/5 font-semibold text-balance break-words text-ink">{title}</h4>
-        <p className="mt-0.5 text-xs/5 whitespace-pre-line break-words text-sub">{body}</p>
+        <h4 className="mt-1 text-sm/5 font-semibold text-balance wrap-break-word text-ink">
+          {title}
+        </h4>
+        <p className="mt-0.5 text-xs/5 whitespace-pre-line wrap-break-word text-sub">{body}</p>
         <EntryAction {...props} />
       </div>
     </article>

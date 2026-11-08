@@ -21,7 +21,7 @@ function EntryRow({ entry }: { entry: AdminWhatsNewEntry }) {
   return (
     <li className="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
       <div className="min-w-0">
-        <p className="text-sm font-medium break-words">{entry.title}</p>
+        <p className="text-sm font-medium wrap-break-word">{entry.title}</p>
         <p className="text-xs text-sub">
           {entry.publishedAt
             ? new Date(entry.publishedAt).toLocaleString("en-KE", { timeZone: "Africa/Nairobi" })
