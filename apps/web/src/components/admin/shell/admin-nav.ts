@@ -7,6 +7,7 @@ import {
   LifeBuoy,
   type LucideIcon,
   Settings,
+  Sparkles,
   ShieldCheck,
   Users,
 } from "lucide-react";
@@ -17,7 +18,7 @@ export interface AdminNavItem {
   icon: LucideIcon;
 }
 
-/** The nine admin modules, in sidebar order (spec section 21). */
+/** The admin modules, in sidebar order. */
 export const adminNav: AdminNavItem[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/tenants", label: "Tenants", icon: Building2 },
@@ -27,6 +28,7 @@ export const adminNav: AdminNavItem[] = [
   { href: "/admin/health", label: "System Health", icon: HeartPulse },
   { href: "/admin/security", label: "Security & Audit", icon: ShieldCheck },
   { href: "/admin/support", label: "Support", icon: LifeBuoy },
+  { href: "/admin/whats-new", label: "What's new", icon: Sparkles },
   { href: "/admin/settings", label: "Configuration", icon: Settings },
 ];
 

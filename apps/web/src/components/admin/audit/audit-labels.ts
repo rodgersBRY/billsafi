@@ -11,6 +11,9 @@ export const auditActionLabels: Record<string, string> = {
   "support.case_reopen": "Reopened a case",
   "support.note_add": "Added a note",
   "settings.update": "Changed a setting",
+  "whats_new.create": "Added a What's new entry",
+  "whats_new.update": "Changed a What's new entry",
+  "whats_new.delete": "Deleted a What's new entry",
 };
 
 export const auditTargetLabels: Record<string, string> = {
@@ -18,6 +21,7 @@ export const auditTargetLabels: Record<string, string> = {
   user: "User",
   support_case: "Support case",
   setting: "Setting",
+  whats_new_entry: "What's new entry",
 };
 
 export function actionLabel(action: string): string {

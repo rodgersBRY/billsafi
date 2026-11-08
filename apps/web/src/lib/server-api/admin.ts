@@ -28,6 +28,7 @@ import type {
   AdminTenantsPage,
   AdminUserDetail,
   AdminUsersPage,
+  AdminWhatsNewList,
 } from "@billsafi/contracts";
 import { cache } from "react";
 import { getSessionUser } from "./auth";
@@ -150,4 +151,8 @@ export const getAdminTenantActivity = cache(
     apiGet<AdminTenantActivityPage>(
       `/admin/tenants/${encodeURIComponent(id)}/activity${queryString}`,
     ),
+);
+
+export const getAdminWhatsNew = cache((): Promise<AdminWhatsNewList> =>
+  apiGet<AdminWhatsNewList>("/admin/whats-new"),
 );
