@@ -14,3 +14,4 @@ export * from "./platform.js";
 export * from "./product-tours.js";
 export * from "./reengagement.js";
 export * from "./support.js";
+export * from "./whats-new.js";
