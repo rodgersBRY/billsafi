@@ -1,6 +1,14 @@
 "use client";
 
-import { FileSignature, FileText, LayoutDashboard, Package, Repeat, Users } from "lucide-react";
+import {
+  Crown,
+  FileSignature,
+  FileText,
+  LayoutDashboard,
+  Package,
+  Repeat,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { sidebarClasses } from "./sidebar-mode";
@@ -11,21 +19,27 @@ const LINKS = [
   { segment: "overview", label: "Overview", icon: LayoutDashboard },
   { segment: "quotes", label: "Quotes", icon: FileSignature },
   { segment: "invoices", label: "Invoices", icon: FileText },
-  { segment: "recurring", label: "Recurring", icon: Repeat },
+  { segment: "recurring", label: "Recurring", icon: Repeat, pro: true },
   { segment: "clients", label: "Clients", icon: Users },
   { segment: "items", label: "Items", icon: Package },
 ] as const;
 
-/** In the rail, labels become tooltips and stay as accessible names. */
-export function NavLinks({ businessId }: { businessId: string }) {
+/**
+ * In the rail, labels become tooltips and stay as accessible names. Free accounts see a
+ * crown on Pro-only links.
+ */
+export function NavLinks({ businessId, isPro }: { businessId: string; isPro: boolean }) {
   const pathname = usePathname();
-  const item = "flex items-center gap-2.75 rounded-lg p-2.75 text-sm text-sub transition-colors";
+  const item =
+    "relative flex items-center gap-2.75 rounded-lg p-2.75 text-sm text-sub transition-colors";
 
   return (
     <nav aria-label="Main" data-tour="main-nav" className="grid gap-1.5">
-      {LINKS.map(({ segment, label, icon: Icon }) => {
+      {LINKS.map((link) => {
+        const { segment, label, icon: Icon } = link;
         const href = `/${businessId}/${segment}`;
         const active = pathname.startsWith(href);
+        const proBadge = "pro" in link && !isPro;
         return (
           <div key={segment} data-tour={`nav-${segment}`} className="group/item relative">
             <Link
@@ -35,12 +49,30 @@ export function NavLinks({ businessId }: { businessId: string }) {
             >
               <Icon aria-hidden className="size-4.5 shrink-0" />
               <span className={`whitespace-nowrap ${classes.label}`}>{label}</span>
+              {proBadge && (
+                <>
+                  <span className="sr-only">(Pro feature)</span>
+                  <span
+                    aria-hidden
+                    title="Pro feature"
+                    className={`ml-auto text-accent ${classes.expandedOnly}`}
+                  >
+                    <Crown className="size-4" />
+                  </span>
+                  {/* In the rail the crown sits on the icon's corner. */}
+                  <Crown
+                    aria-hidden
+                    className={`absolute top-1 right-1 size-2.5 text-accent ${classes.railOnly}`}
+                  />
+                </>
+              )}
             </Link>
             <span
               aria-hidden
               className={`pointer-events-none absolute top-1/2 left-full z-50 ml-2 -translate-y-1/2 rounded-md bg-ink px-2 py-1 text-xs whitespace-nowrap text-panel shadow-md ${classes.tooltip}`}
             >
               {label}
+              {proBadge && <Crown className="-mt-0.5 ml-1 inline-block size-3 align-middle" />}
             </span>
           </div>
         );
