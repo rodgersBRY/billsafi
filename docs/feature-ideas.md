@@ -1,6 +1,6 @@
 # Feature ideas
 
-Last updated: 2026-11-03
+Last updated: 2026-11-08
 
 Status: **Proposed / unresolved.** Nothing here is confirmed scope. Each idea needs a product decision before it moves into the [PRD](prd.md).
 
@@ -9,6 +9,14 @@ These ideas come from comparing BillSafi with FreshBooks, Zoho Invoice, Wave, In
 ## Already in BillSafi
 
 Invoices with discount and optional tax, saved clients, manual payment recording with corrections, PDF download, public invoice links, WhatsApp and email share drafts, multiple businesses per account, the overview dashboard, and Free and Pro plans with M-Pesa subscription checkout.
+
+## Implemented
+
+Ideas from this list that have shipped. The decision record holds the details.
+
+### Saved items and services
+
+Businesses save common line items with a default price and pick them from a dropdown on invoices and quotes. A line can be saved straight from the editor, and the Items page handles editing and archiving. Free accounts keep 5 active items across their businesses; Pro has no cap. See [D080](decisions.md#d080---saved-line-items-for-invoices-and-quotes).
 
 ## Tier 1: highest value
 
@@ -41,6 +49,8 @@ Let freelancers send a quote before the work starts. The client accepts it on a 
 
 ### 4. Recurring invoices
 
+Moved into the PRD ([D082](decisions.md#d082---recurring-invoices-on-pro-before-payment-reminders)). Pro only, Draft or Ready set per business, latest missed period only, no sending to clients until reminders ship.
+
 Generate invoices for retainers and monthly fees on a schedule, either as drafts or straight to Ready.
 
 - Each generated Ready invoice uses allowance like any other.
@@ -68,10 +78,6 @@ One page per client listing all invoices, payments and the current balance. Usef
 
 Income by month and by client, an aging report (0 to 30, 31 to 60 and over 60 days overdue), and CSV or Excel export for accountants and KRA filing.
 
-### 9. Saved items and services
-
-Store common line items with a default price so they can be picked when building an invoice.
-
 ### 10. More currencies
 
 USD and EUR for freelancers billing foreign clients. The `currency` column already exists on invoices and businesses. Dashboard totals would need to be grouped by currency.
@@ -83,6 +89,19 @@ More PDF layouts and a choice of accent colour, within the confirmed PDF colour 
 ### 12. Viewed tracking
 
 Show "Client viewed this invoice on ..." based on public link opens. Cheap to build and useful when following up.
+
+### 13. WhatsApp assistant
+
+Let users manage their account from a WhatsApp chat. They could list unpaid invoices, get an invoice PDF, create a simple invoice, or record a payment without opening the web app.
+
+- Use the official WhatsApp Cloud API (or Twilio or 360dialog on top of it). Unofficial libraries such as Baileys break Meta's terms and get numbers banned.
+- A new API module receives Meta's webhook at a versioned route (for example `/api/v1/whatsapp/webhook`), checks the `X-Hub-Signature-256` signature, and calls the existing invoice, quote, client and payment services. Replies go through a sender interface with a local fake, like the mailer.
+- Account linking: the user adds their phone in settings, gets a one-time code, and sends it to the bot. Only a verified number is linked to a user, and every command runs with that user's ownership checks.
+- Input options: numbered menus and interactive buttons, an AI model with tool calling for free text ("invoice Acme 50k for logo design"), or both. The suggested mix is AI to understand the message and a confirm button before any write.
+- Delete, mark paid and send to client always need an explicit confirmation.
+- Meta only allows free replies within 24 hours of the user's last message. Messages the bot starts, such as payment alerts, need approved templates and cost money per conversation.
+- Needs a verified Meta Business account and a dedicated number.
+- Open: v1 commands (suggested: mostly reads plus simple invoice creation, with billing and plan changes kept on the web), menus vs AI, Free vs Pro (suggested: Pro, since templates and AI calls cost money).
 
 ## Tier 3: later
 
@@ -115,6 +134,7 @@ Appeal is how much the feature is likely to make a user sign up or upgrade:
 | Viewed tracking | Medium to high | Cheap to build and easy to understand. "Your client opened the invoice yesterday" is a strong prompt to follow up, and a good teaser on Free. |
 | Reports beyond the dashboard, aging, and CSV/Excel export | Medium to high | Becomes urgent at tax time and when working with an accountant. |
 | More currencies | High for foreign-client freelancers, low for others | Users billing in USD or EUR tend to earn more and can afford KES 500. |
+| WhatsApp assistant | Medium to high | Most users already live in WhatsApp. Each message and AI call costs money, so it fits a paid plan. |
 | Client statements | Medium | Matters once a user has repeat clients with several open invoices. |
 | Templates and brand colours | Medium | Clients see it, so it makes the freelancer look more professional. |
 | Expense tracking (later) | Medium | Turns BillSafi into a simple profit tracker. |
@@ -131,7 +151,6 @@ Appeal is how much the feature is likely to make a user sign up or upgrade:
 | M-Pesa collection on invoices | Very high | The strongest reason to choose BillSafi at all. Locking it behind Pro would slow adoption. Charge a per-transaction fee on all plans (optionally lower on Pro) instead. |
 | Quotes and estimates | Medium to high | Part of the normal "quote, then invoice" workflow. Quotes do not count toward the invoice allowance, but a quote converted to an invoice does once it becomes Ready, so Free users still feel the cap. |
 | Receipts | Medium | Clients expect one after paying. Withholding it would look petty and would be easy to get around. |
-| Saved items and services | Low to medium | A small convenience that makes invoices faster to create and keeps users coming back. |
 | Deposits (later) | Medium | Part of getting paid. |
 | Card and bank payments (later) | Medium | Same model as M-Pesa collection: free to turn on, paid through a transaction fee. |
 
@@ -143,12 +162,14 @@ Some features work best as a basic version on Free and a full version on Pro:
 - **Reports:** Free keeps the dashboard totals. Pro adds income by month and client, aging, and export.
 - **Viewed tracking:** Free shows "Viewed" with no detail. Pro shows when and how often.
 - **Templates:** Free gets the standard layout. Pro gets the other layouts and accent colours.
+- **Saved items:** Free keeps 5 active items. Pro has no cap (D080).
 
 The upgrade pitch for a typical user becomes "stop chasing clients, see who opened your invoice, and get tax-ready reports", not "send more than 10 invoices".
 
 ## Suggested order
 
-1. Payment reminders
-2. Receipts
+1. Recurring invoices
+2. Payment reminders
+3. Receipts
 
-Both reuse existing models, neither needs a payment provider, and reminders give a clear reason to upgrade. Start M-Pesa invoice collection once Daraja credentials and the settlement model are settled, since it is the main long-term advantage.
+None of these needs a payment provider, and recurring invoices and reminders both give a clear reason to upgrade. Recurring goes first because it needs no client delivery. Reminders then add sending to clients, which recurring schedules can reuse for automatic sending. Start M-Pesa invoice collection once Daraja credentials and the settlement model are settled, since it is the main long-term advantage.

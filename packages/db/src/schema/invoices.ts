@@ -19,6 +19,8 @@ import { users } from "./auth.js";
 import { businesses } from "./businesses.js";
 import { clients } from "./clients.js";
 import { id, timestamps } from "./columns.js";
+import { savedItems } from "./items.js";
+import { recurringInvoices } from "./recurring.js";
 
 /** Monetary amounts: numeric(14,2). Quantities: numeric(12,2) (D048). */
 const amount = (name: string) => numeric(name, { precision: 14, scale: 2 });
@@ -90,9 +92,20 @@ export const invoices = pgTable(
      */
     paymentActivityAt: timestamp("payment_activity_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    /** The schedule and period that made this invoice (D082). */
+    recurringInvoiceId: uuid("recurring_invoice_id").references(() => recurringInvoices.id, {
+      onDelete: "set null",
+    }),
+    periodDate: date("period_date"),
     ...timestamps(),
   },
   (table) => [
+    // One invoice per schedule period, so a retried run can't make two.
+    unique("invoices_recurring_period_unique").on(table.recurringInvoiceId, table.periodDate),
+    check(
+      "invoices_recurring_period_pair",
+      sql`(${table.recurringInvoiceId} is null) or (${table.periodDate} is not null)`,
+    ),
     // The client must belong to the same business as the invoice.
     foreignKey({
       name: "invoices_client_same_business_fk",
@@ -129,6 +142,8 @@ export const invoiceItems = pgTable(
     quantity: numeric("quantity", { precision: 12, scale: 2 }).notNull(),
     unitPrice: amount("unit_price").notNull(),
     lineTotal: amount("line_total").notNull(),
+    /** Ranking hint only; the line keeps its own copy of the text and price (D080). */
+    savedItemId: uuid("saved_item_id").references(() => savedItems.id, { onDelete: "set null" }),
   },
   (table) => [
     // Items belong to their invoice's business. Only unissued drafts are ever deleted.

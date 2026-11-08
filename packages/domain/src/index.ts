@@ -11,3 +11,5 @@ export * from "./reengagement.js";
 export * from "./payments.js";
 export * from "./subscription-payments.js";
 export * from "./quote-lifecycle.js";
+export * from "./recurring.js";
+export * from "./whats-new.js";

@@ -20,6 +20,8 @@
   --teal: #0f766e;
   /* Teal for text and icons; lightened in dark mode to keep contrast (D052). */
   --accent: #0f766e;
+  /* Pro crown. */
+  --gold: #ca8a04;
   --background: #f5f8f7;
   --panel: #ffffff;
   --ink: #172b2a;
@@ -51,6 +53,7 @@
   :root:not([data-theme="light"]):not(:has([data-landing])) {
     color-scheme: dark;
     --accent: #5fd4c4;
+    --gold: #facc15;
     --background: var(--app-night);
     --panel: #1d302c;
     --ink: #ecf4f1;
@@ -72,6 +75,7 @@
 :root[data-theme="dark"]:not(:has([data-landing])) {
   color-scheme: dark;
   --accent: #5fd4c4;
+  --gold: #facc15;
   --background: var(--app-night);
   --panel: #1d302c;
   --ink: #ecf4f1;
@@ -173,6 +177,7 @@
 @theme inline {
   --color-teal: var(--teal);
   --color-accent: var(--accent);
+  --color-gold: var(--gold);
   --color-background: var(--background);
   --color-panel: var(--panel);
   --color-ink: var(--ink);

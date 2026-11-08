@@ -545,7 +545,7 @@ User: "I want to introduce a product tour to this system once a user is authenti
 Signed-in users now get a short tour of the Overview page and a checklist of first steps. The design is in [the product tour spec](superpowers/specs/2026-10-23-product-tour-design.md).
 
 - Every account sees the tour once, including accounts created before this change. It starts on the Overview page after the intro splash.
-- The tour has six steps: welcome, the totals, Create invoice, the Invoices and Clients links, the usage meter, and the account menu. When no business on the account has payment instructions, the last step also points to Settings.
+- The tour has six steps: welcome, the totals, Create invoice, the Invoices and Clients links, the usage meter, and the account menu. Version 2 adds Quotes, Recurring and Items (D083). When no business on the account has payment instructions, the last step also points to Settings.
 - On small screens, steps that point at the hidden sidebar show as a centred card.
 - Finishing or skipping is saved on the server in `user_product_tours`, so the tour does not return on another device. "Take the tour" in the account menu replays it.
 - Each tour has a version. Raising it shows the tour again to everyone.
@@ -826,3 +826,73 @@ Status: confirmed on 2026-11-06 by the user.
 - Admins can still bypass the rule in an emergency. A direct push to `main` then publishes untested images, so don't.
 - Releases are about 7 minutes faster. This suits one developer. Revisit if more people merge into `main`.
 
+## D080 - Saved line items for invoices and quotes
+
+Status: confirmed on 2026-11-08 by the user.
+
+- A business can save line items (description, default quantity, unit price) and pick them from a dropdown on the invoice and quote editors. Typing still works; the dropdown filters as you type and lists the most used items first.
+- Picking an item copies its text and price into the line. Lines keep their own copy, so editing or archiving a saved item never changes an existing invoice or quote.
+- Saving is inline: a line that doesn't match a saved item shows a "Save item" button. The Items page in the sidebar handles editing and archiving.
+- Free accounts keep up to 5 active saved items, counted across all their businesses. Pro has no cap. Archiving frees a slot. After Pro ends, items above the cap stay usable, but new ones are blocked with `SAVED_ITEM_LIMIT` until the account is under 5.
+- Descriptions are unique per business among active items, ignoring case. An archived item's description can be reused.
+- `invoice_items.saved_item_id` and `quote_items.saved_item_id` record which saved item a line came from. The API keeps the link only if the item belongs to the same business and drops it otherwise.
+- `use_count` goes up by one when a saved item first appears on an invoice or quote. Re-saving a draft with the same lines doesn't count again. Converting or duplicating a quote counts as a new use on the new document.
+- Public invoice and quote views, PDFs and quote versions leave the link out.
+- The guest invoice generator has no business, so it gets no dropdown.
+
+
+## D081 - Collapsible app sidebar
+
+Status: confirmed on 2026-11-08 by the user.
+
+- The business app sidebar collapses to an icon rail, the same way the admin sidebar does. A round chevron on its edge toggles it, and the choice is saved in the browser (`billsafi:app-sidebar`).
+- Until someone picks, it follows the screen: a rail from 768px to 1279px and the full sidebar from 1280px. Phones keep the full sidebar behind the menu button.
+- In the rail, nav labels show as tooltips, the usage meter keeps only its bar, and the account menu shows initials. The business select needs room, so the rail shows a business button that opens the full sidebar.
+- Sidebar content streams in after the shell, so it reads the mode from a `data-sidebar` attribute with CSS instead of React state. This avoids hydration mismatches when a saved choice applies before that content hydrates.
+
+## D082 - Recurring invoices on Pro, before payment reminders
+
+Status: confirmed on 2026-11-08 by the user.
+
+- Recurring invoices are Pro only. When Pro ends, schedules pause and nothing is deleted. They resume when Pro comes back.
+- Each schedule makes an invoice as Draft or Ready. The business sets the default in its settings, and each schedule can override it.
+- If the job misses periods (downtime, or a paused schedule resuming), it creates only the latest one and tells the user how many were skipped. No backfill.
+- Recurring ships before payment reminders. V1 does not send anything to the client: BillSafi creates the invoice and emails the user, who shares it the usual way. Reminders will add sending to clients, and a "Send to client automatically" option on schedules can follow then. The reminders design should plan for that so client delivery is built once.
+- A schedule is a template: client, line items, discount, tax, notes, payment terms, frequency, start date and an optional end (after a number of invoices, or on a date).
+- Frequencies: weekly, monthly, quarterly, yearly. Monthly anchors on a day of the month; on short months it uses the last day and keeps the original anchor, as Pro periods do.
+- Runs follow Africa/Nairobi dates. Issue date is the run date and the due date adds the schedule's payment terms.
+- Ready invoices get their number and use allowance when made, like any other. When the allowance is used up, the invoice is saved as Draft and the user is emailed instead of the run being skipped.
+- Line descriptions can use `{month}` and `{year}` so each invoice reads "Retainer for December 2026" rather than repeating the same text.
+- Schedules can be started from an existing invoice ("Make recurring") or from a Recurring page. They can be paused, resumed, edited, ended, or told to skip the next run. Edits apply to future invoices only, and editing a generated invoice never changes its schedule.
+- Archiving the client pauses the schedule.
+- `invoices.recurring_invoice_id` and `period_date` link each invoice to its run, with a unique index on the pair so a retried job can't make two invoices for one period.
+- Runs are checked hourly by the API (`RECURRING_JOBS`, on by default). A late catch-up run still issues the invoice today, so its due date never starts in the past.
+- Making, editing and resuming a schedule need Pro (`PRO_REQUIRED`). Pausing, skipping and ending don't, so a lapsed account can still stop a schedule.
+- A schedule paused because Pro ended restarts on its own when Pro comes back. One paused for an archived client needs the client restored, then a manual resume.
+- Changing the start date or frequency restarts the run dates from the new start, which can't be in the past.
+
+## D083 - Show the newer sidebar links in the product tour
+
+Status: confirmed on 2026-11-08 by the user.
+
+- The first-run tour gets a step each for Quotes (D076), Recurring (D082) and Items (D080), placed around the Invoices and Clients step. It now has nine steps.
+- Each step points at its own sidebar link (`data-tour="nav-<segment>"`). On phones they show as centred cards, like the other sidebar steps.
+- The Recurring step says it's part of Pro, since Free accounts see the link too.
+- The tour version goes to 2, so every account sees it once more, including people who finished or skipped version 1.
+
+## D084 - What's new panel for product updates
+
+Status: proposed on 2026-11-08, for review.
+
+User: asked how to tell users about new features, and chose an admin-written panel with a sidebar count and a pop-up for big releases.
+
+- Admins write entries at `/admin/whats-new`: title (80), body (500, plain text), an optional app page to link to, Pro and Pop up flags, and an optional publish time. No publish time is a draft. A future one is scheduled. The page groups entries under Drafts, Scheduled and Live, and has a "What's new" nav item.
+- Admin routes are `GET` and `POST /api/v1/admin/whats-new`, `PUT /api/v1/admin/whats-new/:id` and `POST /api/v1/admin/whats-new/:id/delete`. The `PUT` takes the full entry, and leaving out `publishedAt` returns it to draft. Delete is a `POST` so the shared confirm dialog can call it. A malformed id gets 404. A `PUT` with no changes gets 409 `NO_CHANGE` and no audit row.
+- Every change needs a reason and is audited through the admin action runner.
+- Every user sees every live entry. Pro entries show a crown, and Free users get "Upgrade to Pro" in place of the page link. There is no audience targeting.
+- Read state is one time per user in `user_whats_new.seen_at`. An entry is unread when it was published after that time. A missing row falls back to the sign-up time, so new users don't start with a backlog and nothing needs backfilling. Opening the panel sets it to now. There is no per-entry read state.
+- `whats_new_entries.created_by` is nullable and set to null when the admin is deleted. `user_whats_new.user_id` cascades on delete.
+- The panel opens by itself when an unread entry has Pop up on, unless the first-run tour is still due. The tour wins on the first day.
+- The feed (`GET /api/v1/whats-new`, newest 20) is fetched in the browser into a small store shared by the sidebar button and the panel. The panel renders in the main area because the sidebar is hidden on small screens. The feed sends `Cache-Control: private, no-store`, since unread depends on the user.
+- Browser tests mock the feed with `page.route`, because a real pop-up entry is global and would open in parallel tests.
+- Out of scope: images, emails, audience targeting, linking entries to product tours.

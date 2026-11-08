@@ -333,3 +333,47 @@ export function pastGiftsEmail(
     text: [`Hi ${name},`, ...paragraphs, `View billing: ${billingUrl}`, note].join("\n\n"),
   };
 }
+
+export type RecurringRunOutcome = "draft" | "ready" | "allowance_reached";
+
+/** Tells the freelancer a recurring schedule made an invoice. BillSafi never sends it to the client (D082). */
+export function recurringInvoiceEmail(
+  to: string,
+  name: string,
+  run: {
+    outcome: RecurringRunOutcome;
+    clientName: string;
+    invoiceNumber: string | null;
+    currency: string;
+    total: string;
+    skipped: number;
+  },
+  url: string,
+): MailMessage {
+  const subject =
+    run.outcome === "ready"
+      ? `Invoice ${run.invoiceNumber} for ${run.clientName} is ready to send`
+      : run.outcome === "allowance_reached"
+        ? `Invoice for ${run.clientName} saved as a draft`
+        : `Invoice for ${run.clientName} is ready to review`;
+  const paragraphs = [
+    run.outcome === "ready"
+      ? `Your recurring schedule made invoice ${run.invoiceNumber} for ${run.clientName}, ${run.currency} ${run.total}. Share it with them on WhatsApp or email.`
+      : run.outcome === "allowance_reached"
+        ? `Your recurring schedule made an invoice for ${run.clientName}, ${run.currency} ${run.total}, but you've used this month's invoice allowance. It's saved as a draft. Mark it Ready once your allowance resets.`
+        : `Your recurring schedule made a draft invoice for ${run.clientName}, ${run.currency} ${run.total}. Check it, mark it Ready and share it.`,
+  ];
+  if (run.skipped > 0) {
+    paragraphs.push(
+      `${plural(run.skipped, "earlier period")} passed without an invoice, so BillSafi made only the latest one.`,
+    );
+  }
+  const action = run.outcome === "ready" ? "Open and share" : "Review the draft";
+  const note = "You're getting this because you set up a recurring invoice in BillSafi.";
+  return {
+    to,
+    subject,
+    html: emailLayout({ preview: subject, title: subject, name, paragraphs, action, url, note }),
+    text: [`Hi ${name},`, ...paragraphs, `${action}: ${url}`, note].join("\n\n"),
+  };
+}

@@ -80,6 +80,7 @@ export function toInvoice(
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         lineTotal: item.lineTotal,
+        savedItemId: item.savedItemId,
       })),
     discount:
       row.discountType && row.discountValue
@@ -94,5 +95,6 @@ export function toInvoice(
     readyAt: row.readyAt?.toISOString() ?? null,
     cancelledAt: row.cancelledAt?.toISOString() ?? null,
     financialsLocked: row.paymentActivityAt !== null,
+    recurringInvoiceId: row.recurringInvoiceId,
   };
 }

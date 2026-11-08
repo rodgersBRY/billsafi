@@ -6,9 +6,12 @@ import { AccountMenu } from "@/components/shell/account-menu";
 import { AppShell } from "@/components/shell/app-shell";
 import { BusinessSwitcher } from "@/components/shell/business-switcher";
 import { NavLinks } from "@/components/shell/nav-links";
+import { SidebarBrand } from "@/components/shell/sidebar-brand";
+import { SidebarExpandedOnly } from "@/components/shell/sidebar-state";
 import { UsageMeter } from "@/components/shell/usage-meter";
 import { GettingStartedPanel } from "@/components/tour/getting-started";
-import { BrandMark } from "@/components/ui/brand-mark";
+import { WhatsNewButton } from "@/components/whats-new/whats-new-button";
+import { WhatsNewPanel } from "@/components/whats-new/whats-new-panel";
 import { getSessionUser } from "@/lib/server-api/auth";
 import { getUsage } from "@/lib/server-api/billing";
 import { listBusinesses } from "@/lib/server-api/businesses";
@@ -26,9 +29,10 @@ async function Sidebar({ params }: { params: Promise<{ businessId: string }> }) 
   return (
     <>
       <BusinessSwitcher businesses={businesses} currentId={businessId} />
-      <NavLinks businessId={businessId} />
+      <NavLinks businessId={businessId} isPro={usage.plan === "pro"} />
       <div className="mt-auto grid grid-cols-1 gap-3">
         <UsageMeter usage={usage} />
+        <WhatsNewButton userId={user.id} />
         <AccountMenu
           name={user.name}
           email={user.email}
@@ -39,9 +43,9 @@ async function Sidebar({ params }: { params: Promise<{ businessId: string }> }) 
           // Only shows the link; /admin itself is still checked by the proxy and the API.
           isAdmin={user.role === "admin"}
         />
-        <p className="px-1 text-xs text-sub text-center">
+        <SidebarExpandedOnly className="px-1 text-center text-xs text-sub">
           BillSafi v{process.env.NEXT_PUBLIC_APP_VERSION}
-        </p>
+        </SidebarExpandedOnly>
       </div>
     </>
   );
@@ -60,6 +64,12 @@ async function SetupChecklist({ params }: { params: Promise<{ businessId: string
   return <GettingStartedPanel businessId={businessId} progress={progress} />;
 }
 
+/** The What's new panel needs the business for its links and the plan for its buttons (D084). */
+async function WhatsNew({ params }: { params: Promise<{ businessId: string }> }) {
+  const [{ businessId }, usage] = await Promise.all([params, getUsage()]);
+  return <WhatsNewPanel businessId={businessId} isPro={usage.plan === "pro"} />;
+}
+
 export default function BusinessLayout({ children, params }: LayoutProps<"/[businessId]">) {
   return (
     <AppShell
@@ -70,7 +80,7 @@ export default function BusinessLayout({ children, params }: LayoutProps<"/[busi
       }
       sidebar={
         <>
-          <BrandMark size={28} />
+          <SidebarBrand />
           <Suspense fallback={<div className="h-40 animate-pulse rounded-panel bg-soft" />}>
             <Sidebar params={params} />
           </Suspense>
@@ -80,6 +90,9 @@ export default function BusinessLayout({ children, params }: LayoutProps<"/[busi
       {children}
       <Suspense fallback={null}>
         <SetupChecklist params={params} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <WhatsNew params={params} />
       </Suspense>
     </AppShell>
   );

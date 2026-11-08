@@ -23,8 +23,10 @@ test("a new account takes the tour once and it stays done after a reload", async
   await expect(tour).toHaveAccessibleName("Your money at a glance");
   await tour.getByRole("button", { name: "Next" }).click();
   await expect(tour).toHaveAccessibleName("Create an invoice");
-  await tour.getByRole("button", { name: "Next" }).click();
-  await expect(tour).toHaveAccessibleName("Invoices and clients");
+  for (const step of ["Quotes", "Invoices and clients", "Recurring invoices", "Saved items"]) {
+    await tour.getByRole("button", { name: "Next" }).click();
+    await expect(tour).toHaveAccessibleName(step);
+  }
   await tour.getByRole("button", { name: "Next" }).click();
   await expect(tour).toHaveAccessibleName("Your monthly allowance");
   await tour.getByRole("button", { name: "Next" }).click();
@@ -32,7 +34,7 @@ test("a new account takes the tour once and it stays done after a reload", async
   // The account menu closes the tour; payment details were skipped, so it points to Settings.
   await expect(tour).toHaveAccessibleName("Your account menu");
   await expect(tour.getByText("add your M-Pesa, Till, Paybill or bank details")).toBeVisible();
-  await expect(tour.getByText("6 of 6")).toBeVisible();
+  await expect(tour.getByText("9 of 9")).toBeVisible();
   await expect(tour.getByRole("button", { name: "Skip tour" })).toBeHidden();
   await tour.getByRole("button", { name: "Done" }).click();
   await expect(tour).toBeHidden();
@@ -127,7 +129,7 @@ test.describe("on a phone", () => {
     await tour.getByRole("button", { name: "Show me around" }).click();
     await tour.getByRole("button", { name: "Next" }).click();
     await tour.getByRole("button", { name: "Next" }).click();
-    await expect(tour).toHaveAccessibleName("Invoices and clients");
+    await expect(tour).toHaveAccessibleName("Quotes");
     await expect(tour.getByText("Open the menu at the top left")).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Main" })).toBeHidden();
   });

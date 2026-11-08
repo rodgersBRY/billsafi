@@ -19,16 +19,18 @@ import { ClientsModule } from "./clients/clients.module.js";
 import { GuestInvoicesModule } from "./guest-invoices/guest-invoices.module.js";
 import { HealthModule } from "./health/health.module.js";
 import { InvoicesModule } from "./invoices/invoices.module.js";
+import { SavedItemsModule } from "./items/saved-items.module.js";
 import { QuotesModule } from "./quotes/quotes.module.js";
+import { RecurringModule } from "./recurring/recurring.module.js";
 import { MAILER, MailModule } from "./mail/mail.module.js";
 import { PlatformModule } from "./platform/platform.module.js";
 import { ProductToursModule } from "./product-tours/product-tours.module.js";
 import { ReengagementModule } from "./reengagement/reengagement.module.js";
+import { WhatsNewModule } from "./whats-new/whats-new.module.js";
 import type { Mailer } from "./mail/mailer.js";
 
 @Module({
   imports: [
-    // Without a DSN (local, tests) the SDK is not initialised and reports nothing.
     SentryModule.forRoot(),
     ConfigModule,
     DatabaseModule,
@@ -55,12 +57,15 @@ import type { Mailer } from "./mail/mailer.js";
     HealthModule,
     BusinessesModule,
     ClientsModule,
+    SavedItemsModule,
     InvoicesModule,
     QuotesModule,
+    RecurringModule,
     GuestInvoicesModule,
     BillingModule,
     ProductToursModule,
     ReengagementModule,
+    WhatsNewModule,
     PlatformModule,
     AdminModule,
   ],

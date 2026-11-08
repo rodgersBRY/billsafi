@@ -89,6 +89,7 @@ export const jobNames = [
   "idempotency_prune",
   "maintenance",
   "reengagement_emails",
+  "recurring_invoices",
 ] as const;
 export type JobName = (typeof jobNames)[number];
 

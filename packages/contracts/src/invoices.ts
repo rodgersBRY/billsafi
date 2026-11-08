@@ -35,6 +35,8 @@ export const invoiceItemSchema = z.object({
   description: requiredText("Description", INVOICE_LIMITS.descriptionLength),
   quantity: decimalString("Quantity", INVOICE_LIMITS.minQuantity, INVOICE_LIMITS.maxQuantity),
   unitPrice: decimalString("Unit price", 0, INVOICE_LIMITS.maxUnitPrice),
+  /** Set when the line was picked from a saved item. Only used to rank saved items (D080). */
+  savedItemId: z.uuid().nullish(),
 });
 export type InvoiceItemInput = z.input<typeof invoiceItemSchema>;
 
@@ -111,7 +113,11 @@ export interface InvoiceItem {
   quantity: string;
   unitPrice: string;
   lineTotal: string;
+  savedItemId: string | null;
 }
+
+/** A line item as clients see it: no internal ids. */
+export type PublicLineItem = Omit<InvoiceItem, "id" | "savedItemId">;
 
 export interface InvoiceClientDetails {
   name: string;
@@ -155,6 +161,8 @@ export interface Invoice extends InvoiceSummary {
   items: InvoiceItem[];
   /** The quote this invoice was converted from, if any (D076). */
   sourceQuote: { id: string; quoteNumber: string | null } | null;
+  /** The recurring schedule that made this invoice, if any (D082). */
+  recurringInvoiceId: string | null;
   discount: { type: "fixed" | "percentage"; value: string } | null;
   taxRate: string | null;
   subtotal: string;

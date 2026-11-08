@@ -17,6 +17,7 @@ import { containsPattern } from "../common/like-pattern.js";
 import { DATABASE } from "../database/database.module.js";
 import type { Executor, Transaction } from "../database/transaction.js";
 import { AllowanceService, type Reservation } from "../billing/allowance.service.js";
+import { SavedItemsService } from "../items/saved-items.service.js";
 import { effectivePaymentsSql } from "./effective-payments.js";
 import { businessDetails, clientDetails, toInvoice, toInvoiceSummary } from "./invoice.mapper.js";
 
@@ -40,6 +41,7 @@ export class InvoicesService {
   constructor(
     @Inject(DATABASE) private readonly connection: DatabaseConnection,
     private readonly allowance: AllowanceService,
+    private readonly savedItems: SavedItemsService,
   ) {}
 
   private get db() {
@@ -77,7 +79,12 @@ export class InvoicesService {
     return this.load(this.db, businessId, invoiceId);
   }
 
-  async createDraft(businessId: string, input: SaveInvoice, db: Executor = this.db) {
+  async createDraft(
+    businessId: string,
+    input: SaveInvoice,
+    db: Executor = this.db,
+    origin?: { recurringInvoiceId: string; periodDate: string },
+  ) {
     return db.transaction(async (tx) => {
       await this.lockNumbering(tx, businessId);
       await this.checkNumber(tx, businessId, input.invoiceNumber);
@@ -89,6 +96,7 @@ export class InvoicesService {
           businessId,
           invoiceNumber: input.invoiceNumber || null,
           ...this.invoiceColumns(input, totals),
+          ...origin,
         })
         .returning();
       await this.replaceItems(tx, businessId, invoice!.id, input, totals.lineTotals);
@@ -206,9 +214,9 @@ export class InvoicesService {
    * take the business's next number, record the issuance, and copy client and
    * business details, all in one transaction. Repeats are no-ops.
    */
-  async markReady(userId: string, businessId: string, invoiceId: string) {
+  async markReady(userId: string, businessId: string, invoiceId: string, db: Executor = this.db) {
     const reserved: { value?: Reservation } = {};
-    const invoice = await this.db.transaction(async (tx) => {
+    const invoice = await db.transaction(async (tx) => {
       const current = await this.lockInvoice(tx, businessId, invoiceId);
       if (current.status !== "draft") return this.load(tx, businessId, invoiceId);
 
@@ -266,8 +274,11 @@ export class InvoicesService {
         .where(eq(invoices.id, invoiceId));
       return this.load(tx, businessId, invoiceId);
     });
-    // After the commit; never blocks or fails the invoice.
-    if (reserved.value) await this.allowance.notifyFreeLimit(userId, reserved.value);
+    // After the commit; never blocks or fails the invoice. Inside a caller's transaction
+    // there's no commit yet, and only Pro schedules call it that way.
+    if (reserved.value && db === this.db) {
+      await this.allowance.notifyFreeLimit(userId, reserved.value);
+    }
     return invoice;
   }
 
@@ -346,6 +357,7 @@ export class InvoicesService {
     };
   }
 
+  /** Rewrites the lines and counts a use for saved items newly placed on them (D080). */
   private async replaceItems(
     tx: Transaction,
     businessId: string,
@@ -353,8 +365,24 @@ export class InvoicesService {
     input: SaveInvoice,
     lineTotals: string[],
   ) {
-    await tx.delete(invoiceItems).where(eq(invoiceItems.invoiceId, invoiceId));
+    const before = await tx
+      .delete(invoiceItems)
+      .where(eq(invoiceItems.invoiceId, invoiceId))
+      .returning({ savedItemId: invoiceItems.savedItemId });
+    const links = await this.savedItems.ownedLinks(
+      tx,
+      businessId,
+      input.items.map((item) => item.savedItemId),
+    );
+
+    await this.savedItems.recordUse(
+      tx,
+      before.map((row) => row.savedItemId),
+      links,
+    );
+
     if (input.items.length === 0) return;
+
     await tx.insert(invoiceItems).values(
       input.items.map((item, index) => ({
         businessId,
@@ -364,6 +392,7 @@ export class InvoicesService {
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         lineTotal: lineTotals[index]!,
+        savedItemId: links[index]!,
       })),
     );
   }
@@ -371,6 +400,7 @@ export class InvoicesService {
   private async snapshots(tx: Transaction, businessId: string, clientId: string) {
     const [business] = await tx.select().from(businesses).where(eq(businesses.id, businessId));
     const client = await this.findClient(tx, businessId, clientId);
+
     return { clientSnapshot: clientDetails(client), businessSnapshot: businessDetails(business!) };
   }
 
@@ -381,6 +411,7 @@ export class InvoicesService {
       .where(and(eq(invoices.id, invoiceId), eq(invoices.businessId, businessId)))
       .for("update");
     if (!invoice) throw new NotFoundException("Invoice not found");
+
     return invoice;
   }
 
@@ -390,6 +421,7 @@ export class InvoicesService {
       .from(clients)
       .where(and(eq(clients.id, clientId), eq(clients.businessId, businessId)));
     if (!client) throw invalid("clientId", "Choose a client");
+
     return client;
   }
 
@@ -397,6 +429,7 @@ export class InvoicesService {
   private async selectableClient(tx: Transaction, businessId: string, clientId: string) {
     const client = await this.findClient(tx, businessId, clientId);
     if (client.archivedAt) throw invalid("clientId", "This client is archived");
+
     return client;
   }
 

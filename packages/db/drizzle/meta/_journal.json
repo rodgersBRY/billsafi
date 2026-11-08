@@ -169,6 +169,27 @@
       "when": 1793983923547,
       "tag": "0023_gift_notified_at",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794143016901,
+      "tag": "0024_saved_items",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1794146776338,
+      "tag": "0025_recurring_invoices",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1794166451895,
+      "tag": "0026_whats_new",
+      "breakpoints": true
     }
   ]
 }

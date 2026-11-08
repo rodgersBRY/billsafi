@@ -17,6 +17,7 @@ export function toBusiness(row: BusinessRow): Business {
     logoKey: row.logoKey,
     defaultCurrency: row.defaultCurrency,
     defaultPaymentTermsDays: row.defaultPaymentTermsDays,
+    defaultRecurringMode: row.defaultRecurringMode,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

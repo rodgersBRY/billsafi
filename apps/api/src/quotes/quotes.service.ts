@@ -24,6 +24,7 @@ import { DATABASE } from "../database/database.module.js";
 import type { Executor, Transaction } from "../database/transaction.js";
 import { businessDetails, clientDetails } from "../invoices/invoice.mapper.js";
 import { quoteContentOf, toQuote, toQuoteSummary, toVersionContent } from "./quote.mapper.js";
+import { SavedItemsService } from "../items/saved-items.service.js";
 
 const { quotes, quoteItems, quoteVersions, quoteAcceptances, quoteLinks, clients, businesses } =
   schema;
@@ -47,7 +48,10 @@ type QuoteRow = typeof quotes.$inferSelect;
 
 @Injectable()
 export class QuotesService {
-  constructor(@Inject(DATABASE) private readonly connection: DatabaseConnection) {}
+  constructor(
+    @Inject(DATABASE) private readonly connection: DatabaseConnection,
+    private readonly savedItems: SavedItemsService,
+  ) {}
 
   private get db() {
     return this.connection.db;
@@ -247,10 +251,11 @@ export class QuotesService {
       quoteNumber: null,
       issueDate: today,
       validUntil: addCalendarDays(today, QUOTE_VALIDITY_DAYS),
-      items: source.items.map(({ description, quantity, unitPrice }) => ({
+      items: source.items.map(({ description, quantity, unitPrice, savedItemId }) => ({
         description,
         quantity,
         unitPrice,
+        savedItemId,
       })),
       discount: source.discount,
       taxRate: source.taxRate,
@@ -339,6 +344,7 @@ export class QuotesService {
     };
   }
 
+  /** Rewrites the lines and counts a use for saved items newly placed on them (D080). */
   private async replaceItems(
     tx: Transaction,
     businessId: string,
@@ -346,7 +352,20 @@ export class QuotesService {
     input: SaveQuote,
     lineTotals: string[],
   ) {
-    await tx.delete(quoteItems).where(eq(quoteItems.quoteId, quoteId));
+    const before = await tx
+      .delete(quoteItems)
+      .where(eq(quoteItems.quoteId, quoteId))
+      .returning({ savedItemId: quoteItems.savedItemId });
+    const links = await this.savedItems.ownedLinks(
+      tx,
+      businessId,
+      input.items.map((item) => item.savedItemId),
+    );
+    await this.savedItems.recordUse(
+      tx,
+      before.map((row) => row.savedItemId),
+      links,
+    );
     if (input.items.length === 0) return;
     await tx.insert(quoteItems).values(
       input.items.map((item, index) => ({
@@ -357,6 +376,7 @@ export class QuotesService {
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         lineTotal: lineTotals[index]!,
+        savedItemId: links[index]!,
       })),
     );
   }

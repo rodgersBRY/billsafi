@@ -8,7 +8,7 @@ import {
   type SaveInvoiceInput,
   saveInvoiceSchema,
 } from "@billsafi/contracts";
-import { Trash2, UserPlus } from "lucide-react";
+import { Crown, Trash2, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -26,6 +26,7 @@ import {
   type Discount,
   discountLabel,
   type EditorItem,
+  toItemInput,
   newItem,
   previewTotals,
 } from "./editor-items";
@@ -81,6 +82,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
             description: item.description,
             quantity: Number(item.quantity).toString(),
             unitPrice: item.unitPrice,
+            savedItemId: item.savedItemId,
           }),
         )
       : [newItem()],
@@ -125,11 +127,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
       invoiceNumber,
       issueDate,
       dueDate,
-      items: items.map(({ description, quantity, unitPrice }) => ({
-        description,
-        quantity,
-        unitPrice,
-      })),
+      items: items.map(toItemInput),
       discount,
       taxRate,
       paymentInstructions,
@@ -316,6 +314,9 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
       </div>
       {isDraft && (
         <p className="mt-2 text-xs text-sub">
+          {props.usage.plan === "pro" && (
+            <Crown aria-hidden className="mr-1 inline-block size-3.5 align-text-bottom text-gold" />
+          )}
           {props.usage.plan === "pro" ? "Pro" : "Free"} plan: {Math.max(remaining, 0)} of{" "}
           {props.usage.limit} invoices left{" "}
           {props.usage.plan === "pro" ? "this Pro month" : "this month"}
@@ -402,7 +403,12 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
 
           <section className="mb-3.5 rounded-panel border border-line bg-panel p-5">
             <h2 className="text-base font-semibold">What are you billing for?</h2>
-            <LineItemsFields items={items} onChange={setItems} errors={errors} />
+            <LineItemsFields
+              businessId={businessId}
+              items={items}
+              onChange={setItems}
+              errors={errors}
+            />
             <AdjustmentsFields value={adjustments} onChange={setAdjustments} errors={errors} />
           </section>
 

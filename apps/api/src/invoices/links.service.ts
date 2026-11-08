@@ -135,7 +135,7 @@ export function toPublicInvoice(invoice: Invoice, showBranding: boolean): Public
     currency: invoice.currency,
     business,
     client: { name: invoice.client.name, companyName: invoice.client.companyName },
-    items: invoice.items.map(({ id: _id, ...item }) => item),
+    items: invoice.items.map(({ id: _id, savedItemId: _savedItemId, ...item }) => item),
     discount: invoice.discount,
     taxRate: invoice.taxRate,
     subtotal: invoice.subtotal,

@@ -7,7 +7,7 @@ export type ProductTourKey = z.infer<typeof productTourKeySchema>;
 
 /** Raise a version to show that tour again to every account. */
 export const PRODUCT_TOUR_VERSIONS: Record<ProductTourKey, number> = {
-  "first-run": 1,
+  "first-run": 2,
   "getting-started-checklist": 1,
 };
 

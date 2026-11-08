@@ -6,7 +6,7 @@ import { containsPattern } from "../common/like-pattern.js";
 import { DATABASE } from "../database/database.module.js";
 import type { Executor } from "../database/transaction.js";
 
-const { clients } = schema;
+const { clients, recurringInvoices } = schema;
 
 export type ClientListFilter = { status: "active" | "archived"; search?: string };
 
@@ -76,13 +76,26 @@ export class ClientsService {
   }
 
   /** Hides the client from new invoice selections; existing invoices are untouched. */
+  /** Archiving also pauses the client's active recurring schedules (D082). */
   async archive(businessId: string, clientId: string) {
-    const [client] = await this.db
-      .update(clients)
-      .set({ archivedAt: sql`coalesce(${clients.archivedAt}, now())` })
-      .where(and(eq(clients.id, clientId), eq(clients.businessId, businessId)))
-      .returning();
-    if (!client) throw new NotFoundException("Client not found");
-    return client;
+    return this.db.transaction(async (tx) => {
+      const [client] = await tx
+        .update(clients)
+        .set({ archivedAt: sql`coalesce(${clients.archivedAt}, now())` })
+        .where(and(eq(clients.id, clientId), eq(clients.businessId, businessId)))
+        .returning();
+      if (!client) throw new NotFoundException("Client not found");
+      await tx
+        .update(recurringInvoices)
+        .set({ status: "paused", pausedReason: "client_archived" })
+        .where(
+          and(
+            eq(recurringInvoices.businessId, businessId),
+            eq(recurringInvoices.clientId, clientId),
+            eq(recurringInvoices.status, "active"),
+          ),
+        );
+      return client;
+    });
   }
 }

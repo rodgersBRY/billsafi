@@ -7,7 +7,7 @@ import {
   receivedPaymentMethodLabels,
 } from "@billsafi/contracts";
 import { calculateInvoice } from "@billsafi/domain";
-import { Ban, ChevronDown, Lock, Pencil, Plus, Share2, Undo2 } from "lucide-react";
+import { Ban, ChevronDown, Lock, Pencil, Plus, Repeat, Share2, Undo2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -141,9 +141,28 @@ export function InvoiceDetails({
                 </Link>
               </>
             )}
+            {invoice.recurringInvoiceId && (
+              <>
+                {" "}
+                ·{" "}
+                <Link
+                  href={`/${businessId}/recurring/${invoice.recurringInvoiceId}`}
+                  className="text-accent hover:underline"
+                >
+                  From a recurring schedule
+                </Link>
+              </>
+            )}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link
+            href={`/${businessId}/recurring/new?from=${invoice.id}`}
+            className="inline-flex items-center gap-2 rounded-panel border border-line bg-panel px-3.75 py-2.75 text-sm font-medium hover:bg-soft"
+          >
+            <Repeat aria-hidden className="size-4" />
+            Make recurring
+          </Link>
           {canRecord && (
             <Button type="button" onClick={() => setOpen({ kind: "record" })}>
               <Plus aria-hidden className="size-4" />
