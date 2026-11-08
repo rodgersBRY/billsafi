@@ -10,6 +10,8 @@ import { SidebarBrand } from "@/components/shell/sidebar-brand";
 import { SidebarExpandedOnly } from "@/components/shell/sidebar-state";
 import { UsageMeter } from "@/components/shell/usage-meter";
 import { GettingStartedPanel } from "@/components/tour/getting-started";
+import { WhatsNewButton } from "@/components/whats-new/whats-new-button";
+import { WhatsNewPanel } from "@/components/whats-new/whats-new-panel";
 import { getSessionUser } from "@/lib/server-api/auth";
 import { getUsage } from "@/lib/server-api/billing";
 import { listBusinesses } from "@/lib/server-api/businesses";
@@ -30,6 +32,7 @@ async function Sidebar({ params }: { params: Promise<{ businessId: string }> }) 
       <NavLinks businessId={businessId} isPro={usage.plan === "pro"} />
       <div className="mt-auto grid grid-cols-1 gap-3">
         <UsageMeter usage={usage} />
+        <WhatsNewButton userId={user.id} />
         <AccountMenu
           name={user.name}
           email={user.email}
@@ -61,6 +64,12 @@ async function SetupChecklist({ params }: { params: Promise<{ businessId: string
   return <GettingStartedPanel businessId={businessId} progress={progress} />;
 }
 
+/** The What's new panel needs the business for its links and the plan for its buttons (D084). */
+async function WhatsNew({ params }: { params: Promise<{ businessId: string }> }) {
+  const [{ businessId }, usage] = await Promise.all([params, getUsage()]);
+  return <WhatsNewPanel businessId={businessId} isPro={usage.plan === "pro"} />;
+}
+
 export default function BusinessLayout({ children, params }: LayoutProps<"/[businessId]">) {
   return (
     <AppShell
@@ -81,6 +90,9 @@ export default function BusinessLayout({ children, params }: LayoutProps<"/[busi
       {children}
       <Suspense fallback={null}>
         <SetupChecklist params={params} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <WhatsNew params={params} />
       </Suspense>
     </AppShell>
   );

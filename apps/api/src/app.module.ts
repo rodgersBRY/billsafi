@@ -26,6 +26,7 @@ import { MAILER, MailModule } from "./mail/mail.module.js";
 import { PlatformModule } from "./platform/platform.module.js";
 import { ProductToursModule } from "./product-tours/product-tours.module.js";
 import { ReengagementModule } from "./reengagement/reengagement.module.js";
+import { WhatsNewModule } from "./whats-new/whats-new.module.js";
 import type { Mailer } from "./mail/mailer.js";
 
 @Module({
@@ -64,6 +65,7 @@ import type { Mailer } from "./mail/mailer.js";
     BillingModule,
     ProductToursModule,
     ReengagementModule,
+    WhatsNewModule,
     PlatformModule,
     AdminModule,
   ],

@@ -15,5 +15,6 @@ export * from "./payments.js";
 export * from "./product-tours.js";
 export * from "./reengagement.js";
 export * from "./sharing.js";
+export * from "./whats-new.js";
 export * from "./quotes.js";
 export * from "./recurring.js";

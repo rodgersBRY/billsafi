@@ -22,7 +22,10 @@ export interface AdminActionContext {
 
 export interface ActionTarget {
   action: string;
-  target: { type: "account" | "user" | "override" | "support_case" | "setting"; id: string };
+  target: {
+    type: "account" | "user" | "override" | "support_case" | "setting" | "whats_new_entry";
+    id: string;
+  };
 }
 
 /** What an action's change step returns: the audit diff and the response. */

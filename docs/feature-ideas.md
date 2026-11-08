@@ -90,6 +90,19 @@ More PDF layouts and a choice of accent colour, within the confirmed PDF colour 
 
 Show "Client viewed this invoice on ..." based on public link opens. Cheap to build and useful when following up.
 
+### 13. WhatsApp assistant
+
+Let users manage their account from a WhatsApp chat. They could list unpaid invoices, get an invoice PDF, create a simple invoice, or record a payment without opening the web app.
+
+- Use the official WhatsApp Cloud API (or Twilio or 360dialog on top of it). Unofficial libraries such as Baileys break Meta's terms and get numbers banned.
+- A new API module receives Meta's webhook at a versioned route (for example `/api/v1/whatsapp/webhook`), checks the `X-Hub-Signature-256` signature, and calls the existing invoice, quote, client and payment services. Replies go through a sender interface with a local fake, like the mailer.
+- Account linking: the user adds their phone in settings, gets a one-time code, and sends it to the bot. Only a verified number is linked to a user, and every command runs with that user's ownership checks.
+- Input options: numbered menus and interactive buttons, an AI model with tool calling for free text ("invoice Acme 50k for logo design"), or both. The suggested mix is AI to understand the message and a confirm button before any write.
+- Delete, mark paid and send to client always need an explicit confirmation.
+- Meta only allows free replies within 24 hours of the user's last message. Messages the bot starts, such as payment alerts, need approved templates and cost money per conversation.
+- Needs a verified Meta Business account and a dedicated number.
+- Open: v1 commands (suggested: mostly reads plus simple invoice creation, with billing and plan changes kept on the web), menus vs AI, Free vs Pro (suggested: Pro, since templates and AI calls cost money).
+
 ## Tier 3: later
 
 - **Expense tracking** with receipt photos and a simple profit view.
@@ -121,6 +134,7 @@ Appeal is how much the feature is likely to make a user sign up or upgrade:
 | Viewed tracking | Medium to high | Cheap to build and easy to understand. "Your client opened the invoice yesterday" is a strong prompt to follow up, and a good teaser on Free. |
 | Reports beyond the dashboard, aging, and CSV/Excel export | Medium to high | Becomes urgent at tax time and when working with an accountant. |
 | More currencies | High for foreign-client freelancers, low for others | Users billing in USD or EUR tend to earn more and can afford KES 500. |
+| WhatsApp assistant | Medium to high | Most users already live in WhatsApp. Each message and AI call costs money, so it fits a paid plan. |
 | Client statements | Medium | Matters once a user has repeat clients with several open invoices. |
 | Templates and brand colours | Medium | Clients see it, so it makes the freelancer look more professional. |
 | Expense tracking (later) | Medium | Turns BillSafi into a simple profit tracker. |

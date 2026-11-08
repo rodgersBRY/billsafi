@@ -879,3 +879,20 @@ Status: confirmed on 2026-11-08 by the user.
 - Each step points at its own sidebar link (`data-tour="nav-<segment>"`). On phones they show as centred cards, like the other sidebar steps.
 - The Recurring step says it's part of Pro, since Free accounts see the link too.
 - The tour version goes to 2, so every account sees it once more, including people who finished or skipped version 1.
+
+## D084 - What's new panel for product updates
+
+Status: proposed on 2026-11-08, for review.
+
+User: asked how to tell users about new features, and chose an admin-written panel with a sidebar count and a pop-up for big releases.
+
+- Admins write entries at `/admin/whats-new`: title (80), body (500, plain text), an optional app page to link to, Pro and Pop up flags, and an optional publish time. No publish time is a draft. A future one is scheduled. The page groups entries under Drafts, Scheduled and Live, and has a "What's new" nav item.
+- Admin routes are `GET` and `POST /api/v1/admin/whats-new`, `PUT /api/v1/admin/whats-new/:id` and `POST /api/v1/admin/whats-new/:id/delete`. The `PUT` takes the full entry, and leaving out `publishedAt` returns it to draft. Delete is a `POST` so the shared confirm dialog can call it. A malformed id gets 404. A `PUT` with no changes gets 409 `NO_CHANGE` and no audit row.
+- Every change needs a reason and is audited through the admin action runner.
+- Every user sees every live entry. Pro entries show a crown, and Free users get "Upgrade to Pro" in place of the page link. There is no audience targeting.
+- Read state is one time per user in `user_whats_new.seen_at`. An entry is unread when it was published after that time. A missing row falls back to the sign-up time, so new users don't start with a backlog and nothing needs backfilling. Opening the panel sets it to now. There is no per-entry read state.
+- `whats_new_entries.created_by` is nullable and set to null when the admin is deleted. `user_whats_new.user_id` cascades on delete.
+- The panel opens by itself when an unread entry has Pop up on, unless the first-run tour is still due. The tour wins on the first day.
+- The feed (`GET /api/v1/whats-new`, newest 20) is fetched in the browser into a small store shared by the sidebar button and the panel. The panel renders in the main area because the sidebar is hidden on small screens. The feed sends `Cache-Control: private, no-store`, since unread depends on the user.
+- Browser tests mock the feed with `page.route`, because a real pop-up entry is global and would open in parallel tests.
+- Out of scope: images, emails, audience targeting, linking entries to product tours.
