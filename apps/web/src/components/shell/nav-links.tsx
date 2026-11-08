@@ -27,7 +27,7 @@ export function NavLinks({ businessId }: { businessId: string }) {
         const href = `/${businessId}/${segment}`;
         const active = pathname.startsWith(href);
         return (
-          <div key={segment} className="group/item relative">
+          <div key={segment} data-tour={`nav-${segment}`} className="group/item relative">
             <Link
               href={href}
               aria-current={active ? "page" : undefined}
