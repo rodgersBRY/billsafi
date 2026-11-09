@@ -545,7 +545,7 @@ User: "I want to introduce a product tour to this system once a user is authenti
 Signed-in users now get a short tour of the Overview page and a checklist of first steps. The design is in [the product tour spec](superpowers/specs/2026-10-23-product-tour-design.md).
 
 - Every account sees the tour once, including accounts created before this change. It starts on the Overview page after the intro splash.
-- The tour has six steps: welcome, the totals, Create invoice, the Invoices and Clients links, the usage meter, and the account menu. Version 2 adds Quotes, Recurring and Items (D083). When no business on the account has payment instructions, the last step also points to Settings.
+- The tour has six steps: welcome, the totals, Create invoice, the Invoices and Clients links, the usage meter, and the account menu. Version 2 adds Quotes, Recurring and Items (D083). A What's new step before the account menu came with D084, without a version bump. When no business on the account has payment instructions, the last step also points to Settings.
 - On small screens, steps that point at the hidden sidebar show as a centred card.
 - Finishing or skipping is saved on the server in `user_product_tours`, so the tour does not return on another device. "Take the tour" in the account menu replays it.
 - Each tour has a version. Raising it shows the tour again to everyone.

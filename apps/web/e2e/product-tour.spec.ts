@@ -30,11 +30,13 @@ test("a new account takes the tour once and it stays done after a reload", async
   await tour.getByRole("button", { name: "Next" }).click();
   await expect(tour).toHaveAccessibleName("Your monthly allowance");
   await tour.getByRole("button", { name: "Next" }).click();
+  await expect(tour).toHaveAccessibleName("What's new");
+  await tour.getByRole("button", { name: "Next" }).click();
 
   // The account menu closes the tour; payment details were skipped, so it points to Settings.
   await expect(tour).toHaveAccessibleName("Your account menu");
   await expect(tour.getByText("add your M-Pesa, Till, Paybill or bank details")).toBeVisible();
-  await expect(tour.getByText("9 of 9")).toBeVisible();
+  await expect(tour.getByText("10 of 10")).toBeVisible();
   await expect(tour.getByRole("button", { name: "Skip tour" })).toBeHidden();
   await tour.getByRole("button", { name: "Done" }).click();
   await expect(tour).toBeHidden();
@@ -44,6 +46,36 @@ test("a new account takes the tour once and it stays done after a reload", async
   await expect(page.getByRole("region", { name: "Get set up" })).toBeVisible();
   await page.waitForTimeout(1000);
   await expect(tour).toBeHidden();
+});
+
+// Sidebar items the "Invoices and clients" step covers as one group.
+const GROUPED_IN_MAIN_NAV = ["nav-overview", "nav-invoices", "nav-clients"];
+
+test("every sidebar item has a tour step", async ({ page }) => {
+  await reachOverview(page);
+
+  const tour = tourDialog(page);
+  await tour.getByRole("button", { name: "Show me around" }).click();
+  const highlighted = new Set<string>();
+  while (await tour.getByRole("button", { name: "Next" }).isVisible()) {
+    const target = await page
+      .locator(".driver-active-element")
+      .getAttribute("data-tour")
+      .catch(() => null);
+    if (target) highlighted.add(target);
+    await tour.getByRole("button", { name: "Next" }).click();
+  }
+  const last = await page.locator(".driver-active-element").getAttribute("data-tour");
+  if (last) highlighted.add(last);
+
+  const sidebarItems = await page
+    .locator("aside [data-tour]")
+    .evaluateAll((elements) => elements.map((element) => element.getAttribute("data-tour")!));
+  const missing = sidebarItems.filter(
+    (item) => !highlighted.has(item) && !GROUPED_IN_MAIN_NAV.includes(item),
+  );
+  // A new sidebar item needs a step in product-tour.tsx.
+  expect(missing).toEqual([]);
 });
 
 test("a skipped tour can be replayed from the account menu", async ({ page }) => {

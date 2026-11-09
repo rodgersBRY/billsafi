@@ -89,6 +89,17 @@ function tourSteps(paymentInstructionsMissing: boolean): TourStep[] {
       side: "right",
       align: "end",
     },
+    {
+      target: "whats-new",
+      inSidebar: true,
+      title: "What's new",
+      description:
+        "New features show up here. A count appears when there's something you haven't seen yet.",
+      mobileDescription:
+        "What's new, in the same menu, lists new features. A count appears when there's something you haven't seen yet.",
+      side: "right",
+      align: "end",
+    },
   ];
   const payNote = paymentInstructionsMissing
     ? " Start with Settings: add your M-Pesa, Till, Paybill or bank details so they print on every invoice."
