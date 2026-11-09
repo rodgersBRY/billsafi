@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { shouldShowTour } from "@billsafi/contracts";
+import { canAddBusiness } from "@billsafi/domain";
 import { PlatformBanner } from "@/components/announcement/platform-banner";
 import { AccountMenu } from "@/components/shell/account-menu";
 import { AppShell } from "@/components/shell/app-shell";
@@ -28,7 +29,11 @@ async function Sidebar({ params }: { params: Promise<{ businessId: string }> }) 
   if (!businesses.some((business) => business.id === businessId)) notFound();
   return (
     <>
-      <BusinessSwitcher businesses={businesses} currentId={businessId} />
+      <BusinessSwitcher
+        businesses={businesses}
+        currentId={businessId}
+        canAddBusiness={canAddBusiness(usage.plan === "pro", businesses.length)}
+      />
       <NavLinks businessId={businessId} isPro={usage.plan === "pro"} />
       <div className="mt-auto grid grid-cols-1 gap-3">
         <UsageMeter usage={usage} />

@@ -62,6 +62,12 @@ export function OnboardingWizard({ user, isAdditionalBusiness }: Props) {
 
   function failWith(error: unknown) {
     setPending(false);
+    // The page shows the limit notice once it re-renders with fresh data (D085).
+    if (error instanceof ApiError && error.code === "BUSINESS_LIMIT") {
+      setErrors({ form: error.message });
+      router.refresh();
+      return;
+    }
     if (error instanceof ApiError && error.issues.length > 0) {
       setErrors(error.fieldErrors());
     } else {
@@ -134,7 +140,7 @@ export function OnboardingWizard({ user, isAdditionalBusiness }: Props) {
           description={
             isAdditionalBusiness
               ? "Each business keeps its own clients, invoices and numbering."
-              : "Set up your first business. You can add more later."
+              : "Set up your first business."
           }
         >
           <form method="post" onSubmit={saveBusiness} noValidate>
