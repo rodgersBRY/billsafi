@@ -1,6 +1,7 @@
-import { CREDIT_PACK, FREE_PLAN, PRO_PLAN } from "@billsafi/domain";
+import { CREDIT_PACK, PRO_PLAN } from "@billsafi/domain";
 import { ArrowUpRight, Crown } from "lucide-react";
 import Link from "next/link";
+import { FREE_FEATURES, PRO_FEATURES } from "@/lib/plan-features";
 import { Checks } from "./checks";
 import s from "./landing.module.css";
 
@@ -20,7 +21,7 @@ export function Pricing({ appOrigin = "" }: { appOrigin?: string }) {
           <article className={s.priceCard}>
             <span className={s.planLabel}>FOR GETTING STARTED</span>
             <h3>Free</h3>
-            <p>For your first clients.</p>
+            <p>For quotes, invoices and your first clients.</p>
             <div className={s.price}>
               $<b>0</b>
               <span>/ month</span>
@@ -31,21 +32,14 @@ export function Pricing({ appOrigin = "" }: { appOrigin?: string }) {
                 <ArrowUpRight className={s.icon} aria-hidden />
               </span>
             </Link>
-            <Checks
-              items={[
-                `${FREE_PLAN.invoiceLimit} invoices a month`,
-                "PDF and link sharing",
-                "Client details saved",
-                "Payment tracking",
-              ]}
-            />
+            <Checks items={FREE_FEATURES} />
           </article>
           <article className={`${s.priceCard} ${s.featured}`}>
             <span className={s.planLabel}>FOR REGULAR INVOICING</span>
             <h3>
               Pro <Crown className={`${s.icon} ${s.proCrown}`} aria-hidden />
             </h3>
-            <p>For a steady flow of work.</p>
+            <p>For steady work and monthly retainers.</p>
             <div className={s.price}>
               $<b>{proPrice}</b>
               <span>/ month</span>
@@ -56,14 +50,7 @@ export function Pricing({ appOrigin = "" }: { appOrigin?: string }) {
                 <ArrowUpRight className={s.icon} aria-hidden />
               </span>
             </Link>
-            <Checks
-              items={[
-                `${PRO_PLAN.invoiceLimit} invoices a month`,
-                "Everything in Free",
-                "One plan covers all your businesses",
-                "No automatic charges",
-              ]}
-            />
+            <Checks items={PRO_FEATURES} />
           </article>
         </div>
         <p className={s.pricingNote}>
