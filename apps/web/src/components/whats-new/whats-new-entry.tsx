@@ -23,7 +23,7 @@ const dateFormat = new Intl.DateTimeFormat("en-KE", {
   timeZone: "Africa/Nairobi",
 });
 
-/** The same icons as the sidebar, so a card shows where the feature lives. */
+/** The same icons as the sidebar, so a card shows which page it links to. */
 const PAGE_ICONS: Record<WhatsNewLinkSegment, LucideIcon> = {
   overview: LayoutDashboard,
   quotes: FileSignature,

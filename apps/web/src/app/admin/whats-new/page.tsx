@@ -41,7 +41,7 @@ async function WhatsNewAdmin() {
     <>
       <PageHeader
         title="What's new"
-        description="Product updates in the app."
+        description="New features and announcements for every user."
         actions={
           <>
             <InfoPopover label="About What's new">
