@@ -80,7 +80,7 @@ export function WhatsNewPanel({ businessId, isPro }: { businessId: string; isPro
               What&apos;s new
             </h2>
             <p className="text-xs text-sub">
-              {fresh > 0 ? `${fresh} new since your last look` : "Latest updates to BillSafi"}
+              {fresh > 0 ? `${fresh} new since your last look` : "Latest news from BillSafi"}
             </p>
           </div>
           <button

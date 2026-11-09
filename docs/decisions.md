@@ -880,12 +880,13 @@ Status: confirmed on 2026-11-08 by the user.
 - The Recurring step says it's part of Pro, since Free accounts see the link too.
 - The tour version goes to 2, so every account sees it once more, including people who finished or skipped version 1.
 
-## D084 - What's new panel for product updates
+## D084 - What's new panel for features and announcements
 
 Status: proposed on 2026-11-08, for review.
 
 User: asked how to tell users about new features, and chose an admin-written panel with a sidebar count and a pop-up for big releases.
 
+- An entry can be a new feature or any announcement users should see, such as a change, downtime or a pricing update.
 - Admins write entries at `/admin/whats-new`: title (80), body (500, plain text), an optional app page to link to, Pro and Pop up flags, and an optional publish time. No publish time is a draft. A future one is scheduled. The page groups entries under Drafts, Scheduled and Live, and has a "What's new" nav item.
 - Admin routes are `GET` and `POST /api/v1/admin/whats-new`, `PUT /api/v1/admin/whats-new/:id` and `POST /api/v1/admin/whats-new/:id/delete`. The `PUT` takes the full entry, and leaving out `publishedAt` returns it to draft. Delete is a `POST` so the shared confirm dialog can call it. A malformed id gets 404. A `PUT` with no changes gets 409 `NO_CHANGE` and no audit row.
 - Every change needs a reason and is audited through the admin action runner.

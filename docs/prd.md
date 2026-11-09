@@ -33,7 +33,7 @@ Pro accounts can put an invoice on a schedule for retainers and monthly fees. Ea
 
 ## What's new
 
-Admins publish short product updates from the super admin, now or on a schedule. Users see them in a What's new panel, with an unread count on the sidebar button. An update marked Pop up also opens the panel on the user's next visit. Details are in [D084](decisions.md).
+Admins publish short notices from the super admin: new features and any announcement users should see, now or on a schedule. Users see them in a What's new panel, with an unread count on the sidebar button. An update marked Pop up also opens the panel on the user's next visit. Details are in [D084](decisions.md).
 
 ## Deferred
 
