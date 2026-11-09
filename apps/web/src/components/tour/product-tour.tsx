@@ -94,9 +94,9 @@ function tourSteps(paymentInstructionsMissing: boolean): TourStep[] {
       inSidebar: true,
       title: "What's new",
       description:
-        "New features show up here. A count appears when there's something you haven't seen yet.",
+        "New features and announcements from BillSafi show up here. A count appears when there's something you haven't seen yet.",
       mobileDescription:
-        "What's new, in the same menu, lists new features. A count appears when there's something you haven't seen yet.",
+        "What's new, in the same menu, has new features and announcements. A count appears when there's something you haven't seen yet.",
       side: "right",
       align: "end",
     },

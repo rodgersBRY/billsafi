@@ -100,7 +100,7 @@ export function WhatsNewPanel({ businessId, isPro }: { businessId: string; isPro
               <>
                 <Megaphone aria-hidden className="mx-auto size-8 text-sub" />
                 <p className="text-sm font-medium">Nothing new yet.</p>
-                <p className="text-sm text-sub">New features show up here.</p>
+                <p className="text-sm text-sub">New features and announcements show up here.</p>
               </>
             )}
           </div>
