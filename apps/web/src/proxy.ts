@@ -33,13 +33,17 @@ export async function proxy(request: NextRequest) {
     if (onMarketing && pathname === "/landing") {
       return NextResponse.redirect(new URL("/", marketingOrigin));
     }
+
     if (onMarketing && !marketingPath) {
       return NextResponse.redirect(new URL(pathname + request.nextUrl.search, appOrigin));
     }
+
     if (onApp && (pathname === "/landing" || pathname === "/terms" || pathname === "/privacy")) {
       const target = pathname === "/landing" ? "/" : pathname;
+
       return NextResponse.redirect(new URL(target + request.nextUrl.search, marketingOrigin));
     }
+
     if (onMarketing) {
       return pathname === "/"
         ? NextResponse.rewrite(new URL("/landing" + request.nextUrl.search, request.url))
