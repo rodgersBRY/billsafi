@@ -1,7 +1,13 @@
 import type { INestApplication } from "@nestjs/common";
 import { FREE_PLAN } from "@billsafi/domain";
 import request from "supertest";
-import { createBusiness, createClient, createTestApp, signUp } from "./support/app.js";
+import {
+  createBusiness,
+  createClient,
+  createExtraBusiness,
+  createTestApp,
+  signUp,
+} from "./support/app.js";
 
 const draftBody = (clientId: string, overrides: Record<string, unknown> = {}) => ({
   clientId,
@@ -122,7 +128,7 @@ describe("invoices", () => {
 
   it("only accepts active clients from the same business", async () => {
     const { cookie, businessId, path } = await setup();
-    const otherBusiness = await createBusiness(app, cookie, { displayName: "Second Studio" });
+    const otherBusiness = await createExtraBusiness(app, cookie, { displayName: "Second Studio" });
     const foreignClient = await createClient(app, cookie, otherBusiness);
     await api().post(path).set("Cookie", cookie).send(draftBody(foreignClient)).expect(400);
 
@@ -154,7 +160,7 @@ describe("invoices", () => {
     expect(usage.body).toMatchObject({ plan: "free", limit: FREE_PLAN.invoiceLimit, used: 2 });
 
     // A second business starts its own sequence.
-    const otherBusiness = await createBusiness(app, cookie, { displayName: "Second Studio" });
+    const otherBusiness = await createExtraBusiness(app, cookie, { displayName: "Second Studio" });
     const otherClient = await createClient(app, cookie, otherBusiness);
     const otherPath = `/api/v1/businesses/${otherBusiness}/invoices`;
     const otherDraft = await api()
@@ -225,7 +231,7 @@ describe("invoices", () => {
     for (let index = 0; index < FREE_PLAN.invoiceLimit - 1; index++) {
       await ready((await draft()).id).expect(200);
     }
-    const otherBusiness = await createBusiness(app, cookie, { displayName: "Second Studio" });
+    const otherBusiness = await createExtraBusiness(app, cookie, { displayName: "Second Studio" });
     const otherClient = await createClient(app, cookie, otherBusiness);
     const otherPath = `/api/v1/businesses/${otherBusiness}/invoices`;
     const last = await api().post(otherPath).set("Cookie", cookie).send(draftBody(otherClient));
@@ -244,7 +250,7 @@ describe("invoices", () => {
 
   it("never exceeds the allowance or duplicates numbers under concurrent requests", async () => {
     const { cookie, path, draft } = await setup();
-    const otherBusiness = await createBusiness(app, cookie, { displayName: "Second Studio" });
+    const otherBusiness = await createExtraBusiness(app, cookie, { displayName: "Second Studio" });
     const otherClient = await createClient(app, cookie, otherBusiness);
     const otherPath = `/api/v1/businesses/${otherBusiness}/invoices`;
 
@@ -287,7 +293,7 @@ describe("invoices", () => {
     const invoice = await owner.draft();
     const stranger = (await signUp(app)).cookie;
     const strangerBusiness = await createBusiness(app, stranger);
-    const sameOwnerOtherBusiness = await createBusiness(app, owner.cookie);
+    const sameOwnerOtherBusiness = await createExtraBusiness(app, owner.cookie);
 
     await api().get(`${owner.path}/${invoice.id}`).set("Cookie", stranger).expect(404);
     await api()

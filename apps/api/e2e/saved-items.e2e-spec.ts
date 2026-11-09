@@ -1,20 +1,23 @@
 import type { INestApplication } from "@nestjs/common";
-import { type DatabaseConnection, eq, schema } from "@billsafi/db";
-import { addCalendarDays, addNairobiMonths, nairobiDate } from "@billsafi/domain";
+import { addCalendarDays, nairobiDate } from "@billsafi/domain";
 import request from "supertest";
-import { DATABASE } from "../src/database/database.module.js";
-import { createBusiness, createClient, createTestApp, signUp } from "./support/app.js";
+import {
+  createBusiness,
+  createClient,
+  createExtraBusiness,
+  createTestApp,
+  makePro,
+  signUp,
+} from "./support/app.js";
 
 const today = nairobiDate(new Date());
 
 describe("saved items", () => {
   let app: INestApplication;
-  let db: DatabaseConnection["db"];
   const api = () => request(app.getHttpServer());
 
   beforeAll(async () => {
     ({ app } = await createTestApp());
-    db = app.get<DatabaseConnection>(DATABASE).db;
   });
 
   afterAll(async () => {
@@ -86,7 +89,7 @@ describe("saved items", () => {
 
   it("caps Free accounts at 5 active items across businesses", async () => {
     const { cookie, itemsPath, save } = await setup();
-    const second = await createBusiness(app, cookie, { displayName: "Second" });
+    const second = await createExtraBusiness(app, cookie, { displayName: "Second" });
     const first = await save("Item 1");
     for (const n of [2, 3, 4]) await save(`Item ${n}`);
     await save("Item 5", "1000", second);
@@ -104,14 +107,7 @@ describe("saved items", () => {
 
   it("lets Pro accounts save more than 5", async () => {
     const { email, save } = await setup();
-    const [user] = await db.select().from(schema.users).where(eq(schema.users.email, email));
-    const anchorAt = new Date();
-    await db.insert(schema.subscriptions).values({
-      userId: user!.id,
-      anchorAt,
-      paidMonths: 1,
-      paidUntil: addNairobiMonths(anchorAt, 1),
-    });
+    await makePro(app, email);
     for (const n of [1, 2, 3, 4, 5, 6]) await save(`Pro item ${n}`);
   });
 

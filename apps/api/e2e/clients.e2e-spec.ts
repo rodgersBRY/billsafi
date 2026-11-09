@@ -2,6 +2,7 @@ import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 import {
   createBusiness,
+  createExtraBusiness,
   createClient,
   createTestApp,
   sampleClient,
@@ -51,7 +52,7 @@ describe("clients", () => {
   });
 
   it("searches by name, company, email or phone and sorts by name", async () => {
-    const business = await createBusiness(app, cookie);
+    const business = await createExtraBusiness(app, cookie);
     await createClient(app, cookie, business, { name: "zebra Studio", phone: "0711000001" });
     await createClient(app, cookie, business, {
       name: "Njeri Wambui",
@@ -118,7 +119,7 @@ describe("clients", () => {
 
   it("keeps clients separate between businesses and accounts", async () => {
     const clientId = await createClient(app, cookie, businessId);
-    const otherBusiness = await createBusiness(app, cookie, { displayName: "Second Studio" });
+    const otherBusiness = await createExtraBusiness(app, cookie, { displayName: "Second Studio" });
     const stranger = (await signUp(app)).cookie;
     const strangerBusiness = await createBusiness(app, stranger);
 

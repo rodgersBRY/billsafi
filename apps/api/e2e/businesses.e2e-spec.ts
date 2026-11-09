@@ -1,6 +1,6 @@
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
-import { createTestApp, signUp } from "./support/app.js";
+import { createExtraBusiness, createTestApp, signUp } from "./support/app.js";
 
 const newBusiness = {
   profileType: "individual",
@@ -18,8 +18,11 @@ describe("businesses", () => {
 
   beforeAll(async () => {
     ({ app } = await createTestApp());
-    owner = (await signUp(app)).cookie;
     stranger = (await signUp(app)).cookie;
+  });
+
+  beforeEach(async () => {
+    owner = (await signUp(app)).cookie;
   });
 
   afterAll(async () => {
@@ -76,7 +79,9 @@ describe("businesses", () => {
   it("supports several businesses per account and lists only the account's own", async () => {
     const cookie = (await signUp(app)).cookie;
     const first = await createBusiness(cookie);
-    const second = await createBusiness(cookie, { ...newBusiness, displayName: "Second Studio" });
+    const second = {
+      id: await createExtraBusiness(app, cookie, { displayName: "Second Studio" }),
+    };
     await createBusiness(stranger, { ...newBusiness, displayName: "Not yours" });
 
     const list = await api().get("/api/v1/businesses").set("Cookie", cookie).expect(200);
