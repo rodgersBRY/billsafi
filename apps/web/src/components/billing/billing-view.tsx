@@ -7,7 +7,7 @@ import type {
   SubscriptionPayment,
   SubscriptionPurpose,
 } from "@billsafi/contracts";
-import { Crown } from "lucide-react";
+import { Check, Crown, Minus } from "lucide-react";
 import {
   CREDIT_PACK,
   FREE_PLAN,
@@ -25,6 +25,7 @@ import { FormMessage } from "@/components/ui/form-message";
 import { apiPost, apiRequest } from "@/lib/api.client";
 import { ApiError } from "@/lib/api-error";
 import { formatMoney } from "@/lib/format";
+import { PLAN_COMPARISON, PRO_FEATURES, type PlanFeatureRow } from "@/lib/plan-features";
 
 const POLL_MS = 3000;
 const CURRENCY_KEY = "billsafi.priceCurrency";
@@ -131,6 +132,76 @@ function subscribeToCurrency(listener: () => void) {
 function localPhone(stored: string): string {
   const local = `0${stored.slice(4)}`;
   return `${local.slice(0, 4)} ${local.slice(4, 7)} ${local.slice(7)}`;
+}
+
+/** A check, a dash, or a value such as "Up to 5". */
+function PlanCell({ value }: { value: PlanFeatureRow["free"] }) {
+  if (value === true) {
+    return (
+      <>
+        <Check aria-hidden className="ml-auto size-4 text-teal" />
+        <span className="sr-only">Included</span>
+      </>
+    );
+  }
+  if (value === false) {
+    return (
+      <>
+        <Minus aria-hidden className="ml-auto size-4 text-sub" />
+        <span className="sr-only">Not included</span>
+      </>
+    );
+  }
+  return <span className="tabular-nums">{value}</span>;
+}
+
+/** Side-by-side list of what Free and Pro include. */
+function PlanComparison({ currentPlan }: { currentPlan: "free" | "pro" }) {
+  const planHeading = (plan: "free" | "pro") => (
+    <th scope="col" className="w-20 px-3 py-3 text-right align-top font-normal sm:w-36 sm:px-5">
+      <span className="inline-flex items-center gap-1.5">
+        {plan === "pro" && <Crown aria-hidden className="size-3.5 text-gold" />}
+        {plan === "pro" ? "Pro" : "Free"}
+      </span>
+      {currentPlan === plan && <span className="block text-accent">Your plan</span>}
+    </th>
+  );
+  return (
+    <section
+      aria-labelledby="compare-plans"
+      className="mt-4.5 overflow-hidden rounded-panel border border-line bg-panel"
+    >
+      <h2 id="compare-plans" className="px-5 py-4.75 text-base font-semibold">
+        What each plan includes
+      </h2>
+      <table className="w-full text-sm">
+        <thead className="bg-background text-left text-xs text-sub">
+          <tr>
+            <th scope="col" className="px-5 py-3 font-normal">
+              Feature
+            </th>
+            {planHeading("free")}
+            {planHeading("pro")}
+          </tr>
+        </thead>
+        <tbody>
+          {PLAN_COMPARISON.map((row) => (
+            <tr key={row.feature} className="border-t border-line">
+              <th scope="row" className="py-3.25 pr-3 pl-5 text-left font-normal sm:pr-5">
+                {row.feature}
+              </th>
+              <td className="px-3 py-3.25 text-right sm:px-5">
+                <PlanCell value={row.free} />
+              </td>
+              <td className="px-3 py-3.25 text-right sm:px-5">
+                <PlanCell value={row.pro} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
 }
 
 interface BillingViewProps {
@@ -417,11 +488,7 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
             <span className="text-sm font-normal tracking-normal text-sub">/ month</span>
           </p>
           <ul className="text-sm">
-            {[
-              `${PRO_PLAN.invoiceLimit} invoices per subscription month`,
-              "Covers all your businesses",
-              "PDFs, sharing, clients & payment recording",
-            ].map((feature) => (
+            {PRO_FEATURES.map((feature) => (
               <li key={feature} className="border-b border-line py-2.25 last:border-b-0">
                 {feature}
               </li>
@@ -467,6 +534,8 @@ export function BillingView({ billing, defaultPhone, businessNames }: BillingVie
           Buy credits
         </Button>
       </section>
+
+      <PlanComparison currentPlan={onPro ? "pro" : "free"} />
 
       {checkout && (
         <form
