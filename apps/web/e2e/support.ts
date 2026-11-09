@@ -80,3 +80,15 @@ export async function skipTour(page: Page) {
   await tour.getByRole("button", { name: "Skip tour" }).click();
   await expect(tour).toBeHidden();
 }
+
+// The API runs with the fake M-Pesa provider: payment confirms a few seconds after the request.
+export async function upgradeToPro(page: Page, name = "Wanjiku Kamau") {
+  await page.getByLabel(`Account menu for ${name}`).filter({ visible: true }).click();
+  await page.getByRole("link", { name: "Upgrade to Pro" }).click();
+  await waitUntilInteractive(page, "Continue with M-Pesa");
+  await page.getByRole("button", { name: "Continue with M-Pesa" }).click();
+  await page.getByRole("button", { name: "Send payment request" }).click();
+  await expect(page.getByRole("heading", { name: "Payment confirmed" })).toBeVisible({
+    timeout: 60_000,
+  });
+}

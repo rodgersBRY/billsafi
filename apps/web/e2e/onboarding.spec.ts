@@ -5,6 +5,7 @@ import {
   skipIntro,
   skipTour,
   uniqueEmail,
+  upgradeToPro,
   waitUntilInteractive,
 } from "./support";
 
@@ -60,8 +61,12 @@ test("new account sets up a business, payment details and lands on the overview"
 });
 
 test("an account can add and switch between businesses", async ({ page }) => {
+  test.setTimeout(90_000);
   await signUp(page, "Otieno Ouma", uniqueEmail("multi"));
   await createFirstBusiness(page);
+  // More than one business is a Pro feature (D085).
+  await upgradeToPro(page, "Otieno Ouma");
+  await page.reload();
 
   await page.getByRole("link", { name: "Add a business" }).click();
   await expect(page.getByRole("heading", { name: "Add another business" })).toBeVisible();
@@ -99,4 +104,20 @@ test("one account cannot open another account's business", async ({ page, browse
   await expect(other.getByRole("heading", { name: /We couldn.t find that page/ })).toBeVisible();
   await expect(other.getByText("Account A")).toHaveCount(0);
   await other.close();
+});
+
+test("a Free account with one business is sent to upgrade to add another", async ({ page }) => {
+  await signUp(page, "Achieng Odhiambo", uniqueEmail("cap"));
+  await createFirstBusiness(page);
+
+  await page.getByRole("link", { name: "Add a business" }).filter({ visible: true }).click();
+  await expect(page.getByRole("heading", { name: "Upgrade to Pro" })).toBeVisible();
+
+  // Opening onboarding directly shows the limit, not the form.
+  await page.goto("/onboarding");
+  await expect(page.getByRole("heading", { name: "Add another business" })).toBeVisible();
+  await expect(
+    page.getByText("The Free plan includes 1 business. Upgrade to Pro to add more."),
+  ).toBeVisible();
+  await expect(page.getByLabel("Display name")).toHaveCount(0);
 });
