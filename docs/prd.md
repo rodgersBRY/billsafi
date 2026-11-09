@@ -54,7 +54,7 @@ Confirmed on 2026-10-15 when the user said “adopt this” in response to the s
 Confirmed on 2026-10-15 in the continuation chat.
 
 - Skip email verification for V1.
-- Support multiple businesses per account, with business data isolated by tenant.
+- Support multiple businesses per account, with business data isolated by tenant. Free accounts get 1 business; more needs Pro (D085).
 
 Better Auth is the selected authentication framework, confirmed on 2026-10-15. Detailed ownership rules, limits on business count, and subscription billing details are defined below. Business switching and V1 owner-only access are confirmed below. The organization plugin and specific integration approach have not yet been approved.
 
@@ -228,7 +228,7 @@ The user's M-Pesa account type and integration eligibility/credentials have not 
 - Payment change history display is settled in D049. Whether a reversed payment can be reinstated remains open. Refunds are deferred beyond V1.
 - Share copy, link expiry, public visibility, and the unavailable page are settled in D049.
 - Subscription collection route for the personal M-Pesa number, reminder timing and channel, tax/fee presentation, refund policy, Pro-cap behavior, and accounting for mid-month Pro reactivation and repeated plan changes.
-- Remaining business ownership rules, business limits and deletion/archival; multiple businesses per account and owner-only management are confirmed, with team access deferred.
+- Remaining business ownership rules and deletion/archival; multiple businesses per account and owner-only management are confirmed, with team access deferred. Business limits: Free gets 1, Pro unlimited (D085).
 - Additional reporting, supported currencies beyond KES, and measurable release criteria.
 
 ## Current subscription collection constraint

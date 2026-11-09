@@ -95,7 +95,7 @@ Draft and Cancelled invoices are excluded from balance totals. Totals use effect
 
 ## Confirmed account scope
 
-Confirmed on 2026-10-15: email verification is skipped for V1, and an account supports multiple businesses. Users create their first business after registration and use a business selector to switch businesses or add another. Each business has separate clients, invoices, payment instructions, numbering, and dashboard totals. In V1 the owner manages all their businesses alone; team invitations and staff permissions are deferred. Remaining ownership rules, business limits, business deletion/archival, remain to be finalized. Account recovery is confirmed below.
+Confirmed on 2026-10-15: email verification is skipped for V1, and an account supports multiple businesses. Users create their first business after registration and use a business selector to switch businesses or add another. Each business has separate clients, invoices, payment instructions, numbering, and dashboard totals. In V1 the owner manages all their businesses alone; team invitations and staff permissions are deferred. Free accounts get 1 business and Pro has no cap (D085). Remaining ownership rules and business deletion/archival remain to be finalized. Account recovery is confirmed below.
 
 ## Confirmed password recovery journey
 
