@@ -118,6 +118,14 @@ export class AllowanceService {
     return locked!;
   }
 
+  /** Locks the account like `lockAccount` and reports whether Pro is active at `at`. */
+  async lockIsPro(tx: Transaction, userId: string, at = new Date()): Promise<boolean> {
+    const subscription = await this.lockAccount(tx, userId);
+    return Boolean(
+      subscription.anchorAt && proPeriodAt(subscription.anchorAt, subscription.paidMonths, at),
+    );
+  }
+
   /**
    * Checks the remaining allowance under the account lock and returns what to
    * record the issuance against: the plan period while it has room, otherwise
