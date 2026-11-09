@@ -1,6 +1,8 @@
 import type { INestApplication } from "@nestjs/common";
+import { type DatabaseConnection, eq, schema } from "@billsafi/db";
 import request from "supertest";
-import { createTestApp, signUp } from "./support/app.js";
+import { DATABASE } from "../src/database/database.module.js";
+import { createExtraBusiness, createTestApp, makePro, signUp } from "./support/app.js";
 
 const newBusiness = {
   profileType: "individual",
@@ -18,8 +20,11 @@ describe("businesses", () => {
 
   beforeAll(async () => {
     ({ app } = await createTestApp());
-    owner = (await signUp(app)).cookie;
     stranger = (await signUp(app)).cookie;
+  });
+
+  beforeEach(async () => {
+    owner = (await signUp(app)).cookie;
   });
 
   afterAll(async () => {
@@ -76,7 +81,9 @@ describe("businesses", () => {
   it("supports several businesses per account and lists only the account's own", async () => {
     const cookie = (await signUp(app)).cookie;
     const first = await createBusiness(cookie);
-    const second = await createBusiness(cookie, { ...newBusiness, displayName: "Second Studio" });
+    const second = {
+      id: await createExtraBusiness(app, cookie, { displayName: "Second Studio" }),
+    };
     await createBusiness(stranger, { ...newBusiness, displayName: "Not yours" });
 
     const list = await api().get("/api/v1/businesses").set("Cookie", cookie).expect(200);
@@ -140,5 +147,73 @@ describe("businesses", () => {
       { method: "mpesa_personal", accountNumber: "+254712345678" },
       { method: "bank_transfer", accountNumber: null },
     ]);
+  });
+
+  describe("Free plan cap (D085)", () => {
+    it("blocks a second business on Free", async () => {
+      const { cookie } = await signUp(app);
+      await createBusiness(cookie);
+      const blocked = await api()
+        .post("/api/v1/businesses")
+        .set("Cookie", cookie)
+        .send({ ...newBusiness, displayName: "Second Studio" })
+        .expect(409);
+      expect(blocked.body).toMatchObject({
+        code: "BUSINESS_LIMIT",
+        message: "The Free plan includes 1 business. Upgrade to Pro to add more.",
+      });
+      const list = await api().get("/api/v1/businesses").set("Cookie", cookie).expect(200);
+      expect(list.body).toHaveLength(1);
+    });
+
+    it("lets Pro accounts add more businesses", async () => {
+      const { cookie, email } = await signUp(app);
+      await createBusiness(cookie);
+      await makePro(app, email);
+      await createBusiness(cookie, { ...newBusiness, displayName: "Second Studio" });
+      await createBusiness(cookie, { ...newBusiness, displayName: "Third Studio" });
+    });
+
+    it("keeps existing businesses usable after Pro ends and blocks new ones", async () => {
+      const { cookie, email } = await signUp(app);
+      const first = await createBusiness(cookie);
+      await makePro(app, email);
+      const second = await createBusiness(cookie, { ...newBusiness, displayName: "Second Studio" });
+
+      // Pro ended: move the paid month into the past.
+      const db = app.get<DatabaseConnection>(DATABASE).db;
+      const [user] = await db.select().from(schema.users).where(eq(schema.users.email, email));
+      const lapsed = new Date(Date.now() - 1000 * 60 * 60 * 24 * 90);
+      await db
+        .update(schema.subscriptions)
+        .set({ anchorAt: lapsed, paidUntil: new Date(lapsed.getTime() + 1000 * 60 * 60 * 24 * 30) })
+        .where(eq(schema.subscriptions.userId, user!.id));
+
+      for (const business of [first, second]) {
+        await api().get(`/api/v1/businesses/${business.id}`).set("Cookie", cookie).expect(200);
+        await api()
+          .patch(`/api/v1/businesses/${business.id}`)
+          .set("Cookie", cookie)
+          .send({ defaultPaymentTermsDays: 30 })
+          .expect(200);
+      }
+      const blocked = await api()
+        .post("/api/v1/businesses")
+        .set("Cookie", cookie)
+        .send({ ...newBusiness, displayName: "Third Studio" })
+        .expect(409);
+      expect(blocked.body.code).toBe("BUSINESS_LIMIT");
+    });
+
+    it("lets only one of two parallel creates through on Free", async () => {
+      const { cookie } = await signUp(app);
+      const send = (displayName: string) =>
+        api()
+          .post("/api/v1/businesses")
+          .set("Cookie", cookie)
+          .send({ ...newBusiness, displayName });
+      const statuses = (await Promise.all([send("One"), send("Two")])).map((r) => r.status);
+      expect(statuses.sort()).toEqual([201, 409]);
+    });
   });
 });

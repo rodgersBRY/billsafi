@@ -17,7 +17,7 @@ import {
   schema,
   sql,
 } from "@billsafi/db";
-import { canAddSavedItem, FREE_PLAN, newlyUsedSavedItems, proPeriodAt } from "@billsafi/domain";
+import { canAddSavedItem, FREE_PLAN, newlyUsedSavedItems } from "@billsafi/domain";
 import type { z } from "zod";
 import { AllowanceService } from "../billing/allowance.service.js";
 import { containsPattern } from "../common/like-pattern.js";
@@ -160,12 +160,7 @@ export class SavedItemsService {
       .from(businesses)
       .where(eq(businesses.id, businessId));
     const userId = business!.ownerUserId;
-    const subscription = await this.allowance.lockAccount(tx, userId);
-    const isPro = Boolean(
-      subscription.anchorAt &&
-      proPeriodAt(subscription.anchorAt, subscription.paidMonths, new Date()),
-    );
-    if (isPro) return;
+    if (await this.allowance.lockIsPro(tx, userId)) return;
     const [row] = await tx
       .select({ count: sql<number>`count(*)::int` })
       .from(savedItems)

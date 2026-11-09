@@ -1,5 +1,11 @@
 import { expect, type Page, test } from "@playwright/test";
-import { createFirstBusiness, signUp, uniqueEmail, waitUntilInteractive } from "./support";
+import {
+  createFirstBusiness,
+  signUp,
+  uniqueEmail,
+  upgradeToPro,
+  waitUntilInteractive,
+} from "./support";
 
 const main = (page: Page) => page.getByRole("main");
 const field = (page: Page, label: string) =>
@@ -12,18 +18,6 @@ async function addClient(page: Page) {
   await dialog.getByLabel("Phone").fill("0711 000 111");
   await dialog.getByRole("button", { name: "Save client" }).click();
   await expect(field(page, "Client")).toHaveValue(/.+/);
-}
-
-// The API runs with the fake M-Pesa provider: payment confirms a few seconds after the request.
-async function upgradeToPro(page: Page) {
-  await page.getByLabel("Account menu for Wanjiku Kamau").filter({ visible: true }).click();
-  await page.getByRole("link", { name: "Upgrade to Pro" }).click();
-  await waitUntilInteractive(page, "Continue with M-Pesa");
-  await page.getByRole("button", { name: "Continue with M-Pesa" }).click();
-  await page.getByRole("button", { name: "Send payment request" }).click();
-  await expect(page.getByRole("heading", { name: "Payment confirmed" })).toBeVisible({
-    timeout: 60_000,
-  });
 }
 
 const nav = (page: Page) => page.getByRole("navigation", { name: "Main" });

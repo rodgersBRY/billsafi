@@ -1,10 +1,13 @@
 import "reflect-metadata";
 import type { INestApplication } from "@nestjs/common";
-import type { DatabaseConnection } from "@billsafi/db";
+import { createBusinessSchema } from "@billsafi/contracts";
+import { type DatabaseConnection, eq, schema } from "@billsafi/db";
+import { addNairobiMonths } from "@billsafi/domain";
 import { Test, type TestingModuleBuilder } from "@nestjs/testing";
 import request from "supertest";
 import { AppModule } from "../../src/app.module.js";
 import { configureApp } from "../../src/app.setup.js";
+import { DATABASE } from "../../src/database/database.module.js";
 import { loadRootEnvFile } from "../../src/config/env-file.js";
 import { AdminRoleSyncService } from "../../src/admin/access/admin-role-sync.service.js";
 import {
@@ -122,6 +125,44 @@ export async function createBusiness(
     .send({ ...sampleBusiness, ...overrides })
     .expect(201);
   return response.body.id;
+}
+
+/**
+ * Inserts a business straight into the database, like one made before the
+ * Free cap (D085). Use it when a test needs a Free account with several businesses.
+ */
+export async function createExtraBusiness(
+  app: INestApplication,
+  cookie: string,
+  overrides: Record<string, unknown> = {},
+): Promise<string> {
+  const session = await request(app.getHttpServer())
+    .get("/api/v1/auth/get-session")
+    .set("Cookie", cookie)
+    .expect(200);
+  const db = app.get<DatabaseConnection>(DATABASE).db;
+  const [business] = await db
+    .insert(schema.businesses)
+    .values({
+      ...createBusinessSchema.parse({ ...sampleBusiness, ...overrides }),
+      ownerUserId: session.body.user.id as string,
+    })
+    .returning({ id: schema.businesses.id });
+  return business!.id;
+}
+
+/** Gives the account one paid Pro month starting now. */
+export async function makePro(app: INestApplication, email: string): Promise<void> {
+  const db = app.get<DatabaseConnection>(DATABASE).db;
+  const [user] = await db.select().from(schema.users).where(eq(schema.users.email, email));
+  const anchorAt = new Date();
+  await db
+    .insert(schema.subscriptions)
+    .values({ userId: user!.id, anchorAt, paidMonths: 1, paidUntil: addNairobiMonths(anchorAt, 1) })
+    .onConflictDoUpdate({
+      target: schema.subscriptions.userId,
+      set: { anchorAt, paidMonths: 1, paidUntil: addNairobiMonths(anchorAt, 1) },
+    });
 }
 
 export const sampleClient = {

@@ -7,7 +7,7 @@ export const FREE_FEATURES = [
   "PDF, link, WhatsApp and email sharing",
   "Saved clients and payment tracking",
   `Up to ${FREE_PLAN.savedItemLimit} saved line items`,
-  "More than one business on one account",
+  `${FREE_PLAN.businessLimit} business`,
 ];
 
 /** What Pro adds on top of Free. */
@@ -16,7 +16,7 @@ export const PRO_FEATURES = [
   "Everything in Free",
   "Recurring invoices on a schedule",
   "Unlimited saved line items",
-  "One plan covers all your businesses",
+  "Unlimited businesses, one plan",
   "No automatic charges",
 ];
 
@@ -42,6 +42,6 @@ export const PLAN_COMPARISON: PlanFeatureRow[] = [
     pro: "Unlimited",
   },
   { feature: "Recurring invoices", free: false, pro: true },
-  { feature: "Several businesses on one account", free: true, pro: true },
+  { feature: "Businesses", free: String(FREE_PLAN.businessLimit), pro: "Unlimited" },
   { feature: `Extra invoices, ${CREDIT_PACK.invoices} per pack`, free: true, pro: true },
 ];

@@ -896,3 +896,16 @@ User: asked how to tell users about new features, and chose an admin-written pan
 - The feed (`GET /api/v1/whats-new`, newest 20) is fetched in the browser into a small store shared by the sidebar button and the panel. The panel renders in the main area because the sidebar is hidden on small screens. The feed sends `Cache-Control: private, no-store`, since unread depends on the user.
 - Browser tests mock the feed with `page.route`, because a real pop-up entry is global and would open in parallel tests.
 - Out of scope: images, emails, audience targeting, linking entries to product tours.
+
+## D085 - Free accounts get one business
+
+Status: confirmed on 2026-11-09 by the user.
+
+User: asked to cap the number of businesses on the Free plan, chose a cap of 1, and asked that existing accounts keep the businesses they already have.
+
+- Free accounts can create 1 business. Pro has no cap. The invoice allowance was already shared across businesses (D044), so the cap is a reason to upgrade, not a usage limit.
+- The check runs only in `BusinessesService.create`, behind the same account lock as the allowance and saved items, so two parallel requests can't both pass. Over the cap the API returns 409 `BUSINESS_LIMIT`.
+- Free accounts created before the cap keep all their businesses, fully usable. So do accounts whose Pro ends. They can't add another until they are on Pro. Nothing else reads the count, and there is no migration.
+- There is no business delete or archive, so an account above the cap stays above it.
+- For Free accounts at the cap, the sidebar's "Add a business" link shows a crown and opens billing. `/onboarding` shows a short limit notice instead of the form.
+- API tests that need a Free account with several businesses insert the extra ones straight into the database (`createExtraBusiness`).
