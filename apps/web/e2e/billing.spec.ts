@@ -13,6 +13,8 @@ test("upgrade to Pro with M-Pesa, then cancel and keep it", async ({ page }) => 
   await page.getByRole("link", { name: "Upgrade to Pro" }).click();
   await expect(page.getByRole("heading", { name: "One plan. All your businesses." })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Upgrade to Pro" })).toBeVisible();
+  const plans = page.getByRole("region", { name: "What each plan includes" });
+  await expect(plans.getByRole("rowheader", { name: "Recurring invoices" })).toBeVisible();
   await waitUntilInteractive(page, "Continue with M-Pesa");
 
   await page.getByRole("button", { name: "Continue with M-Pesa" }).click();
