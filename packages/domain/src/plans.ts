@@ -1,7 +1,12 @@
 import { money, type MoneyInput } from "./money.js";
 
-/** Free: 10 invoices per Nairobi calendar month across all businesses (D019, D044). */
-export const FREE_PLAN = { code: "free", invoiceLimit: 10, savedItemLimit: 5 } as const;
+/** Free: 10 invoices per Nairobi calendar month across all businesses, 1 business (D019, D044, D085). */
+export const FREE_PLAN = {
+  code: "free",
+  invoiceLimit: 10,
+  savedItemLimit: 5,
+  businessLimit: 1,
+} as const;
 
 /** Pro: USD 4 per anniversary month, 100 invoices per month (D020, D044). */
 export const PRO_PLAN = { code: "pro", invoiceLimit: 100, priceUsd: "4.00" } as const;
@@ -30,6 +35,14 @@ export function usdToKes(priceUsd: MoneyInput, usdKesRate: MoneyInput): string {
  */
 export function canAddSavedItem(isPro: boolean, activeCount: number): boolean {
   return isPro || activeCount < FREE_PLAN.savedItemLimit;
+}
+
+/**
+ * Free accounts can create 1 business; Pro has no cap (D085).
+ * Businesses above the cap stay usable; only new ones are blocked.
+ */
+export function canAddBusiness(isPro: boolean, ownedCount: number): boolean {
+  return isPro || ownedCount < FREE_PLAN.businessLimit;
 }
 
 /**

@@ -1,7 +1,13 @@
 import type { INestApplication } from "@nestjs/common";
 import { nairobiDate } from "@billsafi/domain";
 import request from "supertest";
-import { createBusiness, createClient, createTestApp, signUp } from "./support/app.js";
+import {
+  createBusiness,
+  createClient,
+  createExtraBusiness,
+  createTestApp,
+  signUp,
+} from "./support/app.js";
 
 const today = nairobiDate(new Date());
 
@@ -82,7 +88,7 @@ describe("product tours and getting started", () => {
 
     // Steps done in a second business still count for the account.
     await createBusiness(app, cookie);
-    const businessId = await createBusiness(app, cookie, { displayName: "Second" });
+    const businessId = await createExtraBusiness(app, cookie, { displayName: "Second" });
     const clientId = await createClient(app, cookie, businessId);
     expect(await progress()).toMatchObject({ addClient: true, createInvoice: false });
 

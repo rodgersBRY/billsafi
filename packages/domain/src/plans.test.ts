@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { canAddSavedItem, CREDIT_PACK, newlyUsedSavedItems, PRO_PLAN, usdToKes } from "./plans.js";
+import {
+  canAddBusiness,
+  canAddSavedItem,
+  CREDIT_PACK,
+  FREE_PLAN,
+  newlyUsedSavedItems,
+  PRO_PLAN,
+  usdToKes,
+} from "./plans.js";
 
 describe("usdToKes", () => {
   it("rounds up to a whole shilling", () => {
@@ -20,6 +28,23 @@ describe("canAddSavedItem", () => {
 
   it("lets Pro accounts add any number", () => {
     expect(canAddSavedItem(true, 500)).toBe(true);
+  });
+});
+
+describe("canAddBusiness", () => {
+  it("lets a Free account create its first business only", () => {
+    expect(FREE_PLAN.businessLimit).toBe(1);
+    expect(canAddBusiness(false, 0)).toBe(true);
+    expect(canAddBusiness(false, 1)).toBe(false);
+  });
+
+  it("blocks Free accounts that are already over the cap", () => {
+    expect(canAddBusiness(false, 3)).toBe(false);
+  });
+
+  it("lets Pro accounts add any number", () => {
+    expect(canAddBusiness(true, 1)).toBe(true);
+    expect(canAddBusiness(true, 50)).toBe(true);
   });
 });
 

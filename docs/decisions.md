@@ -545,7 +545,7 @@ User: "I want to introduce a product tour to this system once a user is authenti
 Signed-in users now get a short tour of the Overview page and a checklist of first steps. The design is in [the product tour spec](superpowers/specs/2026-10-23-product-tour-design.md).
 
 - Every account sees the tour once, including accounts created before this change. It starts on the Overview page after the intro splash.
-- The tour has six steps: welcome, the totals, Create invoice, the Invoices and Clients links, the usage meter, and the account menu. Version 2 adds Quotes, Recurring and Items (D083). When no business on the account has payment instructions, the last step also points to Settings.
+- The tour has six steps: welcome, the totals, Create invoice, the Invoices and Clients links, the usage meter, and the account menu. Version 2 adds Quotes, Recurring and Items (D083). A What's new step before the account menu came with D084, without a version bump. When no business on the account has payment instructions, the last step also points to Settings.
 - On small screens, steps that point at the hidden sidebar show as a centred card.
 - Finishing or skipping is saved on the server in `user_product_tours`, so the tour does not return on another device. "Take the tour" in the account menu replays it.
 - Each tour has a version. Raising it shows the tour again to everyone.
@@ -880,12 +880,13 @@ Status: confirmed on 2026-11-08 by the user.
 - The Recurring step says it's part of Pro, since Free accounts see the link too.
 - The tour version goes to 2, so every account sees it once more, including people who finished or skipped version 1.
 
-## D084 - What's new panel for product updates
+## D084 - What's new panel for features and announcements
 
 Status: proposed on 2026-11-08, for review.
 
 User: asked how to tell users about new features, and chose an admin-written panel with a sidebar count and a pop-up for big releases.
 
+- An entry can be a new feature or any announcement users should see, such as a change, downtime or a pricing update.
 - Admins write entries at `/admin/whats-new`: title (80), body (500, plain text), an optional app page to link to, Pro and Pop up flags, and an optional publish time. No publish time is a draft. A future one is scheduled. The page groups entries under Drafts, Scheduled and Live, and has a "What's new" nav item.
 - Admin routes are `GET` and `POST /api/v1/admin/whats-new`, `PUT /api/v1/admin/whats-new/:id` and `POST /api/v1/admin/whats-new/:id/delete`. The `PUT` takes the full entry, and leaving out `publishedAt` returns it to draft. Delete is a `POST` so the shared confirm dialog can call it. A malformed id gets 404. A `PUT` with no changes gets 409 `NO_CHANGE` and no audit row.
 - Every change needs a reason and is audited through the admin action runner.
@@ -896,3 +897,16 @@ User: asked how to tell users about new features, and chose an admin-written pan
 - The feed (`GET /api/v1/whats-new`, newest 20) is fetched in the browser into a small store shared by the sidebar button and the panel. The panel renders in the main area because the sidebar is hidden on small screens. The feed sends `Cache-Control: private, no-store`, since unread depends on the user.
 - Browser tests mock the feed with `page.route`, because a real pop-up entry is global and would open in parallel tests.
 - Out of scope: images, emails, audience targeting, linking entries to product tours.
+
+## D085 - Free accounts get one business
+
+Status: confirmed on 2026-11-09 by the user.
+
+User: asked to cap the number of businesses on the Free plan, chose a cap of 1, and asked that existing accounts keep the businesses they already have.
+
+- Free accounts can create 1 business. Pro has no cap. The invoice allowance was already shared across businesses (D044), so the cap is a reason to upgrade, not a usage limit.
+- The check runs only in `BusinessesService.create`, behind the same account lock as the allowance and saved items, so two parallel requests can't both pass. Over the cap the API returns 409 `BUSINESS_LIMIT`.
+- Free accounts created before the cap keep all their businesses, fully usable. So do accounts whose Pro ends. They can't add another until they are on Pro. Nothing else reads the count, and there is no migration.
+- There is no business delete or archive, so an account above the cap stays above it.
+- For Free accounts at the cap, the sidebar's "Add a business" link shows a crown and opens billing. `/onboarding` shows a short limit notice instead of the form.
+- API tests that need a Free account with several businesses insert the extra ones straight into the database (`createExtraBusiness`).

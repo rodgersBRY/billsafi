@@ -36,8 +36,8 @@ const STEPS = [
     body: "Add your business details and payment instructions once. Every invoice uses them.",
   },
   {
-    title: "Create and share",
-    body: "Add your client and your services, then send a PDF or a link to the invoice.",
+    title: "Quote, invoice and share",
+    body: "Send a quote first if you like. Pick your client and saved services, then share a PDF or a link.",
   },
   {
     title: "Record payments",
@@ -64,7 +64,17 @@ const FAQS = [
   {
     question: "How do I share an invoice?",
     answer:
-      "Download it as a PDF, or copy a link to the online version and send it however you like, by email, WhatsApp, or text.",
+      "Download it as a PDF, or share a link to the online version. The WhatsApp and email buttons open a message with the link ready to send.",
+  },
+  {
+    question: "Can I send a quote before the work starts?",
+    answer:
+      "Yes, on both plans. Your client opens the quote link and accepts or declines it by typing their name. Turn an accepted quote into an invoice in one click. Quotes don’t count towards your monthly invoices.",
+  },
+  {
+    question: "Can I bill a retainer every month?",
+    answer:
+      "Yes, with Pro. Set an invoice to repeat weekly, monthly, quarterly, or yearly. BillSafi makes each one on time and emails you so you can share it.",
   },
   {
     question: "Does BillSafi replace tax or accounting software?",
@@ -73,7 +83,7 @@ const FAQS = [
   },
   {
     question: "What does Pro cost?",
-    answer: `USD ${Number(PRO_PLAN.priceUsd)} a month for ${PRO_PLAN.invoiceLimit} invoices. If you need more in a busy month, add ${CREDIT_PACK.invoices} invoices for USD ${Number(CREDIT_PACK.priceUsd)}. Extra invoices don’t expire. Pro is currently paid through M-Pesa.`,
+    answer: `USD ${Number(PRO_PLAN.priceUsd)} a month for ${PRO_PLAN.invoiceLimit} invoices, recurring invoices, and unlimited saved line items. If you need more in a busy month, add ${CREDIT_PACK.invoices} invoices for USD ${Number(CREDIT_PACK.priceUsd)}. Extra invoices don’t expire. Pro is currently paid through M-Pesa.`,
   },
   {
     question: "Can I sign up today?",
@@ -105,8 +115,8 @@ function Hero({ appOrigin = "" }: { appOrigin?: string }) {
           <em>All safi.</em>
         </h1>
         <p>
-          Create professional invoices, share them as a PDF or a link, and see who has paid and who
-          still owes you.
+          Send quotes, turn them into professional invoices, share them as a PDF or a link, and see
+          who has paid and who still owes you.
         </p>
         <div className={s.heroActions}>
           <Link className={`${s.button} ${s.dark}`} href={`${appOrigin}/free-invoice-generator`}>
@@ -304,9 +314,9 @@ function Benefits() {
           <span className={s.featureIcon}>
             <FileText className={s.icon} aria-hidden />
           </span>
-          <h3>Professional invoices</h3>
+          <h3>Quotes and invoices</h3>
           <p>
-            Your details, line items, totals, due date, and payment instructions on every invoice.
+            Your details, line items, totals, and payment instructions on every quote and invoice.
           </p>
         </article>
         <article>
@@ -322,7 +332,8 @@ function Benefits() {
           </span>
           <h3>Everything in one place</h3>
           <p>
-            Invoices, client details, and payments sit together, even across more than one business.
+            Quotes, invoices, clients, saved services, and payments sit together, even across more
+            than one business.
           </p>
         </article>
       </div>
@@ -391,13 +402,15 @@ function Features({ appOrigin = "" }: { appOrigin?: string }) {
             becomes <em>already sent.</em>
           </h2>
           <p>
-            Add your client, list your work, and set a due date. Share a polished PDF or a link to
-            the invoice online.
+            Add your client, pick your work from your saved services, and set a due date. Share a
+            polished PDF or a link on WhatsApp or email.
           </p>
           <Checks
             items={[
               "Clear line items, totals, and due dates",
-              "Client details saved for next time",
+              "Saved services and client details fill in for you",
+              "Quotes clients accept online, then become invoices",
+              "Retainers repeat on a schedule with Pro",
               "Bank or M-Pesa details right on the invoice",
             ]}
           />

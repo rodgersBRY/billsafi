@@ -1,7 +1,7 @@
 "use client";
 
 import type { Business } from "@billsafi/contracts";
-import { Building2, Plus } from "lucide-react";
+import { Building2, Crown, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId } from "react";
@@ -13,9 +13,12 @@ const classes = sidebarClasses("group");
 export function BusinessSwitcher({
   businesses,
   currentId,
+  canAddBusiness,
 }: {
   businesses: Pick<Business, "id" | "displayName">[];
   currentId: string;
+  /** False for Free accounts at the business cap (D085). The link then goes to billing. */
+  canAddBusiness: boolean;
 }) {
   const router = useRouter();
   const id = useId();
@@ -51,10 +54,15 @@ export function BusinessSwitcher({
           ))}
         </select>
         <Link
-          href="/onboarding"
+          href={canAddBusiness ? "/onboarding" : `/${currentId}/billing`}
+          title={canAddBusiness ? undefined : "Pro feature"}
           className="mt-2 inline-flex items-center gap-1.5 text-xs whitespace-nowrap text-accent hover:underline"
         >
-          <Plus aria-hidden className="size-3.5" />
+          {canAddBusiness ? (
+            <Plus aria-hidden className="size-3.5" />
+          ) : (
+            <Crown aria-hidden className="size-3.5 text-gold" />
+          )}
           Add a business
         </Link>
       </div>

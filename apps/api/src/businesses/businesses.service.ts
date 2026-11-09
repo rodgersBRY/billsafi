@@ -1,13 +1,21 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import type {
   CreateBusiness,
   createPaymentInstructionSchema,
   updateBusinessSchema,
 } from "@billsafi/contracts";
-import { and, asc, type DatabaseConnection, eq, schema } from "@billsafi/db";
+import { and, asc, type DatabaseConnection, eq, schema, sql } from "@billsafi/db";
+import { canAddBusiness, FREE_PLAN } from "@billsafi/domain";
 import type { z } from "zod";
+import { AllowanceService } from "../billing/allowance.service.js";
 import { DATABASE } from "../database/database.module.js";
-import type { Executor } from "../database/transaction.js";
+import type { Executor, Transaction } from "../database/transaction.js";
 
 const { businesses, businessPaymentInstructions, businessLogos } = schema;
 
@@ -24,7 +32,10 @@ export function logoContentType(data: Buffer): "image/png" | "image/jpeg" | null
 
 @Injectable()
 export class BusinessesService {
-  constructor(@Inject(DATABASE) private readonly connection: DatabaseConnection) {}
+  constructor(
+    @Inject(DATABASE) private readonly connection: DatabaseConnection,
+    private readonly allowance: AllowanceService,
+  ) {}
 
   private get db() {
     return this.connection.db;
@@ -38,8 +49,27 @@ export class BusinessesService {
       .orderBy(asc(businesses.createdAt));
   }
 
-  async create(ownerUserId: string, input: CreateBusiness, db: Executor = this.db) {
-    const [business] = await db
+  /** Creates a business behind the account lock so the Free cap holds under parallel requests (D085). */
+  async create(
+    ownerUserId: string,
+    input: CreateBusiness,
+    tx?: Transaction,
+  ): Promise<typeof businesses.$inferSelect> {
+    if (!tx) return this.db.transaction((t) => this.create(ownerUserId, input, t));
+
+    const isPro = await this.allowance.lockIsPro(tx, ownerUserId);
+    const [owned] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(businesses)
+      .where(eq(businesses.ownerUserId, ownerUserId));
+    if (!canAddBusiness(isPro, owned!.count)) {
+      throw new ConflictException({
+        code: "BUSINESS_LIMIT",
+        message: `The Free plan includes ${FREE_PLAN.businessLimit} business. Upgrade to Pro to add more.`,
+      });
+    }
+
+    const [business] = await tx
       .insert(businesses)
       .values({ ...input, ownerUserId })
       .returning();
